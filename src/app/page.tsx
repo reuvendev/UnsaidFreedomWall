@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
-import { collection, getDocs, query, orderBy, doc, updateDoc, increment, addDoc, serverTimestamp } from 'firebase/firestore';
+import { collection, onSnapshot, query, orderBy, doc, updateDoc, increment, addDoc, serverTimestamp } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 
 export interface PostProps {
@@ -86,49 +86,48 @@ export default function HomePage() {
       // Ignore storage errors
     }
 
-    async function fetchPosts() {
-      try {
-        const q = query(collection(db, "posts"), orderBy("createdAt", "desc"));
-        const querySnapshot = await getDocs(q);
-        const fetchedPosts: PostProps[] = [];
+    // Set up real-time listener with onSnapshot
+    const q = query(collection(db, "posts"), orderBy("createdAt", "desc"));
+    
+    const unsubscribe = onSnapshot(q, (querySnapshot) => {
+      const fetchedPosts: PostProps[] = [];
+      
+      querySnapshot.forEach((docSnap) => {
+        const data = docSnap.data();
         
-        querySnapshot.forEach((docSnap) => {
-          const data = docSnap.data();
-          
-          // Format date and time neatly (e.g., "Aug 19, 2026, 2:30 PM")
-          let formattedDate = "Just now";
-          if (data.createdAt) {
-            const dateObj = data.createdAt.toDate();
-            formattedDate = dateObj.toLocaleDateString([], { 
-              month: 'short', 
-              day: 'numeric', 
-              year: 'numeric' 
-            }) + ' at ' + dateObj.toLocaleTimeString([], { 
-              hour: '2-digit', 
-              minute: '2-digit' 
-            });
-          }
-
-          fetchedPosts.push({
-            id: docSnap.id,
-            authorAlias: data.authorAlias || "UNSAID #00000",
-            content: data.content || "",
-            category: data.category || "thoughts",
-            createdAt: formattedDate,
-            upvotes: data.upvotes || 0,
-            replies: data.replies || 0,
+        let formattedDate = "Just now";
+        if (data.createdAt) {
+          const dateObj = data.createdAt.toDate();
+          formattedDate = dateObj.toLocaleDateString([], { 
+            month: 'short', 
+            day: 'numeric', 
+            year: 'numeric' 
+          }) + ' at ' + dateObj.toLocaleTimeString([], { 
+            hour: '2-digit', 
+            minute: '2-digit' 
           });
+        }
+
+        fetchedPosts.push({
+          id: docSnap.id,
+          authorAlias: data.authorAlias || "UNSAID #00000",
+          content: data.content || "",
+          category: data.category || "thoughts",
+          createdAt: formattedDate,
+          upvotes: data.upvotes || 0,
+          replies: data.replies || 0,
         });
+      });
 
-        setPosts(fetchedPosts);
-      } catch (error) {
-        console.error("Error fetching posts:", error);
-      } finally {
-        setLoading(false);
-      }
-    }
+      setPosts(fetchedPosts);
+      setLoading(false);
+    }, (error) => {
+      console.error("Error listening to posts:", error);
+      setLoading(false);
+    });
 
-    fetchPosts();
+    // Clean up the listener when the component unmounts
+    return () => unsubscribe();
   }, []);
 
   const handleVoteToggle = async (id: string) => {
@@ -154,12 +153,6 @@ export default function HomePage() {
 
       setVotedPosts(updatedVotes);
       localStorage.setItem('unsaid_voted_posts', JSON.stringify(updatedVotes));
-
-      setPosts((prev) =>
-        prev.map((post) =>
-          post.id === id ? { ...post, upvotes: Math.max(0, post.upvotes + voteChange) } : post
-        )
-      );
     } catch (error) {
       console.error("Error updating vote:", error);
     } finally {
@@ -299,7 +292,7 @@ export default function HomePage() {
         {/* Feed List */}
         {loading ? (
           <div className="py-16 text-center font-mono text-sm text-neutral-400 animate-pulse">
-            Loading live entries from Firestore...
+            Connecting to live feed...
           </div>
         ) : (
           <div className="space-y-8">
@@ -314,7 +307,6 @@ export default function HomePage() {
                     <div className="flex items-center gap-2 font-mono text-[11px] uppercase tracking-wider">
                       <span className="font-bold text-neutral-900">{post.authorAlias}</span>
                       <span className="text-neutral-300">•</span>
-                      {/* Displays both date and time now */}
                       <span className="text-neutral-400">{post.createdAt}</span>
                     </div>
                     <span className="text-[10px] font-mono uppercase tracking-widest bg-neutral-100 text-neutral-600 px-2.5 py-1 rounded">
