@@ -94,12 +94,27 @@ export default function HomePage() {
         
         querySnapshot.forEach((docSnap) => {
           const data = docSnap.data();
+          
+          // Format date and time neatly (e.g., "Aug 19, 2026, 2:30 PM")
+          let formattedDate = "Just now";
+          if (data.createdAt) {
+            const dateObj = data.createdAt.toDate();
+            formattedDate = dateObj.toLocaleDateString([], { 
+              month: 'short', 
+              day: 'numeric', 
+              year: 'numeric' 
+            }) + ' at ' + dateObj.toLocaleTimeString([], { 
+              hour: '2-digit', 
+              minute: '2-digit' 
+            });
+          }
+
           fetchedPosts.push({
             id: docSnap.id,
             authorAlias: data.authorAlias || "UNSAID #00000",
             content: data.content || "",
             category: data.category || "thoughts",
-            createdAt: data.createdAt ? new Date(data.createdAt.toDate()).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : "Just now",
+            createdAt: formattedDate,
             upvotes: data.upvotes || 0,
             replies: data.replies || 0,
           });
@@ -232,7 +247,7 @@ export default function HomePage() {
         <div className="mb-12">
           <p className="font-mono text-[11px] font-bold text-neutral-400 tracking-widest uppercase mb-4 flex items-center gap-2">
             <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
-            Baguio Freedom Wall
+            Freedom Wall
           </p>
           <h1 className="text-4xl md:text-5xl font-extrabold tracking-tight mb-6 leading-tight text-neutral-900">
             Say what you<br />can't say.
@@ -299,6 +314,7 @@ export default function HomePage() {
                     <div className="flex items-center gap-2 font-mono text-[11px] uppercase tracking-wider">
                       <span className="font-bold text-neutral-900">{post.authorAlias}</span>
                       <span className="text-neutral-300">•</span>
+                      {/* Displays both date and time now */}
                       <span className="text-neutral-400">{post.createdAt}</span>
                     </div>
                     <span className="text-[10px] font-mono uppercase tracking-widest bg-neutral-100 text-neutral-600 px-2.5 py-1 rounded">
@@ -334,9 +350,9 @@ export default function HomePage() {
                         <Icons.Message />
                         <span>{post.replies} Replies</span>
                       </Link>
-                  </div>
+                    </div>
 
-                  <div className="flex items-center gap-4">
+                    <div className="flex items-center gap-4">
                       <button
                         onClick={() => setActiveReportPostId(post.id)}
                         disabled={isReported}
@@ -354,84 +370,84 @@ export default function HomePage() {
                         <Icons.Share />
                         <span>{copiedId === post.id ? 'Copied!' : 'Share'}</span>
                       </button>
+                    </div>
                   </div>
+                </article>
+              );
+            })}
+            
+            {filteredPosts.length === 0 && (
+              <div className="py-12 text-center font-mono text-sm text-neutral-400">
+                {searchQuery ? `No entries found matching "${searchQuery}"` : "No entries found in this category. Be the first to post!"}
               </div>
-              </article>
-            );
-          })}
-          
-          {filteredPosts.length === 0 && (
-            <div className="py-12 text-center font-mono text-sm text-neutral-400">
-              {searchQuery ? `No entries found matching "${searchQuery}"` : "No entries found in this category. Be the first to post!"}
+            )}
+          </div>
+        )}
+      </main>
+
+      {/* Inline Report Modal Overlay */}
+      {activeReportPostId && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-xs">
+          <div className="w-full max-w-md bg-white rounded-xl shadow-xl border border-neutral-200 overflow-hidden animate-in fade-in zoom-in-95 duration-150">
+            <div className="flex items-center justify-between px-6 py-4 border-b border-neutral-100">
+              <h3 className="font-mono text-sm font-bold uppercase tracking-wider text-neutral-900">Report Entry</h3>
+              <button 
+                onClick={() => setActiveReportPostId(null)}
+                className="text-neutral-400 hover:text-neutral-900 transition-colors p-1"
+              >
+                <Icons.Close />
+              </button>
             </div>
-          )}
+
+            <form onSubmit={handleReportSubmit} className="p-6 space-y-4">
+              <div>
+                <label className="block font-mono text-xs font-semibold text-neutral-700 uppercase tracking-wider mb-2">
+                  Select Reason
+                </label>
+                <select
+                  value={selectedReason}
+                  onChange={(e) => setSelectedReason(e.target.value)}
+                  className="w-full p-3 bg-neutral-50 border border-neutral-200 rounded-lg text-sm text-neutral-900 font-mono focus:outline-none focus:border-neutral-900 transition-all"
+                >
+                  {REPORT_REASONS.map((reason) => (
+                    <option key={reason} value={reason}>{reason}</option>
+                  ))}
+                </select>
+              </div>
+
+              <div>
+                <label className="block font-mono text-xs font-semibold text-neutral-700 uppercase tracking-wider mb-2">
+                  Additional Details (Optional)
+                </label>
+                <textarea
+                  value={reportDetails}
+                  onChange={(e) => setReportDetails(e.target.value)}
+                  placeholder="Provide any extra context for moderators..."
+                  rows={3}
+                  className="w-full p-3 bg-neutral-50 border border-neutral-200 rounded-lg text-sm text-neutral-900 placeholder:text-neutral-400 font-mono focus:outline-none focus:border-neutral-900 transition-all resize-none"
+                />
+              </div>
+
+              <div className="flex items-center justify-end gap-3 pt-4 border-t border-neutral-100">
+                <button
+                  type="button"
+                  onClick={() => setActiveReportPostId(null)}
+                  className="px-4 py-2 rounded font-mono text-xs font-bold uppercase tracking-wider text-neutral-600 hover:bg-neutral-100 transition-colors"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={isSubmittingReport}
+                  className="px-5 py-2 rounded bg-rose-600 text-white font-mono text-xs font-bold uppercase tracking-wider hover:bg-rose-700 transition-colors disabled:opacity-50"
+                >
+                  {isSubmittingReport ? 'Submitting...' : 'Submit Report'}
+                </button>
+              </div>
+            </form>
+          </div>
         </div>
       )}
-    </main>
-
-    {/* Inline Report Modal Overlay */}
-    {activeReportPostId && (
-      <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-xs">
-        <div className="w-full max-w-md bg-white rounded-xl shadow-xl border border-neutral-200 overflow-hidden animate-in fade-in zoom-in-95 duration-150">
-          <div className="flex items-center justify-between px-6 py-4 border-b border-neutral-100">
-            <h3 className="font-mono text-sm font-bold uppercase tracking-wider text-neutral-900">Report Entry</h3>
-            <button 
-              onClick={() => setActiveReportPostId(null)}
-              className="text-neutral-400 hover:text-neutral-900 transition-colors p-1"
-            >
-              <Icons.Close />
-            </button>
-          </div>
-
-          <form onSubmit={handleReportSubmit} className="p-6 space-y-4">
-            <div>
-              <label className="block font-mono text-xs font-semibold text-neutral-700 uppercase tracking-wider mb-2">
-                Select Reason
-              </label>
-              <select
-                value={selectedReason}
-                onChange={(e) => setSelectedReason(e.target.value)}
-                className="w-full p-3 bg-neutral-50 border border-neutral-200 rounded-lg text-sm text-neutral-900 font-mono focus:outline-none focus:border-neutral-900 transition-all"
-              >
-                {REPORT_REASONS.map((reason) => (
-                  <option key={reason} value={reason}>{reason}</option>
-                ))}
-              </select>
-            </div>
-
-            <div>
-              <label className="block font-mono text-xs font-semibold text-neutral-700 uppercase tracking-wider mb-2">
-                Additional Details (Optional)
-              </label>
-              <textarea
-                value={reportDetails}
-                onChange={(e) => setReportDetails(e.target.value)}
-                placeholder="Provide any extra context for moderators..."
-                rows={3}
-                className="w-full p-3 bg-neutral-50 border border-neutral-200 rounded-lg text-sm text-neutral-900 placeholder:text-neutral-400 font-mono focus:outline-none focus:border-neutral-900 transition-all resize-none"
-              />
-            </div>
-
-            <div className="flex items-center justify-end gap-3 pt-4 border-t border-neutral-100">
-              <button
-                type="button"
-                onClick={() => setActiveReportPostId(null)}
-                className="px-4 py-2 rounded font-mono text-xs font-bold uppercase tracking-wider text-neutral-600 hover:bg-neutral-100 transition-colors"
-              >
-                Cancel
-              </button>
-              <button
-                type="submit"
-                disabled={isSubmittingReport}
-                className="px-5 py-2 rounded bg-rose-600 text-white font-mono text-xs font-bold uppercase tracking-wider hover:bg-rose-700 transition-colors disabled:opacity-50"
-              >
-                {isSubmittingReport ? 'Submitting...' : 'Submit Report'}
-              </button>
-            </div>
-          </form>
-        </div>
-      </div>
-    )}
-  </div>
+    </div>
   );
 }

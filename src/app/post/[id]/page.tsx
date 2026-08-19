@@ -24,7 +24,21 @@ interface ReplyData {
 }
 
 const Icons = {
-  Heart: () => <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/></svg>,
+  Heart: ({ filled }: { filled?: boolean }) => (
+    <svg 
+      xmlns="http://www.w3.org/2000/svg" 
+      width="16" 
+      height="16" 
+      viewBox="0 0 24 24" 
+      fill={filled ? "currentColor" : "none"} 
+      stroke="currentColor" 
+      strokeWidth="2" 
+      strokeLinecap="round" 
+      strokeLinejoin="round"
+    >
+      <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/>
+    </svg>
+  ),
   Message: () => <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>,
 };
 
@@ -38,8 +52,22 @@ export default function PostDetailPage() {
   const [replyContent, setReplyContent] = useState('');
   const [loading, setLoading] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [hasVoted, setHasVoted] = useState(false);
+  const [votingLocked, setVotingLocked] = useState(false);
 
   useEffect(() => {
+    try {
+      const storedVotes = localStorage.getItem('unsaid_voted_posts');
+      if (storedVotes && postId) {
+        const parsed = JSON.parse(storedVotes);
+        if (parsed[postId]) {
+          setHasVoted(true);
+        }
+      }
+    } catch (e) {
+      // Ignore storage errors
+    }
+
     async function fetchPostAndReplies() {
       if (!postId) return;
       try {
@@ -49,12 +77,26 @@ export default function PostDetailPage() {
 
         if (postSnap.exists()) {
           const data = postSnap.data();
+          
+          let formattedPostDate = "Recently";
+          if (data.createdAt) {
+            const dateObj = data.createdAt.toDate();
+            formattedPostDate = dateObj.toLocaleDateString([], { 
+              month: 'short', 
+              day: 'numeric', 
+              year: 'numeric' 
+            }) + ' at ' + dateObj.toLocaleTimeString([], { 
+              hour: '2-digit', 
+              minute: '2-digit' 
+            });
+          }
+
           setPost({
             id: postSnap.id,
             authorAlias: data.authorAlias || "UNSAID #00000",
             content: data.content || "",
             category: data.category || "thoughts",
-            createdAt: data.createdAt ? new Date(data.createdAt.toDate()).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : "Recently",
+            createdAt: formattedPostDate,
             upvotes: data.upvotes || 0,
             repliesCount: data.replies || 0,
           });
@@ -66,11 +108,25 @@ export default function PostDetailPage() {
 
           replySnap.forEach((rSnap) => {
             const rData = rSnap.data();
+            
+            let formattedReplyDate = "Just now";
+            if (rData.createdAt) {
+              const rDateObj = rData.createdAt.toDate();
+              formattedReplyDate = rDateObj.toLocaleDateString([], { 
+                month: 'short', 
+                day: 'numeric', 
+                year: 'numeric' 
+              }) + ' at ' + rDateObj.toLocaleTimeString([], { 
+                hour: '2-digit', 
+                minute: '2-digit' 
+              });
+            }
+
             fetchedReplies.push({
               id: rSnap.id,
               authorAlias: rData.authorAlias || "UNSAID #99999",
               content: rData.content || "",
-              createdAt: rData.createdAt ? new Date(rData.createdAt.toDate()).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : "Just now",
+              createdAt: formattedReplyDate,
             });
           });
 
@@ -88,20 +144,45 @@ export default function PostDetailPage() {
     fetchPostAndReplies();
   }, [postId, router]);
 
-  const handleVote = async () => {
-    if (!post) return;
+  const handleVoteToggle = async () => {
+    if (!post || votingLocked) return;
+    setVotingLocked(true);
+
+    const voteChange = hasVoted ? -1 : 1;
+
     try {
       const postRef = doc(db, "posts", postId);
-      await updateDoc(postRef, { upvotes: increment(1) });
-      setPost({ ...post, upvotes: post.upvotes + 1 });
+      await updateDoc(postRef, { upvotes: increment(voteChange) });
+      
+      const newHasVoted = !hasVoted;
+      setHasVoted(newHasVoted);
+
+      try {
+        const storedVotes = JSON.parse(localStorage.getItem('unsaid_voted_posts') || '{}');
+        if (newHasVoted) {
+          storedVotes[postId] = true;
+        } else {
+          delete storedVotes[postId];
+        }
+        localStorage.setItem('unsaid_voted_posts', JSON.stringify(storedVotes));
+      } catch (e) {
+        // Ignore storage errors
+      }
+
+      setPost({ 
+        ...post, 
+        upvotes: Math.max(0, post.upvotes + voteChange) 
+      });
     } catch (error) {
-      console.error("Error upvoting post:", error);
+      console.error("Error updating vote:", error);
+    } finally {
+      setVotingLocked(false);
     }
   };
 
   const handleAddReply = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!replyContent.trim()) return;
+    if (!replyContent.trim() || isSubmitting) return;
 
     setIsSubmitting(true);
     try {
@@ -113,20 +194,30 @@ export default function PostDetailPage() {
       };
 
       // Add to subcollection under this post
-      await addDoc(collection(db, "posts", postId, "replies"), replyData);
+      const docRef = await addDoc(collection(db, "posts", postId, "replies"), replyData);
 
       // Increment reply count on main post document
       const postRef = doc(db, "posts", postId);
       await updateDoc(postRef, { replies: increment(1) });
 
+      // Current formatted date/time for instant local feedback
+      const nowFormatted = new Date().toLocaleDateString([], { 
+        month: 'short', 
+        day: 'numeric', 
+        year: 'numeric' 
+      }) + ' at ' + new Date().toLocaleTimeString([], { 
+        hour: '2-digit', 
+        minute: '2-digit' 
+      });
+
       // Update local state
       setReplies((prev) => [
         ...prev,
         {
-          id: Date.now().toString(),
+          id: docRef.id,
           authorAlias: replyData.authorAlias,
           content: replyData.content,
-          createdAt: "Just now",
+          createdAt: nowFormatted,
         },
       ]);
 
@@ -190,15 +281,22 @@ export default function PostDetailPage() {
 
           <div className="flex items-center gap-6 font-mono text-xs font-semibold pt-4 border-t border-neutral-100">
             <button 
-              onClick={handleVote}
-              className="flex items-center gap-2 text-neutral-500 hover:text-rose-500 transition-colors"
+              onClick={handleVoteToggle}
+              disabled={votingLocked}
+              className={`flex items-center gap-2 transition-colors ${
+                votingLocked ? "opacity-50 cursor-not-allowed" : ""
+              } ${
+                hasVoted 
+                  ? "text-rose-500 hover:text-rose-600" 
+                  : "text-neutral-500 hover:text-rose-500"
+              }`}
             >
-              <Icons.Heart />
-              <span>{post.upvotes} Upvotes</span>
+              <Icons.Heart filled={hasVoted} />
+              <span>{post.upvotes} {post.upvotes === 1 ? 'Upvote' : 'Upvotes'}</span>
             </button>
             <div className="flex items-center gap-2 text-neutral-500">
               <Icons.Message />
-              <span>{post.repliesCount} Replies</span>
+              <span>{post.repliesCount} {post.repliesCount === 1 ? 'Reply' : 'Replies'}</span>
             </div>
           </div>
         </article>
@@ -214,7 +312,7 @@ export default function PostDetailPage() {
             value={replyContent}
             onChange={(e) => setReplyContent(e.target.value)}
             placeholder="Add your thoughts to this entry..."
-            className="w-full p-4 bg-neutral-50 border border-neutral-200 rounded-lg text-neutral-900 placeholder:text-neutral-400 focus:outline-none focus:border-neutral-900 focus:bg-white transition-all text-sm leading-relaxed"
+            className="w-full p-4 bg-neutral-50 border border-neutral-200 rounded-lg text-neutral-900 placeholder:text-neutral-400 focus:outline-none focus:border-neutral-900 focus:bg-white transition-all text-sm leading-relaxed resize-none"
             required
           />
           <div className="flex justify-end">
@@ -238,7 +336,7 @@ export default function PostDetailPage() {
             <div key={reply.id} className="p-4 bg-neutral-50 border border-neutral-200 rounded-lg space-y-2">
               <div className="flex items-center justify-between font-mono text-[10px] uppercase tracking-wider text-neutral-500">
                 <span className="font-bold text-neutral-800">{reply.authorAlias}</span>
-                <span>{reply.createdAt}</span>
+                <span className="text-neutral-400">{reply.createdAt}</span>
               </div>
               <p className="text-sm md:text-base text-neutral-700 leading-relaxed">
                 {reply.content}
