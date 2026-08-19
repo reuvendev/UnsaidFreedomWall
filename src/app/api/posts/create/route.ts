@@ -1,59 +1,69 @@
+// src/app/api/posts/create/route.ts
+
 import { NextResponse } from "next/server";
 import { checkForDoxxing } from "@/lib/antiDoxx";
-import { CATEGORIES } from "@/lib/categories";
+import { VALID_CATEGORIES, isValidCategory } from "@/lib/categories";
+import { collection, addDoc, serverTimestamp } from "firebase/firestore";
+import { db } from "@/lib/firebase";
 
 export async function POST(request: Request) {
   try {
     const body = await request.json();
     const { content, category } = body;
 
-    if (!content || typeof content !== "string") {
-      return NextResponse.json({ error: "Content is required." }, { status: 400 });
-    }
-
-    const trimmedContent = content.trim();
-    if (trimmedContent.length < 5 || trimmedContent.length > 1000) {
+    // Validate content presence
+    if (!content || typeof content !== "string" || !content.trim()) {
       return NextResponse.json(
-        { error: "Post must be between 5 and 1000 characters." },
+        { error: "Content is required." },
         { status: 400 }
       );
     }
 
-    const validCategory = CATEGORIES.some((c) => c.id === category);
-    if (!validCategory) {
-      return NextResponse.json({ error: "Invalid category selected." }, { status: 400 });
-    }
+    // Validate category using your helper
+    const selectedCategory = isValidCategory(category) ? category : VALID_CATEGORIES[0];
 
-    const doxxCheck = checkForDoxxing(trimmedContent);
-    if (doxxCheck.hasPotentialDoxx) {
+    // Anti-doxxing check
+    const doxxingCheck = checkForDoxxing(content);
+    if (doxxingCheck.isDoxxing) {
       return NextResponse.json(
-        {
-          error: "Doxxing protection triggered: Contains sensitive personal information.",
-          patterns: doxxCheck.matchedPatterns,
+        { 
+          error: "Post blocked due to sensitive personal information (doxxing check failed). Please keep it anonymous and safe.",
+          details: doxxingCheck.reason 
         },
-        { status: 422 }
+        { status: 400 }
       );
     }
 
-    const randomNum = Math.floor(10000 + Math.random() * 90000);
-    const publicId = `#${randomNum}`;
-    const authorAlias = `UNSAID ${publicId}`;
+    // Generate random anonymous author alias (e.g., UNSAID #48291)
+    const randomId = Math.floor(10000 + Math.random() * 90000);
+    const authorAlias = `UNSAID #${randomId}`;
 
-    const newPost = {
-      publicId,
+    // Save post to Firestore
+    const postData = {
+      content: content.trim(),
+      category: selectedCategory,
       authorAlias,
-      content: trimmedContent,
-      category,
-      createdAt: new Date().toISOString(),
-      status: "active",
-      reactionCount: 0,
-      reactions: { heart: 0, relate: 0, sad: 0, fire: 0 },
-      commentCount: 0,
-      reportCount: 0,
+      upvotes: 0,
+      replies: 0,
+      createdAt: serverTimestamp(),
     };
 
-    return NextResponse.json({ success: true, post: newPost }, { status: 201 });
-  } catch (error) {
-    return NextResponse.json({ error: "Internal Server Error" }, { status: 500 });
+    const docRef = await addDoc(collection(db, "posts"), postData);
+
+    return NextResponse.json(
+      { 
+        success: true, 
+        postId: docRef.id,
+        message: "Post created successfully." 
+      },
+      { status: 201 }
+    );
+
+  } catch (error: any) {
+    console.error("Error creating post:", error);
+    return NextResponse.json(
+      { error: "Internal Server Error", details: error.message },
+      { status: 500 }
+    );
   }
 }
