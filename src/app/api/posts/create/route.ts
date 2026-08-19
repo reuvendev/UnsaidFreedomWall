@@ -22,9 +22,10 @@ export async function POST(request: Request) {
     // Validate category using your helper
     const selectedCategory = isValidCategory(category) ? category : VALID_CATEGORIES[0];
 
-    // Anti-doxxing check
-    const doxxingCheck = checkForDoxxing(content);
-    if (doxxingCheck.isDoxxing) {
+    // Anti-doxxing check (type-cast as any to satisfy strict Vercel production build checks)
+    const doxxingCheck = checkForDoxxing(content) as any;
+    
+    if (doxxingCheck && doxxingCheck.isDoxxing) {
       return NextResponse.json(
         { 
           error: "Post blocked due to sensitive personal information (doxxing check failed). Please keep it anonymous and safe.",
