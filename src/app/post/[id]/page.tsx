@@ -4,7 +4,7 @@
 import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { useParams, useRouter } from 'next/navigation';
-import { doc, getDoc, collection, addDoc, query, orderBy, getDocs, serverTimestamp, updateDoc, increment } from 'firebase/firestore';
+import { doc, collection, addDoc, query, orderBy, serverTimestamp, updateDoc, increment, onSnapshot } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import { checkForDoxxing } from '@/lib/antiDoxx';
 
@@ -71,79 +71,84 @@ export default function PostDetailPage() {
       // Ignore storage errors
     }
 
-    async function fetchPostAndReplies() {
-      if (!postId) return;
-      try {
-        const postDocRef = doc(db, "posts", postId);
-        const postSnap = await getDoc(postDocRef);
+    if (!postId) return;
 
-        if (postSnap.exists()) {
-          const data = postSnap.data();
-          
-          let formattedPostDate = "Recently";
-          if (data.createdAt) {
-            const dateObj = data.createdAt.toDate();
-            formattedPostDate = dateObj.toLocaleDateString([], { 
-              month: 'short', 
-              day: 'numeric', 
-              year: 'numeric' 
-            }) + ' at ' + dateObj.toLocaleTimeString([], { 
-              hour: '2-digit', 
-              minute: '2-digit' 
-            });
-          }
-
-          setPost({
-            id: postSnap.id,
-            authorAlias: data.authorAlias || "UNSAID #00000",
-            content: data.content || "",
-            category: data.category || "thoughts",
-            createdAt: formattedPostDate,
-            upvotes: data.upvotes || 0,
-            repliesCount: data.replies || 0,
+    // 1. Real-time listener for the main Post document (handles upvotes & content sync)
+    const postRef = doc(db, "posts", postId);
+    const unsubscribePost = onSnapshot(postRef, (postSnap) => {
+      if (postSnap.exists()) {
+        const data = postSnap.data();
+        
+        let formattedPostDate = "Recently";
+        if (data.createdAt) {
+          const dateObj = data.createdAt.toDate();
+          formattedPostDate = dateObj.toLocaleDateString([], { 
+            month: 'short', 
+            day: 'numeric', 
+            year: 'numeric' 
+          }) + ' at ' + dateObj.toLocaleTimeString([], { 
+            hour: '2-digit', 
+            minute: '2-digit' 
           });
-
-          // Fetch replies ordered by latest first (desc)
-          const repliesQuery = query(collection(db, "posts", postId, "replies"), orderBy("createdAt", "desc"));
-          const replySnap = await getDocs(repliesQuery);
-          const fetchedReplies: ReplyData[] = [];
-
-          replySnap.forEach((rSnap) => {
-            const rData = rSnap.data();
-            
-            let formattedReplyDate = "Just now";
-            if (rData.createdAt) {
-              const rDateObj = rData.createdAt.toDate();
-              formattedReplyDate = rDateObj.toLocaleDateString([], { 
-                month: 'short', 
-                day: 'numeric', 
-                year: 'numeric' 
-              }) + ' at ' + rDateObj.toLocaleTimeString([], { 
-                hour: '2-digit', 
-                minute: '2-digit' 
-              });
-            }
-
-            fetchedReplies.push({
-              id: rSnap.id,
-              authorAlias: rData.authorAlias || "UNSAID #99999",
-              content: rData.content || "",
-              createdAt: formattedReplyDate,
-            });
-          });
-
-          setReplies(fetchedReplies);
-        } else {
-          router.push('/');
         }
-      } catch (error) {
-        console.error("Error fetching post detail:", error);
-      } finally {
-        setLoading(false);
-      }
-    }
 
-    fetchPostAndReplies();
+        setPost({
+          id: postSnap.id,
+          authorAlias: data.authorAlias || "UNSAID #00000",
+          content: data.content || "",
+          category: data.category || "thoughts",
+          createdAt: formattedPostDate,
+          upvotes: data.upvotes || 0,
+          repliesCount: data.replies || 0,
+        });
+      } else {
+        router.push('/');
+      }
+      setLoading(false);
+    }, (error) => {
+      console.error("Error listening to post changes:", error);
+      setLoading(false);
+    });
+
+    // 2. Real-time listener for Replies subcollection
+    const repliesQuery = query(collection(db, "posts", postId, "replies"), orderBy("createdAt", "desc"));
+    const unsubscribeReplies = onSnapshot(repliesQuery, (replySnap) => {
+      const fetchedReplies: ReplyData[] = [];
+
+      replySnap.forEach((rSnap) => {
+        const rData = rSnap.data();
+        
+        let formattedReplyDate = "Just now";
+        if (rData.createdAt) {
+          const rDateObj = rData.createdAt.toDate();
+          formattedReplyDate = rDateObj.toLocaleDateString([], { 
+            month: 'short', 
+            day: 'numeric', 
+            year: 'numeric' 
+          }) + ' at ' + rDateObj.toLocaleTimeString([], { 
+            hour: '2-digit', 
+            minute: '2-digit' 
+          });
+        }
+
+        fetchedReplies.push({
+          id: rSnap.id,
+          authorAlias: rData.authorAlias || "UNSAID #99999",
+          content: rData.content || "",
+          createdAt: formattedReplyDate,
+        });
+      });
+
+      setReplies(fetchedReplies);
+    }, (error) => {
+      console.error("Error listening to replies:", error);
+    });
+
+    // Cleanup listeners on unmount
+    return () => {
+      unsubscribePost();
+      unsubscribeReplies();
+    };
   }, [postId, router]);
 
   const handleVoteToggle = async () => {
@@ -170,11 +175,6 @@ export default function PostDetailPage() {
       } catch (e) {
         // Ignore storage errors
       }
-
-      setPost({ 
-        ...post, 
-        upvotes: Math.max(0, post.upvotes + voteChange) 
-      });
     } catch (error) {
       console.error("Error updating vote:", error);
     } finally {
@@ -203,34 +203,10 @@ export default function PostDetailPage() {
         createdAt: serverTimestamp(),
       };
 
-      const docRef = await addDoc(collection(db, "posts", postId, "replies"), replyData);
+      await addDoc(collection(db, "posts", postId, "replies"), replyData);
 
       const postRef = doc(db, "posts", postId);
       await updateDoc(postRef, { replies: increment(1) });
-
-      const nowFormatted = new Date().toLocaleDateString([], { 
-        month: 'short', 
-        day: 'numeric', 
-        year: 'numeric' 
-      }) + ' at ' + new Date().toLocaleTimeString([], { 
-        hour: '2-digit', 
-        minute: '2-digit' 
-      });
-
-      // Prepend new reply so it appears instantly at the top
-      setReplies((prev) => [
-        {
-          id: docRef.id,
-          authorAlias: replyData.authorAlias,
-          content: replyData.content,
-          createdAt: nowFormatted,
-        },
-        ...prev,
-      ]);
-
-      if (post) {
-        setPost({ ...post, repliesCount: post.repliesCount + 1 });
-      }
 
       setReplyContent('');
     } catch (error) {
