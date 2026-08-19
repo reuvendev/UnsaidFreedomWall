@@ -1,3 +1,4 @@
+// src/app/post/[id]/page.tsx
 'use client';
 
 import React, { useState, useEffect } from 'react';
@@ -5,6 +6,7 @@ import Link from 'next/link';
 import { useParams, useRouter } from 'next/navigation';
 import { doc, getDoc, collection, addDoc, query, orderBy, getDocs, serverTimestamp, updateDoc, increment } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
+import { checkForDoxxing } from '@/lib/antiDoxx';
 
 interface PostData {
   id: string;
@@ -50,6 +52,7 @@ export default function PostDetailPage() {
   const [post, setPost] = useState<PostData | null>(null);
   const [replies, setReplies] = useState<ReplyData[]>([]);
   const [replyContent, setReplyContent] = useState('');
+  const [replyError, setReplyError] = useState('');
   const [loading, setLoading] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [hasVoted, setHasVoted] = useState(false);
@@ -71,7 +74,6 @@ export default function PostDetailPage() {
     async function fetchPostAndReplies() {
       if (!postId) return;
       try {
-        // Fetch specific post document
         const postDocRef = doc(db, "posts", postId);
         const postSnap = await getDoc(postDocRef);
 
@@ -101,8 +103,8 @@ export default function PostDetailPage() {
             repliesCount: data.replies || 0,
           });
 
-          // Fetch nested replies subcollection
-          const repliesQuery = query(collection(db, "posts", postId, "replies"), orderBy("createdAt", "asc"));
+          // Fetch replies ordered by latest first (desc)
+          const repliesQuery = query(collection(db, "posts", postId, "replies"), orderBy("createdAt", "desc"));
           const replySnap = await getDocs(repliesQuery);
           const fetchedReplies: ReplyData[] = [];
 
@@ -184,6 +186,14 @@ export default function PostDetailPage() {
     e.preventDefault();
     if (!replyContent.trim() || isSubmitting) return;
 
+    setReplyError('');
+
+    const doxxingResult = checkForDoxxing(replyContent);
+    if (doxxingResult && doxxingResult.hasPotentialDoxx) {
+      setReplyError(`Reply blocked due to sensitive personal information (${doxxingResult.matchedPatterns.join(', ')}). Please keep it anonymous and safe.`);
+      return;
+    }
+
     setIsSubmitting(true);
     try {
       const randomId = Math.floor(10000 + Math.random() * 90000);
@@ -193,14 +203,11 @@ export default function PostDetailPage() {
         createdAt: serverTimestamp(),
       };
 
-      // Add to subcollection under this post
       const docRef = await addDoc(collection(db, "posts", postId, "replies"), replyData);
 
-      // Increment reply count on main post document
       const postRef = doc(db, "posts", postId);
       await updateDoc(postRef, { replies: increment(1) });
 
-      // Current formatted date/time for instant local feedback
       const nowFormatted = new Date().toLocaleDateString([], { 
         month: 'short', 
         day: 'numeric', 
@@ -210,15 +217,15 @@ export default function PostDetailPage() {
         minute: '2-digit' 
       });
 
-      // Update local state
+      // Prepend new reply so it appears instantly at the top
       setReplies((prev) => [
-        ...prev,
         {
           id: docRef.id,
           authorAlias: replyData.authorAlias,
           content: replyData.content,
           createdAt: nowFormatted,
         },
+        ...prev,
       ]);
 
       if (post) {
@@ -228,7 +235,7 @@ export default function PostDetailPage() {
       setReplyContent('');
     } catch (error) {
       console.error("Error adding reply:", error);
-      alert("Failed to submit reply.");
+      setReplyError("Failed to submit reply. Please try again.");
     } finally {
       setIsSubmitting(false);
     }
@@ -310,11 +317,23 @@ export default function PostDetailPage() {
             rows={3}
             maxLength={300}
             value={replyContent}
-            onChange={(e) => setReplyContent(e.target.value)}
+            onChange={(e) => {
+              setReplyContent(e.target.value);
+              if (replyError) setReplyError('');
+            }}
             placeholder="Add your thoughts to this entry..."
-            className="w-full p-4 bg-neutral-50 border border-neutral-200 rounded-lg text-neutral-900 placeholder:text-neutral-400 focus:outline-none focus:border-neutral-900 focus:bg-white transition-all text-sm leading-relaxed resize-none"
+            className={`w-full p-4 bg-neutral-50 border rounded-lg text-neutral-900 placeholder:text-neutral-400 focus:outline-none focus:bg-white transition-all text-sm leading-relaxed resize-none ${
+              replyError ? "border-rose-500 focus:border-rose-500" : "border-neutral-200 focus:border-neutral-900"
+            }`}
             required
           />
+
+          {replyError && (
+            <div className="p-3 bg-rose-50 border border-rose-200 rounded-md text-rose-600 font-mono text-xs animate-fadeIn">
+              {replyError}
+            </div>
+          )}
+
           <div className="flex justify-end">
             <button
               type="submit"
