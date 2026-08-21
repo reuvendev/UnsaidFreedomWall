@@ -1,7 +1,7 @@
 // src/app/post/[id]/page.tsx
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import Link from 'next/link';
 import { useParams, useRouter } from 'next/navigation';
 import { doc, collection, addDoc, query, orderBy, serverTimestamp, updateDoc, increment, onSnapshot } from 'firebase/firestore';
@@ -58,6 +58,9 @@ export default function PostDetailPage() {
   const [hasVoted, setHasVoted] = useState(false);
   const [votingLocked, setVotingLocked] = useState(false);
 
+  // Ref to target the ad banner container
+  const adContainerRef = useRef<HTMLDivElement>(null);
+
   useEffect(() => {
     try {
       const storedVotes = localStorage.getItem('unsaid_voted_posts');
@@ -73,7 +76,7 @@ export default function PostDetailPage() {
 
     if (!postId) return;
 
-    // 1. Real-time listener for the main Post document (handles upvotes & content sync)
+    // 1. Real-time listener for the main Post document
     const postRef = doc(db, "posts", postId);
     const unsubscribePost = onSnapshot(postRef, (postSnap) => {
       if (postSnap.exists()) {
@@ -144,12 +147,44 @@ export default function PostDetailPage() {
       console.error("Error listening to replies:", error);
     });
 
-    // Cleanup listeners on unmount
     return () => {
       unsubscribePost();
       unsubscribeReplies();
     };
   }, [postId, router]);
+
+  // Effect to safely inject the 320x50 banner script block
+  useEffect(() => {
+    const container = adContainerRef.current;
+    if (!container) return;
+
+    // Clear any previous scripts inside to prevent duplicates on re-render
+    container.innerHTML = '';
+
+    // Set configuration variables
+    const scriptConfig = document.createElement('script');
+    scriptConfig.text = `
+      atOptions = {
+        'key' : 'f05afa052d7f89c5f20d0d9629dfb72f',
+        'format' : 'iframe',
+        'height' : 50,
+        'width' : 320,
+        'params' : {}
+      };
+    `;
+
+    // Set invocation source script
+    const scriptInvoke = document.createElement('script');
+    scriptInvoke.src = 'https://plentyhelium.com/f05afa052d7f89c5f20d0d9629dfb72f/invoke.js';
+    scriptInvoke.async = true;
+
+    container.appendChild(scriptConfig);
+    container.appendChild(scriptInvoke);
+
+    return () => {
+      container.innerHTML = '';
+    };
+  }, []);
 
   const handleVoteToggle = async () => {
     if (!post || votingLocked) return;
@@ -320,6 +355,14 @@ export default function PostDetailPage() {
             </button>
           </div>
         </form>
+
+        {/* Ad Placement: 320x50 Banner */}
+        <div className="my-8 flex justify-center overflow-hidden">
+          <div 
+            ref={adContainerRef} 
+            className="w-[320px] h-[50px] flex items-center justify-center bg-neutral-50 border border-neutral-200/60 rounded"
+          />
+        </div>
 
         {/* Replies List */}
         <div className="space-y-6">
