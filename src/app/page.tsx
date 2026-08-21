@@ -20,7 +20,7 @@ const CATEGORIES = [
   { id: 'thoughts', label: 'Thoughts' },
   { id: 'love', label: 'Love & Connections' },
   { id: 'rants', label: 'Rants' },
-  { id: 'baguio', label: 'City Life' },
+  { id: 'life', label: 'City Life' },
   { id: 'others', label: 'Others' },
 ];
 
