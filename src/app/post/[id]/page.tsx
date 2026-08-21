@@ -294,19 +294,13 @@ export default function PostDetailPage() {
     }
   };
 
-  // Load the ad network script on the client
+  // Safe ad script injection on client mount
   useEffect(() => {
-    const adContainer = document.getElementById('unsaid-ad');
+    const container = document.getElementById('unsaid-ad');
+    if (!container || container.dataset.rendered === 'true') return;
+    
+    container.dataset.rendered = 'true';
 
-    if (!adContainer) return;
-
-    if (adContainer.dataset.loaded === 'true') {
-      return;
-    }
-
-    adContainer.dataset.loaded = 'true';
-
-    // Assign atOptions globally so invoke.js can find it immediately
     (window as any).atOptions = {
       key: 'f05afa052d7f89c5f20d0d9629dfb72f',
       format: 'iframe',
@@ -315,21 +309,20 @@ export default function PostDetailPage() {
       params: {},
     };
 
-    const invokeScript = document.createElement('script');
-    invokeScript.type = 'text/javascript';
-    invokeScript.src =
-      'https://plentyhelium.com/f05afa052d7f89c5f20d0d9629dfb72f/invoke.js';
-    invokeScript.async = true;
+    const script = document.createElement('script');
+    script.type = 'text/javascript';
+    script.async = true;
+    script.src = 'https://plentyhelium.com/f05afa052d7f89c5f20d0d9629dfb72f/invoke.js';
 
-    adContainer.appendChild(invokeScript);
+    container.appendChild(script);
 
     return () => {
-      invokeScript.remove();
+      script.remove();
       try {
         if ('atOptions' in window) {
           delete (window as any).atOptions;
         }
-      } catch (error) {
+      } catch (e) {
         // Ignore cleanup errors
       }
     };
