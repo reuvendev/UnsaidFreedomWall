@@ -207,6 +207,9 @@ export default function PostDetailPage() {
   // Adsterra's invoke.js relies on document.write(), which is a no-op
   // (or gets blocked) once the host page has already finished loading.
   // Writing into a freshly-opened iframe document sidesteps that entirely.
+  //
+  // Depends on `loading` because the ref only mounts once the loading
+  // screen's early return stops firing — see PostDetailPage's render logic.
   useEffect(() => {
     if (!adContainerRef.current) return;
     const container = adContainerRef.current;
@@ -257,7 +260,7 @@ export default function PostDetailPage() {
     return () => {
       container.innerHTML = '';
     };
-  }, []);
+  }, [loading]);
 
   const handleVoteToggle = async () => {
     if (!post || votingLocked) return;
