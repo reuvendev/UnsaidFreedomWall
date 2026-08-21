@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import Link from 'next/link';
 import { useParams, useRouter } from 'next/navigation';
 import {
@@ -81,6 +81,8 @@ export default function PostDetailPage() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [hasVoted, setHasVoted] = useState(false);
   const [votingLocked, setVotingLocked] = useState(false);
+
+  const adContainerRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     try {
@@ -200,6 +202,62 @@ export default function PostDetailPage() {
       unsubscribeReplies();
     };
   }, [postId, router]);
+
+  // Reliable Native Ad Injection Hook (via isolated iframe)
+  // Adsterra's invoke.js relies on document.write(), which is a no-op
+  // (or gets blocked) once the host page has already finished loading.
+  // Writing into a freshly-opened iframe document sidesteps that entirely.
+  useEffect(() => {
+    if (!adContainerRef.current) return;
+    const container = adContainerRef.current;
+
+    container.innerHTML = '';
+
+    const iframe = document.createElement('iframe');
+    iframe.style.width = '320px';
+    iframe.style.height = '50px';
+    iframe.style.border = '0';
+    iframe.style.overflow = 'hidden';
+    iframe.setAttribute('scrolling', 'no');
+    container.appendChild(iframe);
+
+    const iframeDoc = iframe.contentWindow?.document;
+    if (!iframeDoc) return;
+
+    iframeDoc.open();
+    iframeDoc.write(`
+      <!DOCTYPE html>
+      <html>
+        <head>
+          <style>
+            html, body {
+              margin: 0;
+              padding: 0;
+              overflow: hidden;
+              background: transparent;
+            }
+          </style>
+        </head>
+        <body>
+          <script>
+            atOptions = {
+              'key': 'f05afa052d7f89c5f20d0d9629dfb72f',
+              'format': 'iframe',
+              'height': 50,
+              'width': 320,
+              'params': {}
+            };
+          </script>
+          <script src="https://plentyhelium.com/f05afa052d7f89c5f20d0d9629dfb72f/invoke.js"></script>
+        </body>
+      </html>
+    `);
+    iframeDoc.close();
+
+    return () => {
+      container.innerHTML = '';
+    };
+  }, []);
 
   const handleVoteToggle = async () => {
     if (!post || votingLocked) return;
@@ -434,28 +492,9 @@ export default function PostDetailPage() {
         {/* Ad Placement: 320x50 Banner */}
         <div className="my-8 flex justify-center overflow-hidden">
           <div
-            id="unsaid-ad"
+            ref={adContainerRef}
             className="w-[320px] h-[50px] flex items-center justify-center bg-neutral-50/50 border border-neutral-100 rounded"
-          >
-            <script
-              dangerouslySetInnerHTML={{
-                __html: `
-                  window.atOptions = {
-                    'key' : 'f05afa052d7f89c5f20d0d9629dfb72f',
-                    'format' : 'iframe',
-                    'height' : 50,
-                    'width' : 320,
-                    'params' : {}
-                  };
-                `,
-              }}
-            />
-            <script
-              type="text/javascript"
-              src="https://plentyhelium.com/f05afa052d7f89c5f20d0d9629dfb72f/invoke.js"
-              async
-            />
-          </div>
+          />
         </div>
 
         {/* Replies List */}
