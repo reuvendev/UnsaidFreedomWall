@@ -28,7 +28,7 @@ export default function AboutPage() {
             Project Overview
           </p>
           <h1 className="text-3xl md:text-4xl font-extrabold tracking-tight text-neutral-900">
-            About UNSAI D.
+            About UNSAID.
           </h1>
         </div>
 
