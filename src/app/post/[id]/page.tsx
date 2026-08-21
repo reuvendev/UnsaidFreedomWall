@@ -294,40 +294,6 @@ export default function PostDetailPage() {
     }
   };
 
-  // Safe ad script injection on client mount
-  useEffect(() => {
-    const container = document.getElementById('unsaid-ad');
-    if (!container || container.dataset.rendered === 'true') return;
-    
-    container.dataset.rendered = 'true';
-
-    (window as any).atOptions = {
-      key: 'f05afa052d7f89c5f20d0d9629dfb72f',
-      format: 'iframe',
-      height: 50,
-      width: 320,
-      params: {},
-    };
-
-    const script = document.createElement('script');
-    script.type = 'text/javascript';
-    script.async = true;
-    script.src = 'https://plentyhelium.com/f05afa052d7f89c5f20d0d9629dfb72f/invoke.js';
-
-    container.appendChild(script);
-
-    return () => {
-      script.remove();
-      try {
-        if ('atOptions' in window) {
-          delete (window as any).atOptions;
-        }
-      } catch (e) {
-        // Ignore cleanup errors
-      }
-    };
-  }, []);
-
   if (loading) {
     return (
       <div className="min-h-screen bg-white flex items-center justify-center font-mono text-xs text-neutral-400 animate-pulse">
@@ -470,7 +436,26 @@ export default function PostDetailPage() {
           <div
             id="unsaid-ad"
             className="w-[320px] h-[50px] flex items-center justify-center bg-neutral-50/50 border border-neutral-100 rounded"
-          />
+          >
+            <script
+              dangerouslySetInnerHTML={{
+                __html: `
+                  window.atOptions = {
+                    'key' : 'f05afa052d7f89c5f20d0d9629dfb72f',
+                    'format' : 'iframe',
+                    'height' : 50,
+                    'width' : 320,
+                    'params' : {}
+                  };
+                `,
+              }}
+            />
+            <script
+              type="text/javascript"
+              src="https://plentyhelium.com/f05afa052d7f89c5f20d0d9629dfb72f/invoke.js"
+              async
+            />
+          </div>
         </div>
 
         {/* Replies List */}
