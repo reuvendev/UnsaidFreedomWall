@@ -294,42 +294,28 @@ export default function PostDetailPage() {
     }
   };
 
-  /*
-   * Load the ad network script only once on the client.
-   *
-   * The ad provider uses a global `atOptions` variable and its
-   * invoke.js attempts to remove that variable after execution.
-   * We therefore create it as a configurable window property.
-   */
+  // Load the ad network script on the client
   useEffect(() => {
     const adContainer = document.getElementById('unsaid-ad');
 
     if (!adContainer) return;
 
-    // Prevent duplicate initialization
     if (adContainer.dataset.loaded === 'true') {
       return;
     }
 
     adContainer.dataset.loaded = 'true';
 
-    // Create the global atOptions object as a configurable property
-    Object.defineProperty(window, 'atOptions', {
-      value: {
-        key: 'f05afa052d7f89c5f20d0d9629dfb72f',
-        format: 'iframe',
-        height: 50,
-        width: 320,
-        params: {},
-      },
-      writable: true,
-      configurable: true,
-      enumerable: true,
-    });
+    // Assign atOptions globally so invoke.js can find it immediately
+    (window as any).atOptions = {
+      key: 'f05afa052d7f89c5f20d0d9629dfb72f',
+      format: 'iframe',
+      height: 50,
+      width: 320,
+      params: {},
+    };
 
-    // Create invoke.js
     const invokeScript = document.createElement('script');
-
     invokeScript.type = 'text/javascript';
     invokeScript.src =
       'https://plentyhelium.com/f05afa052d7f89c5f20d0d9629dfb72f/invoke.js';
@@ -339,14 +325,12 @@ export default function PostDetailPage() {
 
     return () => {
       invokeScript.remove();
-
-      // Clean up only if the property still belongs to us
       try {
         if ('atOptions' in window) {
           delete (window as any).atOptions;
         }
       } catch (error) {
-        console.warn('Could not clean up ad configuration:', error);
+        // Ignore cleanup errors
       }
     };
   }, []);
@@ -492,7 +476,7 @@ export default function PostDetailPage() {
         <div className="my-8 flex justify-center overflow-hidden">
           <div
             id="unsaid-ad"
-            className="w-[320px] h-[50px] flex items-center justify-center"
+            className="w-[320px] h-[50px] flex items-center justify-center bg-neutral-50/50 border border-neutral-100 rounded"
           />
         </div>
 
