@@ -204,12 +204,6 @@ export default function PostDetailPage() {
   }, [postId, router]);
 
   // Reliable Native Ad Injection Hook (via isolated iframe)
-  // Adsterra's invoke.js relies on document.write(), which is a no-op
-  // (or gets blocked) once the host page has already finished loading.
-  // Writing into a freshly-opened iframe document sidesteps that entirely.
-  //
-  // Depends on `loading` because the ref only mounts once the loading
-  // screen's early return stops firing — see PostDetailPage's render logic.
   useEffect(() => {
     if (!adContainerRef.current) return;
     const container = adContainerRef.current;
@@ -492,11 +486,14 @@ export default function PostDetailPage() {
           </div>
         </form>
 
-        {/* Ad Placement: 320x50 Banner */}
-        <div className="my-8 flex justify-center overflow-hidden">
+        {/* Ad Placement: 320x50 Banner with an "Advertisement" label */}
+        <div className="my-8 flex flex-col items-center">
+          <span className="font-mono text-[10px] uppercase tracking-widest text-neutral-400 mb-1">
+            Advertisement
+          </span>
           <div
             ref={adContainerRef}
-            className="w-[320px] h-[50px] flex items-center justify-center bg-neutral-50/50 border border-neutral-100 rounded"
+            className="w-[320px] h-[50px] flex items-center justify-center bg-neutral-50/50 border border-neutral-100 rounded overflow-hidden"
           />
         </div>
 
