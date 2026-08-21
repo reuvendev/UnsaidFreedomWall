@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { collection, addDoc, serverTimestamp } from 'firebase/firestore';
@@ -53,6 +53,61 @@ export default function PostPage() {
   const [category, setCategory] = useState('thoughts');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+
+  const adContainerRef = useRef<HTMLDivElement>(null);
+
+  // Sandboxed iframe ad injector hook
+  useEffect(() => {
+    if (!adContainerRef.current) return;
+    const container = adContainerRef.current;
+
+    container.innerHTML = '';
+
+    const iframe = document.createElement('iframe');
+    iframe.style.width = '320px';
+    iframe.style.height = '50px';
+    iframe.style.border = '0';
+    iframe.style.overflow = 'hidden';
+    iframe.setAttribute('scrolling', 'no');
+    container.appendChild(iframe);
+
+    const iframeDoc = iframe.contentWindow?.document;
+    if (!iframeDoc) return;
+
+    iframeDoc.open();
+    iframeDoc.write(`
+      <!DOCTYPE html>
+      <html>
+        <head>
+          <style>
+            html, body {
+              margin: 0;
+              padding: 0;
+              overflow: hidden;
+              background: transparent;
+            }
+          </style>
+        </head>
+        <body>
+          <script>
+            atOptions = {
+              'key': 'f05afa052d7f89c5f20d0d9629dfb72f',
+              'format': 'iframe',
+              'height': 50,
+              'width': 320,
+              'params': {}
+            };
+          </script>
+          <script src="https://plentyhelium.com/f05afa052d7f89c5f20d0d9629dfb72f/invoke.js"></script>
+        </body>
+      </html>
+    `);
+    iframeDoc.close();
+
+    return () => {
+      container.innerHTML = '';
+    };
+  }, []);
 
   const generateAlias = () => {
     const randomNum = Math.floor(10000 + Math.random() * 90000);
@@ -158,6 +213,17 @@ export default function PostPage() {
               onChange={(e) => setContent(e.target.value)}
               placeholder="What's on your mind? Share your thoughts, rants, or stories..."
               className="w-full p-4 bg-neutral-50 border border-neutral-200 rounded-lg text-base text-neutral-900 placeholder:text-neutral-400 focus:outline-none focus:border-neutral-900 focus:bg-white transition-all resize-none font-sans leading-relaxed"
+            />
+          </div>
+
+          {/* Ad Placement: 320x50 Banner with an "Ad" label */}
+          <div className="my-6 flex flex-col items-center">
+            <span className="font-mono text-[10px] uppercase tracking-widest text-neutral-400 mb-1">
+              Advertisement
+            </span>
+            <div
+              ref={adContainerRef}
+              className="w-[320px] h-[50px] flex items-center justify-center bg-neutral-50/50 border border-neutral-100 rounded overflow-hidden"
             />
           </div>
 
