@@ -47,7 +47,7 @@ export default function CreditsPage() {
               <span>Created & Developed By</span>
             </div>
             <div className="font-mono text-sm font-semibold text-neutral-900">
-              Reuven Jimenez
+              ReuvenDev
             </div>
             <p className="text-xs text-neutral-500 mt-1 font-mono">
               BSIT Student
