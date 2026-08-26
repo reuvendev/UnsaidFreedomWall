@@ -1,0 +1,35 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    
+    function isAdmin() {
+      return request.auth != null && request.auth.token.admin == true;
+    }
+    
+    function isActive() {
+      return resource.data.status == 'active';
+    }
+
+    match /posts/{postId} {
+      allow read: if isActive() || isAdmin();
+      allow create, update, delete: if isAdmin();
+      
+      match /comments/{commentId} {
+        allow read: if isActive() || isAdmin();
+        allow create, update, delete: if isAdmin();
+      }
+    }
+
+    match /reports/{reportId} {
+      allow read, write: if isAdmin();
+    }
+
+    match /rate_limits/{limitId} {
+      allow read, write: if false;
+    }
+
+    match /moderation_logs/{logId} {
+      allow read, write: if isAdmin();
+    }
+  }
+}
