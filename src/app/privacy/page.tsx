@@ -53,14 +53,14 @@ export default function PrivacyPolicyPage() {
 
           <section className="space-y-3">
             <h2 className="font-mono text-sm font-bold uppercase tracking-wider text-neutral-900">
-              3. Google AdSense & Third-Party Cookies
+              3. Advertising & Third-Party Cookies (Pending Review)
             </h2>
             <p>
-              To support the hosting and maintenance of Unsaid, we display advertisements via Google AdSense. 
+              To support the future hosting and maintenance of Unsaid, we have applied for Google AdSense integration, which is currently pending review and approval. 
             </p>
             <ul className="list-disc pl-5 space-y-1 font-mono text-xs text-neutral-600">
-              <li>Google, as a third-party vendor, uses cookies to serve ads on our site.</li>
-              <li>Google&apos;s use of advertising cookies enables it and its partners to serve ads to our users based on their visits to this site and/or other sites on the Internet.</li>
+              <li>Once approved, Google as a third-party vendor may use cookies to serve ads on our site.</li>
+              <li>Google&apos;s use of advertising cookies enables it and its partners to serve ads to users based on their visits to this site and/or other sites on the Internet.</li>
               <li>Users may opt out of personalized advertising by visiting <a href="https://www.google.com/settings/ads" target="_blank" rel="noopener noreferrer" className="underline text-neutral-900 font-bold">Google Ads Settings</a>.</li>
             </ul>
           </section>
