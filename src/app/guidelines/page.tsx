@@ -44,10 +44,10 @@ export default function GuidelinesPage() {
 
           <section className="p-6 bg-neutral-50 border border-neutral-200 rounded-lg space-y-3">
             <h2 className="font-mono text-xs font-bold uppercase tracking-widest text-neutral-900">
-              02. Zero Tolerance for Harassment
+              02. Zero Tolerance for Harassment & Hate Speech
             </h2>
             <p className="text-sm md:text-base">
-              While rants and confessions are welcome, targeted bullying, hate speech, or malicious defamation against specific individuals will not be tolerated. Keep discussions respectful.
+              While rants and confessions are welcome, we enforce a strict <strong>zero-tolerance policy</strong> for targeted bullying, hate speech, discrimination, malicious defamation, or harmful threats against specific individuals. Violating content is permanently removed.
             </p>
           </section>
 
@@ -65,16 +65,16 @@ export default function GuidelinesPage() {
               04. No Spam or Promotional Content
             </h2>
             <p className="text-sm md:text-base">
-             Avoid posting commercial advertisements, spam links, self-promotion, or repetitive junk content that disrupts the feed.
+              Avoid posting commercial advertisements, spam links, self-promotion, or repetitive junk content that disrupts the feed.
             </p>
           </section>
 
           <section className="p-6 bg-neutral-50 border border-neutral-200 rounded-lg space-y-3">
             <h2 className="font-mono text-xs font-bold uppercase tracking-widest text-neutral-900">
-              05. Content Moderation & Removal
+              05. Content Moderation & Reporting
             </h2>
             <p className="text-sm md:text-base">
-             The platform administrators reserve the right to remove any content or ban users who violate these guidelines to keep the space safe for everyone.
+              Our platform utilizes built-in user reporting tools and administrative moderation queues. Flagged posts are actively reviewed and scrubbed from the database to maintain a safe community standard.
             </p>
           </section>
 
@@ -83,7 +83,7 @@ export default function GuidelinesPage() {
               06. Respect Privacy and Data Protection
             </h2>
             <p className="text-sm md:text-base">
-             Never share private chat logs, or confidential information belonging to others. Protect your own digital footprint—do not share sensitive credentials, financial details, or private personal data anywhere on the platform.
+              Never share private chat logs, or confidential information belonging to others. Protect your own digital footprint—do not share sensitive credentials, financial details, or private personal data anywhere on the platform.
             </p>
           </section>
 

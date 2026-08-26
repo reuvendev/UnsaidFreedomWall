@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { useParams, useRouter } from 'next/navigation';
 import {
@@ -116,8 +116,6 @@ export default function PostDetailPage() {
   const [selectedReason, setSelectedReason] = useState(REPORT_REASONS[0]);
   const [customReason, setCustomReason] = useState('');
   const [isSubmittingReport, setIsSubmittingReport] = useState(false);
-
-  const adContainerRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     try {
@@ -238,59 +236,6 @@ export default function PostDetailPage() {
       unsubscribeReplies();
     };
   }, [postId, router]);
-
-  // Reliable Native Ad Injection Hook
-  useEffect(() => {
-    if (!adContainerRef.current) return;
-    const container = adContainerRef.current;
-
-    container.innerHTML = '';
-
-    const iframe = document.createElement('iframe');
-    iframe.style.width = '320px';
-    iframe.style.height = '50px';
-    iframe.style.border = '0';
-    iframe.style.overflow = 'hidden';
-    iframe.setAttribute('scrolling', 'no');
-    container.appendChild(iframe);
-
-    const iframeDoc = iframe.contentWindow?.document;
-    if (!iframeDoc) return;
-
-    iframeDoc.open();
-    iframeDoc.write(`
-      <!DOCTYPE html>
-      <html>
-        <head>
-          <style>
-            html, body {
-              margin: 0;
-              padding: 0;
-              overflow: hidden;
-              background: transparent;
-            }
-          </style>
-        </head>
-        <body>
-          <script>
-            atOptions = {
-              'key': 'f05afa052d7f89c5f20d0d9629dfb72f',
-              'format': 'iframe',
-              'height': 50,
-              'width': 320,
-              'params': {}
-            };
-          </script>
-          <script src="https://plentyhelium.com/f05afa052d7f89c5f20d0d9629dfb72f/invoke.js"></script>
-        </body>
-      </html>
-    `);
-    iframeDoc.close();
-
-    return () => {
-      container.innerHTML = '';
-    };
-  }, [loading]);
 
   const handleVoteToggle = async () => {
     if (!post || votingLocked) return;
@@ -600,7 +545,6 @@ export default function PostDetailPage() {
           </h3>
 
           {replies.map((reply) => {
-            // Check if reply author is an admin/developer
             const isReplyAdminOrDev = 
               reply.authorAlias.toLowerCase().includes('admin') || 
               reply.authorAlias.toLowerCase().includes('developer') || 
@@ -651,17 +595,6 @@ export default function PostDetailPage() {
               No replies yet. Be the first to join the conversation.
             </p>
           )}
-        </div>
-
-        {/* Ad Placement */}
-        <div className="my-8 flex flex-col items-center">
-          <span className="font-mono text-[10px] uppercase tracking-widest text-neutral-400 mb-1">
-            Advertisement
-          </span>
-          <div
-            ref={adContainerRef}
-            className="w-[320px] h-[50px] flex items-center justify-center bg-neutral-50/50 border border-neutral-100 rounded overflow-hidden"
-          />
         </div>
       </main>
 

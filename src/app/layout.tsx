@@ -51,9 +51,11 @@ function Footer() {
           <Link href="/" className="hover:text-neutral-900 transition-colors">Feed</Link>
           <Link href="/about" className="hover:text-neutral-900 transition-colors">About</Link>
           <Link href="/guidelines" className="hover:text-neutral-900 transition-colors">Guidelines</Link>
+          <Link href="/privacy" className="hover:text-neutral-900 transition-colors">Privacy</Link>
+          <Link href="/contact" className="hover:text-neutral-900 transition-colors">Contact</Link>
           <Link href="/credits" className="hover:text-neutral-900 transition-colors">Credits</Link>
           <Link href="/post" className="text-neutral-900 hover:opacity-70 transition-opacity">Submit +</Link>
-        </div>
+      </div>
       </div>
     </footer>
   );
