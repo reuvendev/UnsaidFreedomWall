@@ -116,7 +116,7 @@ export default function PostPage() {
     try {
       const authorAlias = generateAlias();
       
-      // Apply automatic censorship to English and Tagalog bad words (e.g. tangina -> ta*****)
+      // Apply automatic censorship to English and Tagalog bad words
       const sanitizedContent = censorText(content.trim());
 
       const postData: any = {
@@ -249,23 +249,33 @@ export default function PostPage() {
             )}
           </div>
 
-          <div className="flex items-center justify-end gap-4 pt-4 border-t border-neutral-200">
-            <Link
-              href="/"
-              className="px-6 py-3 font-mono text-xs font-bold uppercase tracking-wider text-neutral-500 hover:text-neutral-900 transition-colors"
-            >
-              Cancel
-            </Link>
-            <button
-              type="submit"
-              disabled={loading}
-              className={`inline-flex items-center gap-2 bg-neutral-900 text-white font-mono text-xs font-bold uppercase tracking-wider px-6 py-3.5 rounded hover:bg-neutral-800 transition-all active:scale-95 shadow-sm ${
-                loading ? "opacity-50 cursor-not-allowed" : ""
-              }`}
-            >
-              <Icons.Send />
-              <span>{loading ? 'Publishing...' : 'Publish Entry'}</span>
-            </button>
+          <div className="pt-4 border-t border-neutral-200 space-y-4">
+            <p className="text-[11px] text-neutral-400 leading-relaxed">
+              By submitting an entry, you agree to our{' '}
+              <Link href="/guidelines" className="underline hover:text-neutral-900 transition-colors font-medium">
+                Community Guidelines
+              </Link>{' '}
+              and safety standards. All entries are moderated to ensure a respectful environment.
+            </p>
+
+            <div className="flex items-center justify-end gap-4">
+              <Link
+                href="/"
+                className="px-6 py-3 font-mono text-xs font-bold uppercase tracking-wider text-neutral-500 hover:text-neutral-900 transition-colors"
+              >
+                Cancel
+              </Link>
+              <button
+                type="submit"
+                disabled={loading}
+                className={`inline-flex items-center gap-2 bg-neutral-900 text-white font-mono text-xs font-bold uppercase tracking-wider px-6 py-3.5 rounded hover:bg-neutral-800 transition-all active:scale-95 shadow-sm ${
+                  loading ? "opacity-50 cursor-not-allowed" : ""
+                }`}
+              >
+                <Icons.Send />
+                <span>{loading ? 'Publishing...' : 'Publish Entry'}</span>
+              </button>
+            </div>
           </div>
         </form>
       </main>
