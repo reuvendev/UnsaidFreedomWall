@@ -11,6 +11,7 @@ const CATEGORIES = [
   { id: 'love', label: 'Love & Connections' },
   { id: 'rants', label: 'Rants' },
   { id: 'life', label: 'City Life' },
+  { id: 'advice', label: 'advice' },
   { id: 'others', label: 'Others' },
 ];
 
