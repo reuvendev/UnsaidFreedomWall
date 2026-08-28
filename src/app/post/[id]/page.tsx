@@ -16,6 +16,7 @@ import {
 } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import { checkForDoxxing } from '@/lib/antiDoxx';
+import { censorText } from '@/lib/moderation';
 
 interface PostData {
   id: string;
@@ -301,8 +302,11 @@ export default function PostDetailPage() {
     try {
       const randomId = Math.floor(10000 + Math.random() * 90000);
 
+      // Apply automatic censorship to English and Tagalog bad words
+      const sanitizedContent = censorText(replyContent.trim());
+
       const replyData = {
-        content: replyContent.trim(),
+        content: sanitizedContent,
         authorAlias: `UNSAID #${randomId}`,
         createdAt: serverTimestamp(),
       };

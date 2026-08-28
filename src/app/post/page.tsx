@@ -5,13 +5,14 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { collection, addDoc, serverTimestamp } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
+import { censorText } from '@/lib/moderation';
 
 const CATEGORIES = [
   { id: 'thoughts', label: 'Thoughts' },
   { id: 'love', label: 'Love & Connections' },
   { id: 'rants', label: 'Rants' },
   { id: 'life', label: 'City Life' },
-  { id: 'advice', label: 'advice' },
+  { id: 'advice', label: 'Advice' },
   { id: 'others', label: 'Others' },
 ];
 
@@ -115,8 +116,11 @@ export default function PostPage() {
     try {
       const authorAlias = generateAlias();
       
+      // Apply automatic censorship to English and Tagalog bad words (e.g. tangina -> ta*****)
+      const sanitizedContent = censorText(content.trim());
+
       const postData: any = {
-        content: content.trim(),
+        content: sanitizedContent,
         category,
         authorAlias,
         upvotes: 0,
