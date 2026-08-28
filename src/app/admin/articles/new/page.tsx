@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { collection, addDoc, serverTimestamp } from 'firebase/firestore';
@@ -19,11 +19,18 @@ const Icons = {
       <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"></path>
       <polyline points="9 12 11 14 15 10"></polyline>
     </svg>
-  )
+  ),
+  Bold: () => <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M6 4h8a4 4 0 0 1 4 4 4 4 0 0 1-4 4H6z"></path><path d="M6 12h9a4 4 0 0 1 4 4 4 4 0 0 1-4 4H6z"></path></svg>,
+  Italic: () => <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><line x1="19" y1="4" x2="10" y2="4"></line><line x1="14" y1="20" x2="5" y2="20"></line><line x1="15" y1="4" x2="9" y2="20"></line></svg>,
+  Heading: () => <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M6 12h12"></path><path d="M6 4v16"></path><path d="M18 4v16"></path></svg>,
+  Quote: () => <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M3 21c3 0 7-1 7-8V5c0-1.25-.75-2-2-2H4c-1.25 0-2 .75-2 2v6c0 1.25.75 2 2 2h3c0 3-2 5-5 5v1z"></path><path d="M15 21c3 0 7-1 7-8V5c0-1.25-.75-2-2-2h-4c-1.25 0-2 .75-2 2v6c0 1.25.75 2 2 2h3c0 3-2 5-5 5v1z"></path></svg>,
+  List: () => <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><line x1="8" y1="6" x2="21" y2="6"></line><line x1="8" y1="12" x2="21" y2="12"></line><line x1="8" y1="18" x2="21" y2="18"></line><line x1="3" y1="6" x2="3.01" y2="6"></line><line x1="3" y1="12" x2="3.01" y2="12"></line><line x1="3" y1="18" x2="3.01" y2="18"></line></svg>,
+  Link: () => <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"></path><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"></path></svg>
 };
 
 export default function AdminNewArticlePage() {
   const router = useRouter();
+  const contentRef = useRef<HTMLTextAreaElement>(null);
   
   // Authentication states
   const [isAuthenticated, setIsAuthenticated] = useState<boolean | null>(null);
@@ -76,6 +83,53 @@ export default function AdminNewArticlePage() {
     setSlug(generatedSlug);
   };
 
+  // Helper to insert Markdown tags around selection or at cursor position
+  const insertFormatting = (syntaxType: string) => {
+    const textarea = contentRef.current;
+    if (!textarea) return;
+
+    const start = textarea.selectionStart;
+    const end = textarea.selectionEnd;
+    const selectedText = content.substring(start, end);
+    
+    let replacement = '';
+    let cursorOffset = 0;
+
+    switch (syntaxType) {
+      case 'bold':
+        replacement = `**${selectedText || 'bold text'}**`;
+        cursorOffset = selectedText ? replacement.length : 2;
+        break;
+      case 'italic':
+        replacement = `*${selectedText || 'italic text'}*`;
+        cursorOffset = selectedText ? replacement.length : 1;
+        break;
+      case 'heading':
+        replacement = `\n### ${selectedText || 'Heading Title'}\n`;
+        break;
+      case 'quote':
+        replacement = `\n> ${selectedText || 'Blockquote or highlighted statement...'}\n`;
+        break;
+      case 'list':
+        replacement = `\n- ${selectedText || 'List item'}\n`;
+        break;
+      case 'link':
+        replacement = `[${selectedText || 'link text'}](https://example.com)`;
+        break;
+      default:
+        return;
+    }
+
+    const newContent = content.substring(0, start) + replacement + content.substring(end);
+    setContent(newContent);
+
+    // Reset cursor position focus smoothly
+    setTimeout(() => {
+      textarea.focus();
+      textarea.setSelectionRange(start + replacement.length, start + replacement.length);
+    }, 0);
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!title.trim() || !content.trim() || !slug.trim()) {
@@ -115,7 +169,7 @@ export default function AdminNewArticlePage() {
     );
   }
 
-  // 1. Gatekeeper Login View (Matches Reports Page)
+  // 1. Gatekeeper Login View
   if (!isAuthenticated) {
     return (
       <div className="min-h-screen bg-neutral-900 text-neutral-100 font-sans flex items-center justify-center p-6">
@@ -269,20 +323,78 @@ export default function AdminNewArticlePage() {
             />
           </div>
 
-          {/* Content Body */}
+          {/* Content Body with Editor Toolbar */}
           <div>
-            <label className="block font-mono text-xs font-bold uppercase tracking-wider text-neutral-300 mb-2">
-              Main Content (Paragraphs) *
-            </label>
+            <div className="flex items-center justify-between mb-2">
+              <label className="font-mono text-xs font-bold uppercase tracking-wider text-neutral-300">
+                Main Content *
+              </label>
+              <span className="font-mono text-[11px] text-neutral-500">Highlight text & click buttons to format</span>
+            </div>
+
+            {/* Formatting Toolbar */}
+            <div className="flex items-center gap-1 p-2 bg-neutral-950 border border-neutral-800 border-b-0 rounded-t-lg">
+              <button
+                type="button"
+                onClick={() => insertFormatting('bold')}
+                title="Bold (**text**)"
+                className="p-2 text-neutral-400 hover:text-white hover:bg-neutral-800 rounded transition-colors"
+              >
+                <Icons.Bold />
+              </button>
+              <button
+                type="button"
+                onClick={() => insertFormatting('italic')}
+                title="Italic (*text*)"
+                className="p-2 text-neutral-400 hover:text-white hover:bg-neutral-800 rounded transition-colors"
+              >
+                <Icons.Italic />
+              </button>
+              <div className="w-px h-4 bg-neutral-800 mx-1"></div>
+              <button
+                type="button"
+                onClick={() => insertFormatting('heading')}
+                title="Subheading (### Heading)"
+                className="p-2 text-neutral-400 hover:text-white hover:bg-neutral-800 rounded transition-colors"
+              >
+                <Icons.Heading />
+              </button>
+              <button
+                type="button"
+                onClick={() => insertFormatting('quote')}
+                title="Blockquote (> Quote)"
+                className="p-2 text-neutral-400 hover:text-white hover:bg-neutral-800 rounded transition-colors"
+              >
+                <Icons.Quote />
+              </button>
+              <button
+                type="button"
+                onClick={() => insertFormatting('list')}
+                title="Bullet List (- Item)"
+                className="p-2 text-neutral-400 hover:text-white hover:bg-neutral-800 rounded transition-colors"
+              >
+                <Icons.List />
+              </button>
+              <button
+                type="button"
+                onClick={() => insertFormatting('link')}
+                title="Hyperlink ([Text](URL))"
+                className="p-2 text-neutral-400 hover:text-white hover:bg-neutral-800 rounded transition-colors"
+              >
+                <Icons.Link />
+              </button>
+            </div>
+
+            {/* Textarea */}
             <textarea
+              ref={contentRef}
               value={content}
               onChange={(e) => setContent(e.target.value)}
-              rows={10}
-              placeholder="Write your article paragraphs here. Separate blocks with line breaks."
+              rows={12}
+              placeholder="Write your article here. Use the formatting bar above to style text like an actual professional article editor."
               required
-              className="w-full p-4 bg-neutral-950 border border-neutral-800 rounded-lg text-neutral-100 font-sans text-base leading-relaxed focus:outline-none focus:border-neutral-500"
+              className="w-full p-4 bg-neutral-950 border border-neutral-800 rounded-b-lg text-neutral-100 font-sans text-base leading-relaxed focus:outline-none focus:border-neutral-500"
             />
-            <p className="font-mono text-[11px] text-neutral-500 mt-1">Tip: Use double line breaks between paragraphs for natural spacing.</p>
           </div>
 
           {/* Submit Button */}

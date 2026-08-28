@@ -35,6 +35,103 @@ function formatArticleDate(timestamp: Timestamp | null): string {
   });
 }
 
+// Simple parser to convert custom markdown text blocks into styled JSX elements
+function renderMarkdownContent(content: string) {
+  if (!content) return null;
+
+  const lines = content.split('\n');
+  return lines.map((line, index) => {
+    const trimmed = line.trim();
+
+    // Headings (### Heading)
+    if (trimmed.startsWith('### ')) {
+      return (
+        <h3 key={index} className="text-xl md:text-2xl font-bold tracking-tight text-neutral-900 mt-8 mb-4">
+          {formatInlineStyles(trimmed.replace('### ', ''))}
+        </h3>
+      );
+    }
+
+    // Blockquotes (> Quote)
+    if (trimmed.startsWith('> ')) {
+      return (
+        <blockquote key={index} className="border-l-2 border-neutral-900 pl-4 my-6 italic text-neutral-700 font-medium text-lg">
+          {formatInlineStyles(trimmed.replace('> ', ''))}
+        </blockquote>
+      );
+    }
+
+    // Bullet Lists (- Item)
+    if (trimmed.startsWith('- ')) {
+      return (
+        <ul key={index} className="list-disc list-inside my-2 space-y-1 text-neutral-800">
+          <li>{formatInlineStyles(trimmed.replace('- ', ''))}</li>
+        </ul>
+      );
+    }
+
+    // Empty lines act as natural paragraph spacing
+    if (trimmed === '') {
+      return <div key={index} className="h-4" />;
+    }
+
+    // Regular paragraphs
+    return (
+      <p key={index} className="leading-relaxed mb-4 text-neutral-800">
+        {formatInlineStyles(line)}
+      </p>
+    );
+  });
+}
+
+// Helper to handle inline bold (**text**), italics (*text*), and links ([text](url))
+function formatInlineStyles(text: string) {
+  // Replace links first: [text](url)
+  const linkRegex = /\[([^\]]+)\]\(([^)]+)\)/g;
+  const parts: (string | React.ReactNode)[] = [];
+  let lastIndex = 0;
+  let match;
+
+  while ((match = linkRegex.exec(text)) !== null) {
+    if (match.index > lastIndex) {
+      parts.push(text.substring(lastIndex, match.index));
+    }
+    parts.push(
+      <a 
+        key={match.index} 
+        href={match[2]} 
+        target="_blank" 
+        rel="noopener noreferrer" 
+        className="underline text-emerald-700 hover:text-emerald-900 font-semibold"
+      >
+        {match[1]}
+      </a>
+    );
+    lastIndex = linkRegex.lastIndex;
+  }
+
+  if (lastIndex < text.length) {
+    parts.push(text.substring(lastIndex));
+  }
+
+  // Next, map through text pieces to handle bold and italics safely
+  return parts.map((part, i) => {
+    if (typeof part !== 'string') return part;
+
+    // Split by bold (**...**) and italic (*...*) tokens
+    const tokens = part.split(/(\*\*.*?\*\*|\*.*?\*)/g);
+    return tokens.map((token, j) => {
+      if (token.startsWith('**') && token.endsWith('**')) {
+        return <strong key={j} className="font-bold text-neutral-900">{token.slice(2, -2)}</strong>;
+      }
+      if (token.startsWith('*') && token.endsWith('*')) {
+        return <em key={j} className="italic">{token.slice(1, -1)}</em>;
+      }
+      return token;
+    });
+  });
+}
+
 export default function ArticlePage() {
   const params = useParams();
   const slug = params.slug as string;
@@ -125,9 +222,9 @@ export default function ArticlePage() {
         {/* Divider */}
         <hr className="border-neutral-200 mb-10" />
 
-        {/* Article Body Typography */}
-        <article className="prose prose-neutral max-w-none space-y-6 text-neutral-800 text-base md:text-lg leading-relaxed whitespace-pre-line">
-          {article.content}
+        {/* Article Body Typography (Parsed Markdown) */}
+        <article className="prose prose-neutral max-w-none text-base md:text-lg leading-relaxed">
+          {renderMarkdownContent(article.content)}
         </article>
 
         {/* Article Footer / Author Tag */}
