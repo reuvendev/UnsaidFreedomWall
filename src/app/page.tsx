@@ -62,6 +62,12 @@ const Icons = {
       <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"></path>
       <polyline points="9 12 11 14 15 10"></polyline>
     </svg>
+  ),
+  BookOpen: () => (
+    <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"></path>
+      <path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"></path>
+    </svg>
   )
 };
 
@@ -375,6 +381,20 @@ export default function HomePage() {
               {cat.label}
             </button>
           ))}
+        </div>
+
+        {/* Minimalist Articles Link */}
+        <div className="flex items-center justify-between mb-8 px-1">
+          <span className="font-mono text-xs uppercase tracking-wider text-neutral-400">
+            Looking for deeper reads?
+          </span>
+          <Link
+            href="/articles"
+            className="inline-flex items-center gap-1.5 font-mono text-xs font-bold uppercase tracking-wider text-neutral-900 hover:text-emerald-700 transition-colors group"
+          >
+            <span>Explore Articles Archive</span>
+            <span className="group-hover:translate-x-0.5 transition-transform">→</span>
+          </Link>
         </div>
 
         {/* Feed List */}

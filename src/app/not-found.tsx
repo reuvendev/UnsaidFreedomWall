@@ -40,11 +40,7 @@ export default function NotFound() {
           Return to Freedom Wall
         </Link>
       </main>
-
-      {/* Footer / Spacer */}
-      <footer className="py-6 border-t border-neutral-100 text-center font-mono text-xs text-neutral-400">
-        UNSAID Baguio City Freedom Wall
-      </footer>
+      
     </div>
   );
 }
