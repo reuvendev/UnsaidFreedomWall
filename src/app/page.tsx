@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
-import { collection, onSnapshot, query, orderBy, limit, startAfter, getDocs, doc, updateDoc, increment, addDoc, serverTimestamp, DocumentData, QueryDocumentSnapshot } from 'firebase/firestore';
+import { collection, onSnapshot, query, orderBy, limit, startAfter, getDocs, doc, updateDoc, increment, addDoc, serverTimestamp, where, DocumentData, QueryDocumentSnapshot } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 
 export interface PostProps {
@@ -63,12 +63,6 @@ const Icons = {
       <polyline points="9 12 11 14 15 10"></polyline>
     </svg>
   ),
-  BookOpen: () => (
-    <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-      <path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"></path>
-      <path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"></path>
-    </svg>
-  )
 };
 
 export default function HomePage() {
@@ -94,37 +88,40 @@ export default function HomePage() {
   useEffect(() => {
     try {
       const storedVotes = localStorage.getItem('unsaid_voted_posts');
-      if (storedVotes) {
-        setVotedPosts(JSON.parse(storedVotes));
-      }
+      if (storedVotes) setVotedPosts(JSON.parse(storedVotes));
       const storedReports = localStorage.getItem('unsaid_reported_posts');
-      if (storedReports) {
-        setReportedPosts(JSON.parse(storedReports));
-      }
+      if (storedReports) setReportedPosts(JSON.parse(storedReports));
     } catch (e) {
-      // Ignore storage errors
+      // Ignore
     }
+  }, []);
 
-    // Initial real-time query limited to 10 posts
-    const q = query(collection(db, "posts"), orderBy("createdAt", "desc"), limit(10));
+  // Fetch / Listen to posts dynamically when category changes
+  useEffect(() => {
+    setLoading(true);
+    setHasMore(true);
+
+    let q;
+    if (selectedCategory === "all") {
+      q = query(collection(db, "posts"), orderBy("createdAt", "desc"), limit(10));
+    } else {
+      q = query(
+        collection(db, "posts"), 
+        where("category", "==", selectedCategory), 
+        orderBy("createdAt", "desc"), 
+        limit(10)
+      );
+    }
     
     const unsubscribe = onSnapshot(q, (querySnapshot) => {
       const fetchedPosts: PostProps[] = [];
       
       querySnapshot.forEach((docSnap) => {
         const data = docSnap.data();
-        
         let formattedDate = "Just now";
         if (data.createdAt) {
           const dateObj = data.createdAt.toDate();
-          formattedDate = dateObj.toLocaleDateString([], { 
-            month: 'short', 
-            day: 'numeric', 
-            year: 'numeric' 
-          }) + ' at ' + dateObj.toLocaleTimeString([], { 
-            hour: '2-digit', 
-            minute: '2-digit' 
-          });
+          formattedDate = dateObj.toLocaleDateString([], { month: 'short', day: 'numeric', year: 'numeric' }) + ' at ' + dateObj.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
         }
 
         fetchedPosts.push({
@@ -142,13 +139,13 @@ export default function HomePage() {
 
       setPosts(fetchedPosts);
       
-      // Save last visible document for pagination cursor
       if (querySnapshot.docs.length > 0) {
         setLastVisible(querySnapshot.docs[querySnapshot.docs.length - 1]);
         if (querySnapshot.docs.length < 10) {
           setHasMore(false);
         }
       } else {
+        setLastVisible(null);
         setHasMore(false);
       }
 
@@ -158,21 +155,31 @@ export default function HomePage() {
       setLoading(false);
     });
 
-    // Clean up the listener when the component unmounts
     return () => unsubscribe();
-  }, []);
+  }, [selectedCategory]);
 
   const loadMorePosts = async () => {
     if (!lastVisible || loadingMore) return;
 
     setLoadingMore(true);
     try {
-      const nextQuery = query(
-        collection(db, "posts"),
-        orderBy("createdAt", "desc"),
-        startAfter(lastVisible),
-        limit(10)
-      );
+      let nextQuery;
+      if (selectedCategory === "all") {
+        nextQuery = query(
+          collection(db, "posts"),
+          orderBy("createdAt", "desc"),
+          startAfter(lastVisible),
+          limit(10)
+        );
+      } else {
+        nextQuery = query(
+          collection(db, "posts"),
+          where("category", "==", selectedCategory),
+          orderBy("createdAt", "desc"),
+          startAfter(lastVisible),
+          limit(10)
+        );
+      }
 
       const querySnapshot = await getDocs(nextQuery);
       
@@ -188,14 +195,7 @@ export default function HomePage() {
         let formattedDate = "Just now";
         if (data.createdAt) {
           const dateObj = data.createdAt.toDate();
-          formattedDate = dateObj.toLocaleDateString([], { 
-            month: 'short', 
-            day: 'numeric', 
-            year: 'numeric' 
-          }) + ' at ' + dateObj.toLocaleTimeString([], { 
-            hour: '2-digit', 
-            minute: '2-digit' 
-          });
+          formattedDate = dateObj.toLocaleDateString([], { month: 'short', day: 'numeric', year: 'numeric' }) + ' at ' + dateObj.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
         }
 
         morePosts.push({
@@ -226,7 +226,6 @@ export default function HomePage() {
 
   const handleVoteToggle = async (id: string) => {
     if (votingLocked[id]) return;
-
     setVotingLocked((prev) => ({ ...prev, [id]: true }));
 
     const hasVoted = votedPosts[id];
@@ -234,16 +233,11 @@ export default function HomePage() {
 
     try {
       const postRef = doc(db, "posts", id);
-      await updateDoc(postRef, {
-        upvotes: increment(voteChange)
-      });
+      await updateDoc(postRef, { upvotes: increment(voteChange) });
       
       const updatedVotes = { ...votedPosts };
-      if (hasVoted) {
-        delete updatedVotes[id];
-      } else {
-        updatedVotes[id] = true;
-      }
+      if (hasVoted) delete updatedVotes[id];
+      else updatedVotes[id] = true;
 
       setVotedPosts(updatedVotes);
       localStorage.setItem('unsaid_voted_posts', JSON.stringify(updatedVotes));
@@ -286,31 +280,22 @@ export default function HomePage() {
 
   const handleShare = async (id: string) => {
     const postUrl = `${window.location.origin}/post/${id}`;
-    
     if (navigator.share) {
       try {
-        await navigator.share({
-          title: 'UNSAID Freedom Wall Entry',
-          url: postUrl,
-        });
+        await navigator.share({ title: 'UNSAID Freedom Wall Entry', url: postUrl });
         return;
-      } catch (err) {
-        // Fallback to clipboard if user cancels system share sheet
-      }
+      } catch (err) {}
     }
-
     navigator.clipboard.writeText(postUrl);
     setCopiedId(id);
     setTimeout(() => setCopiedId(null), 2000);
   };
 
+  // Search filtering on top of fetched category posts
   const filteredPosts = posts.filter((post) => {
-    const matchesCategory = selectedCategory === "all" || post.category === selectedCategory;
-    const matchesSearch = searchQuery.trim() === "" || 
+    return searchQuery.trim() === "" || 
       post.content.toLowerCase().includes(searchQuery.toLowerCase()) ||
       post.authorAlias.toLowerCase().includes(searchQuery.toLowerCase());
-    
-    return matchesCategory && matchesSearch;
   });
 
   return (
@@ -320,13 +305,10 @@ export default function HomePage() {
           <Link href="/" className="font-mono text-xl font-black tracking-tighter hover:opacity-70 transition-opacity">
             UNSAID.
           </Link>
-          
-          <div className="flex items-center gap-6">
-            <nav className="flex items-center gap-5 font-mono text-[11px] font-bold tracking-widest text-neutral-500 uppercase">
-              <Link href="/about" className="hover:text-neutral-900 transition-colors">About</Link>
-              <Link href="/guidelines" className="hover:text-neutral-900 transition-colors">Guidelines</Link>
-            </nav>
-          </div>
+          <nav className="flex items-center gap-5 font-mono text-[11px] font-bold tracking-widest text-neutral-500 uppercase">
+            <Link href="/about" className="hover:text-neutral-900 transition-colors">About</Link>
+            <Link href="/guidelines" className="hover:text-neutral-900 transition-colors">Guidelines</Link>
+          </nav>
         </div>
       </header>
 
@@ -342,7 +324,6 @@ export default function HomePage() {
           <p className="text-base text-neutral-600 leading-relaxed max-w-md mb-8">
             An open space for thoughts, confessions, and stories. Share what's on your mind entirely without identity.
           </p>
-          
           <Link 
             href="/post" 
             className="inline-flex items-center gap-2 bg-neutral-900 text-white font-mono text-xs font-bold uppercase tracking-wider px-6 py-3.5 rounded hover:bg-neutral-800 transition-all active:scale-95 shadow-sm"
@@ -419,7 +400,6 @@ export default function HomePage() {
                       : "bg-white border border-neutral-200 shadow-2xs hover:border-neutral-300"
                   }`}
                 >
-                  {/* Developer Post Badge Overlay / Ribbon */}
                   {isDev && (
                     <div className="absolute -top-3 left-6 inline-flex items-center gap-1.5 px-3 py-0.5 bg-emerald-600 text-white font-mono text-[10px] font-bold uppercase tracking-widest rounded-full shadow-xs">
                       <Icons.ShieldCheck />
@@ -448,7 +428,6 @@ export default function HomePage() {
                     {post.content}
                   </p>
 
-                  {/* Spotify Embedded Player Preview */}
                   {post.spotifyTrackId && (
                     <div className="mb-6">
                       <iframe
@@ -474,7 +453,6 @@ export default function HomePage() {
                             ? "text-rose-500 hover:text-rose-600" 
                             : isDev ? "text-emerald-700 hover:text-rose-500" : "text-neutral-500 hover:text-rose-500"
                         }`}
-                        title={hasVoted ? "Click to unvote" : "Upvote entry"}
                       >
                         <Icons.Heart filled={hasVoted} />
                         <span>{post.upvotes}</span>
@@ -494,7 +472,6 @@ export default function HomePage() {
                           onClick={() => setActiveReportPostId(post.id)}
                           disabled={isReported}
                           className="font-mono text-[11px] text-neutral-400 hover:text-rose-600 transition-colors uppercase tracking-wider disabled:opacity-50"
-                          title="Report entry"
                         >
                           {isReported ? 'Reported' : 'Report'}
                         </button>
@@ -505,7 +482,6 @@ export default function HomePage() {
                         className={`flex items-center gap-1.5 font-mono text-[11px] font-semibold transition-colors uppercase tracking-wider ${
                           isDev ? 'text-emerald-800 hover:text-emerald-950' : 'text-neutral-400 hover:text-neutral-900'
                         }`}
-                        title="Share entry link"
                       >
                         <Icons.Share />
                         <span>{copiedId === post.id ? 'Copied!' : 'Share'}</span>
@@ -523,7 +499,7 @@ export default function HomePage() {
             )}
 
             {/* Load More Button */}
-            {hasMore && searchQuery.trim() === "" && selectedCategory === "all" && (
+            {hasMore && searchQuery.trim() === "" && (
               <div className="pt-6 text-center">
                 <button
                   onClick={loadMorePosts}
@@ -538,16 +514,13 @@ export default function HomePage() {
         )}
       </main>
 
-      {/* Inline Report Modal Overlay */}
+      {/* Inline Report Modal */}
       {activeReportPostId && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-xs">
-          <div className="w-full max-w-md bg-white rounded-xl shadow-xl border border-neutral-200 overflow-hidden animate-in fade-in zoom-in-95 duration-150">
+          <div className="w-full max-w-md bg-white rounded-xl shadow-xl border border-neutral-200 overflow-hidden">
             <div className="flex items-center justify-between px-6 py-4 border-b border-neutral-100">
               <h3 className="font-mono text-sm font-bold uppercase tracking-wider text-neutral-900">Report Entry</h3>
-              <button 
-                onClick={() => setActiveReportPostId(null)}
-                className="text-neutral-400 hover:text-neutral-900 transition-colors p-1"
-              >
+              <button onClick={() => setActiveReportPostId(null)} className="text-neutral-400 hover:text-neutral-900 transition-colors p-1">
                 <Icons.Close />
               </button>
             </div>
@@ -560,7 +533,7 @@ export default function HomePage() {
                 <select
                   value={selectedReason}
                   onChange={(e) => setSelectedReason(e.target.value)}
-                  className="w-full p-3 bg-neutral-50 border border-neutral-200 rounded-lg text-sm text-neutral-900 font-mono focus:outline-none focus:border-neutral-900 transition-all"
+                  className="w-full p-3 bg-neutral-50 border border-neutral-200 rounded-lg text-sm text-neutral-900 font-mono focus:outline-none focus:border-neutral-900"
                 >
                   {REPORT_REASONS.map((reason) => (
                     <option key={reason} value={reason}>{reason}</option>
@@ -577,7 +550,7 @@ export default function HomePage() {
                   onChange={(e) => setReportDetails(e.target.value)}
                   placeholder="Provide any extra context for moderators..."
                   rows={3}
-                  className="w-full p-3 bg-neutral-50 border border-neutral-200 rounded-lg text-sm text-neutral-900 placeholder:text-neutral-400 font-mono focus:outline-none focus:border-neutral-900 transition-all resize-none"
+                  className="w-full p-3 bg-neutral-50 border border-neutral-200 rounded-lg text-sm text-neutral-900 placeholder:text-neutral-400 font-mono focus:outline-none focus:border-neutral-900 resize-none"
                 />
               </div>
 
