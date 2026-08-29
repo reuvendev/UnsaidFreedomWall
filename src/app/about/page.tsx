@@ -64,7 +64,7 @@ export default function AboutPage() {
             </p>
           </section>
 
-          {/* Section: Collaboration / AI Assistant */}
+          {/* Section: Collaboration / AI Assistant
           <section className="p-6 bg-neutral-50 border border-neutral-200 rounded-lg">
             <div className="flex items-center gap-2.5 font-mono text-xs font-bold text-neutral-900 uppercase tracking-wider mb-4">
               <Icons.Bot />
@@ -76,7 +76,7 @@ export default function AboutPage() {
             <span className="inline-block font-mono text-[10px] uppercase tracking-wider bg-neutral-200/60 text-neutral-600 px-2 py-0.5 rounded">
               AI Collaborative Partner
             </span>
-          </section>
+          </section> */}
 
           {/* Section: Core Stack */}
           <section className="p-6 bg-neutral-50 border border-neutral-200 rounded-lg">
