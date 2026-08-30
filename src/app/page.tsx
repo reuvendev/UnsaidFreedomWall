@@ -22,7 +22,6 @@ const CATEGORIES = [
   { id: 'thoughts', label: 'Thoughts' },
   { id: 'love', label: 'Love & Connections' },
   { id: 'rants', label: 'Rants' },
-  { id: 'life', label: 'City Life' },
   { id: 'advice', label: 'Advice' },
   { id: 'others', label: 'Others' },
 ];
