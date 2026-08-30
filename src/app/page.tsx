@@ -310,10 +310,6 @@ export default function HomePage() {
             UNSAID.
           </Link>
           <nav className="flex items-center gap-5 font-mono text-[11px] font-bold tracking-widest text-neutral-500 uppercase">
-            <Link href="/inbox/my" className="px-3 py-1.5 rounded-md bg-neutral-100 hover:bg-neutral-200 text-neutral-900 transition-colors flex items-center gap-1.5 border border-neutral-200">
-              <Icons.Inbox />
-              <span>My Inboxes</span>
-            </Link>
             <Link href="/about" className="hover:text-neutral-900 transition-colors">About</Link>
             <Link href="/guidelines" className="hover:text-neutral-900 transition-colors">Guidelines</Link>
           </nav>
@@ -347,6 +343,13 @@ export default function HomePage() {
             >
               <Icons.Inbox />
               <span>Get Secret Inbox</span>
+            </Link>
+            <Link 
+              href="/inbox/my" 
+              className="inline-flex items-center gap-2 bg-neutral-100 hover:bg-neutral-200 text-neutral-900 font-mono text-xs font-bold uppercase tracking-wider px-6 py-3.5 rounded transition-all active:scale-95 border border-neutral-200"
+            >
+              <Icons.Inbox />
+              <span>My Inboxes</span>
             </Link>
           </div>
         </div>
