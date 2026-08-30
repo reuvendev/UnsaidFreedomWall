@@ -62,6 +62,12 @@ const Icons = {
       <polyline points="9 12 11 14 15 10"></polyline>
     </svg>
   ),
+  Inbox: () => (
+    <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <polyline points="22 12 16 12 14 15 10 15 8 12 2 12"></polyline>
+      <path d="M5.45 5.11L2 12v6a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-6l-3.45-6.89A2 2 0 0 0 16.76 4H7.24a2 2 0 0 0-1.79 1.11z"></path>
+    </svg>
+  )
 };
 
 export default function HomePage() {
@@ -290,7 +296,6 @@ export default function HomePage() {
     setTimeout(() => setCopiedId(null), 2000);
   };
 
-  // Search filtering on top of fetched category posts
   const filteredPosts = posts.filter((post) => {
     return searchQuery.trim() === "" || 
       post.content.toLowerCase().includes(searchQuery.toLowerCase()) ||
@@ -305,6 +310,10 @@ export default function HomePage() {
             UNSAID.
           </Link>
           <nav className="flex items-center gap-5 font-mono text-[11px] font-bold tracking-widest text-neutral-500 uppercase">
+            <Link href="/inbox/my" className="px-3 py-1.5 rounded-md bg-neutral-100 hover:bg-neutral-200 text-neutral-900 transition-colors flex items-center gap-1.5 border border-neutral-200">
+              <Icons.Inbox />
+              <span>My Inboxes</span>
+            </Link>
             <Link href="/about" className="hover:text-neutral-900 transition-colors">About</Link>
             <Link href="/guidelines" className="hover:text-neutral-900 transition-colors">Guidelines</Link>
           </nav>
@@ -315,21 +324,31 @@ export default function HomePage() {
         <div className="mb-12">
           <p className="font-mono text-[11px] font-bold text-neutral-400 tracking-widest uppercase mb-4 flex items-center gap-2">
             <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
-            Freedom Wall
+            Freedom Wall & Secret Drop
           </p>
           <h1 className="text-4xl md:text-5xl font-extrabold tracking-tight mb-6 leading-tight text-neutral-900">
             Say what you<br />can't say.
           </h1>
           <p className="text-base text-neutral-600 leading-relaxed max-w-md mb-8">
-            An open space for thoughts, confessions, and stories. Share what's on your mind entirely without identity.
+            An open space for thoughts, confessions, and stories. Share what's on your mind entirely without identity or setup your own anonymous inbox link.
           </p>
-          <Link 
-            href="/post" 
-            className="inline-flex items-center gap-2 bg-neutral-900 text-white font-mono text-xs font-bold uppercase tracking-wider px-6 py-3.5 rounded hover:bg-neutral-800 transition-all active:scale-95 shadow-sm"
-          >
-            <Icons.Pen />
-            <span>Say Something</span>
-          </Link>
+          
+          <div className="flex flex-wrap items-center gap-3">
+            <Link 
+              href="/post" 
+              className="inline-flex items-center gap-2 bg-neutral-900 text-white font-mono text-xs font-bold uppercase tracking-wider px-6 py-3.5 rounded hover:bg-neutral-800 transition-all active:scale-95 shadow-sm"
+            >
+              <Icons.Pen />
+              <span>Say Something</span>
+            </Link>
+            <Link 
+              href="/inbox/create" 
+              className="inline-flex items-center gap-2 bg-neutral-100 hover:bg-neutral-200 text-neutral-900 font-mono text-xs font-bold uppercase tracking-wider px-6 py-3.5 rounded transition-all active:scale-95 border border-neutral-200"
+            >
+              <Icons.Inbox />
+              <span>Get Secret Inbox</span>
+            </Link>
+          </div>
         </div>
 
         {/* Search Input Bar */}
