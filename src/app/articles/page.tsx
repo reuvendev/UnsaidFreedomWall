@@ -2,7 +2,17 @@
 
 import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
-import { collection, query, orderBy, getDocs, Timestamp } from 'firebase/firestore';
+import { 
+  collection, 
+  query, 
+  orderBy, 
+  getDocs, 
+  limit, 
+  startAfter, 
+  Timestamp, 
+  QueryDocumentSnapshot, 
+  DocumentData 
+} from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 
 interface ArticleSummary {
@@ -15,6 +25,8 @@ interface ArticleSummary {
   createdAt: Timestamp | null;
   author: string;
 }
+
+const PAGE_SIZE = 10;
 
 const Icons = {
   Back: () => (
@@ -43,11 +55,19 @@ function formatArticleDate(timestamp: Timestamp | null): string {
 export default function ArticlesIndexPage() {
   const [articles, setArticles] = useState<ArticleSummary[]>([]);
   const [loading, setLoading] = useState(true);
+  const [loadingMore, setLoadingMore] = useState(false);
+  const [lastDoc, setLastDoc] = useState<QueryDocumentSnapshot<DocumentData> | null>(null);
+  const [hasMore, setHasMore] = useState(true);
 
+  // 1. Initial Fetch (First 10 items)
   useEffect(() => {
-    async function fetchArticles() {
+    async function fetchInitialArticles() {
       try {
-        const q = query(collection(db, "articles"), orderBy("createdAt", "desc"));
+        const q = query(
+          collection(db, "articles"), 
+          orderBy("createdAt", "desc"), 
+          limit(PAGE_SIZE)
+        );
         const querySnapshot = await getDocs(q);
         
         const fetched: ArticleSummary[] = [];
@@ -66,6 +86,15 @@ export default function ArticlesIndexPage() {
         });
 
         setArticles(fetched);
+
+        // Store the last document snapshot for cursor pagination
+        const lastVisible = querySnapshot.docs[querySnapshot.docs.length - 1];
+        setLastDoc(lastVisible || null);
+
+        // If returned items are less than PAGE_SIZE, we reached the end
+        if (querySnapshot.docs.length < PAGE_SIZE) {
+          setHasMore(false);
+        }
       } catch (error) {
         console.error("Error fetching articles:", error);
       } finally {
@@ -73,8 +102,56 @@ export default function ArticlesIndexPage() {
       }
     }
 
-    fetchArticles();
+    fetchInitialArticles();
   }, []);
+
+  // 2. Fetch Next 10 Items using startAfter
+  const handleLoadMore = async () => {
+    if (!lastDoc || loadingMore) return;
+    setLoadingMore(true);
+
+    try {
+      const q = query(
+        collection(db, "articles"),
+        orderBy("createdAt", "desc"),
+        startAfter(lastDoc),
+        limit(PAGE_SIZE)
+      );
+
+      const querySnapshot = await getDocs(q);
+      const fetched: ArticleSummary[] = [];
+
+      querySnapshot.forEach((docSnap) => {
+        const data = docSnap.data();
+        fetched.push({
+          id: docSnap.id,
+          title: data.title || "Untitled",
+          slug: data.slug || "#",
+          category: data.category || "Editorial",
+          readTime: data.readTime || "3 min read",
+          excerpt: data.excerpt || "",
+          createdAt: data.createdAt || null,
+          author: data.author || "UNSAID Team"
+        });
+      });
+
+      // Append new articles to current list
+      setArticles((prev) => [...prev, ...fetched]);
+
+      // Update cursor reference
+      const lastVisible = querySnapshot.docs[querySnapshot.docs.length - 1];
+      setLastDoc(lastVisible || null);
+
+      // If fetched items are less than PAGE_SIZE, disable load more
+      if (querySnapshot.docs.length < PAGE_SIZE) {
+        setHasMore(false);
+      }
+    } catch (error) {
+      console.error("Error loading more articles:", error);
+    } finally {
+      setLoadingMore(false);
+    }
+  };
 
   return (
     <div className="min-h-screen bg-white text-neutral-900 font-sans selection:bg-neutral-900 selection:text-white">
@@ -107,14 +184,14 @@ export default function ArticlesIndexPage() {
 
         <hr className="border-neutral-200 mb-10" />
 
-        {/* Loading State */}
+        {/* Initial Loading State */}
         {loading && (
           <div className="py-20 text-center font-mono text-sm text-neutral-400 animate-pulse">
             Loading articles...
           </div>
         )}
 
-        {/* Empty State (No button / link at all) */}
+        {/* Empty State */}
         {!loading && articles.length === 0 && (
           <div className="py-20 text-center space-y-4">
             <p className="font-mono text-sm text-neutral-400">No articles published yet.</p>
@@ -160,6 +237,19 @@ export default function ArticlesIndexPage() {
                 </div>
               </article>
             ))}
+
+            {/* Load More Archives Button */}
+            {hasMore && (
+              <div className="pt-8 text-center">
+                <button
+                  onClick={handleLoadMore}
+                  disabled={loadingMore}
+                  className="px-6 py-3 bg-neutral-900 hover:bg-neutral-800 text-white font-mono text-xs font-bold uppercase tracking-wider rounded-lg transition-all active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed shadow-xs"
+                >
+                  {loadingMore ? 'Loading Archives...' : 'Load More Archives'}
+                </button>
+              </div>
+            )}
           </div>
         )}
       </main>
