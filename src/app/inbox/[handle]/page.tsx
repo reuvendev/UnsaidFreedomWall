@@ -227,6 +227,15 @@ export default function PublicInboxPage() {
             >
               {loading ? 'Encrypting & Sending...' : 'Send Secret Message 🤫'}
             </button>
+
+            {/* Guidelines Label */}
+            <p className="text-[11px] font-mono text-neutral-400 text-center leading-relaxed px-2">
+              By sending this message you agree to our{' '}
+              <Link href="/guidelines" className="text-neutral-700 underline font-semibold hover:text-neutral-900">
+                Community Guidelines
+              </Link>{' '}
+              and safety standards. All entries are moderated to ensure a respectful environment.
+            </p>
           </form>
         )}
       </main>
