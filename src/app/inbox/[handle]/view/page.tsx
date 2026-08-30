@@ -3,18 +3,18 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useParams } from 'next/navigation';
 import Link from 'next/link';
-import { 
-  doc, 
-  getDoc, 
-  collection, 
-  query, 
-  orderBy, 
-  limit, 
-  startAfter, 
-  getDocs, 
-  deleteDoc, 
-  DocumentData, 
-  QueryDocumentSnapshot 
+import {  
+  doc,  
+  getDoc,  
+  collection,  
+  query,  
+  orderBy,  
+  limit,  
+  startAfter,  
+  getDocs,  
+  deleteDoc,  
+  DocumentData,  
+  QueryDocumentSnapshot  
 } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import { Timestamp } from 'firebase/firestore';
@@ -74,10 +74,15 @@ export default function InboxViewerPage() {
   const [hasMore, setHasMore] = useState(false);
   const [copied, setCopied] = useState(false);
 
-  // Story Card Modal State
+  // Story Card Modal State (For Individual Messages)
   const [activeStoryMessage, setActiveStoryMessage] = useState<Message | null>(null);
   const [isGeneratingImage, setIsGeneratingImage] = useState(false);
   const storyCardRef = useRef<HTMLDivElement>(null);
+
+  // Link Share Story Card Modal State (For the promotional link share card)
+  const [isLinkStoryModalOpen, setIsLinkStoryModalOpen] = useState(false);
+  const [isGeneratingLinkStory, setIsGeneratingLinkStory] = useState(false);
+  const linkStoryCardRef = useRef<HTMLDivElement>(null);
 
   // Check if browser already has a saved token for this handle
   useEffect(() => {
@@ -215,7 +220,7 @@ export default function InboxViewerPage() {
     }
   };
 
-  // Download Story Image
+  // Download Individual Message Story Image
   const handleDownloadStory = async () => {
     if (!storyCardRef.current) return;
     setIsGeneratingImage(true);
@@ -229,6 +234,23 @@ export default function InboxViewerPage() {
       console.error('Failed to generate story image:', err);
     } finally {
       setIsGeneratingImage(false);
+    }
+  };
+
+  // Download Link Share Story Image
+  const handleDownloadLinkStory = async () => {
+    if (!linkStoryCardRef.current) return;
+    setIsGeneratingLinkStory(true);
+    try {
+      const dataUrl = await htmlToImage.toPng(linkStoryCardRef.current, { cacheBust: true, pixelRatio: 2 });
+      const link = document.createElement('a');
+      link.download = `unsaid-link-${handle}.png`;
+      link.href = dataUrl;
+      link.click();
+    } catch (err) {
+      console.error('Failed to generate link story image:', err);
+    } finally {
+      setIsGeneratingLinkStory(false);
     }
   };
 
@@ -256,6 +278,15 @@ export default function InboxViewerPage() {
     } else {
       handleCopyLink();
     }
+  };
+
+  // Dynamic font sizing helper based on character length
+  const getDynamicFontSize = (text: string) => {
+    const length = text.length;
+    if (length > 250) return 'text-xs leading-relaxed';
+    if (length > 150) return 'text-sm leading-relaxed';
+    if (length > 80) return 'text-base leading-normal';
+    return 'text-lg sm:text-xl leading-normal';
   };
 
   if (checkingAuth) {
@@ -328,7 +359,7 @@ export default function InboxViewerPage() {
     <div className="min-h-screen bg-white text-neutral-900 font-sans flex flex-col justify-between selection:bg-neutral-900 selection:text-white">
       <header className="sticky top-0 z-50 bg-white/85 backdrop-blur-md border-b border-neutral-200 px-6 h-16 flex items-center justify-between">
         <div className="flex items-center gap-2 font-mono text-xs font-bold tracking-tighter text-neutral-900">
-          <span>@{handle}'s Dashboard</span>
+          <span>@{handle}&apos;s Dashboard</span>
           <span className="text-neutral-300">•</span>
           <span className="text-emerald-700 font-semibold">{messages.length} Loaded</span>
         </div>
@@ -393,13 +424,23 @@ export default function InboxViewerPage() {
             </button>
           </div>
 
-          <button
-            type="button"
-            onClick={handleNativeShare}
-            className="w-full py-3 bg-neutral-100 hover:bg-neutral-200 text-neutral-900 font-mono text-xs font-bold uppercase tracking-wider rounded-xl transition-colors flex items-center justify-center gap-2 border border-neutral-200"
-          >
-            <span>Share via Device Menu ↗</span>
-          </button>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+            <button
+              type="button"
+              onClick={() => setIsLinkStoryModalOpen(true)}
+              className="w-full py-3 bg-neutral-900 hover:bg-neutral-800 text-white font-mono text-xs font-bold uppercase tracking-wider rounded-xl transition-colors flex items-center justify-center gap-2"
+            >
+              <Icons.Share />
+              <span>Create Story Link Card</span>
+            </button>
+            <button
+              type="button"
+              onClick={handleNativeShare}
+              className="w-full py-3 bg-neutral-100 hover:bg-neutral-200 text-neutral-900 font-mono text-xs font-bold uppercase tracking-wider rounded-xl transition-colors flex items-center justify-center gap-2 border border-neutral-200"
+            >
+              <span>Share ↗</span>
+            </button>
+          </div>
         </div>
 
         {loadingMessages ? (
@@ -483,7 +524,7 @@ export default function InboxViewerPage() {
         )}
       </main>
 
-      {/* Instagram Story Card Generator Modal */}
+      {/* Instagram Story Card Generator Modal (For Individual Messages) */}
       {activeStoryMessage && (
         <div className="fixed inset-0 z-50 bg-neutral-950/80 backdrop-blur-md flex items-center justify-center p-4">
           <div className="bg-white rounded-3xl max-w-sm w-full p-6 space-y-6 shadow-2xl border border-neutral-200 flex flex-col items-center">
@@ -503,12 +544,10 @@ export default function InboxViewerPage() {
               ref={storyCardRef}
               className="w-full aspect-[9/16] bg-neutral-950 text-white rounded-2xl p-6 flex flex-col justify-between relative overflow-hidden shadow-xl border border-neutral-800"
             >
-              {/* Subtle Ambient Background Accents */}
               <div className="absolute -top-12 -right-12 w-40 h-40 bg-neutral-800 rounded-full blur-2xl opacity-50 pointer-events-none" />
               <div className="absolute -bottom-12 -left-12 w-40 h-40 bg-neutral-900 rounded-full blur-2xl opacity-50 pointer-events-none" />
 
-              {/* Header Badge */}
-              <div className="relative z-10 flex items-center justify-between">
+              <div className="relative z-10 flex items-center justify-between shrink-0">
                 <div className="flex items-center gap-2">
                   <div className="w-6 h-6 bg-white text-neutral-950 rounded-full font-black text-[10px] flex items-center justify-center tracking-tighter">
                     U
@@ -520,24 +559,22 @@ export default function InboxViewerPage() {
                 </span>
               </div>
 
-              {/* Message Content Container */}
-              <div className="relative z-10 my-auto py-6 space-y-4">
+              {/* Dynamic font size application */}
+              <div className="relative z-10 my-auto py-4 space-y-3">
                 <div className="inline-block px-3 py-1 bg-neutral-900 border border-neutral-800 rounded-full font-mono text-[9px] text-neutral-400 uppercase tracking-widest">
                   Anonymous Note
                 </div>
-                <p className="text-white text-lg font-medium leading-relaxed font-sans tracking-tight line-clamp-6">
-                  "{activeStoryMessage.content}"
+                <p className={`text-white font-medium font-sans tracking-tight whitespace-pre-wrap ${getDynamicFontSize(activeStoryMessage.content)}`}>
+                  &quot;{activeStoryMessage.content}&quot;
                 </p>
               </div>
 
-              {/* Footer Call to Action Box */}
-              <div className="relative z-10 bg-neutral-900/80 backdrop-blur-md border border-neutral-800 rounded-xl p-3 text-center space-y-1">
+              <div className="relative z-10 bg-neutral-900/80 backdrop-blur-md border border-neutral-800 rounded-xl p-3 text-center space-y-1 shrink-0">
                 <p className="font-mono text-[10px] text-neutral-400 uppercase tracking-wider">Send a secret note to</p>
                 <p className="font-mono text-xs font-bold text-white tracking-tight">unsaid.sbs/@{handle}</p>
               </div>
             </div>
 
-            {/* Download Action */}
             <div className="w-full space-y-2">
               <button
                 onClick={handleDownloadStory}
@@ -549,6 +586,72 @@ export default function InboxViewerPage() {
               </button>
               <p className="text-[10px] font-mono text-center text-neutral-400">
                 Save and post directly to your Instagram or Facebook Stories!
+              </p>
+            </div>
+
+          </div>
+        </div>
+      )}
+
+      {/* Instagram Story Card Generator Modal (For Profile Link Sharing) */}
+      {isLinkStoryModalOpen && (
+        <div className="fixed inset-0 z-50 bg-neutral-950/80 backdrop-blur-md flex items-center justify-center p-4">
+          <div className="bg-white rounded-3xl max-w-sm w-full p-6 space-y-6 shadow-2xl border border-neutral-200 flex flex-col items-center">
+            
+            <div className="flex items-center justify-between w-full">
+              <span className="font-mono text-xs font-bold text-neutral-900 uppercase tracking-widest">Profile Link Story Card</span>
+              <button 
+                onClick={() => setIsLinkStoryModalOpen(false)}
+                className="w-8 h-8 rounded-full bg-neutral-100 hover:bg-neutral-200 font-bold flex items-center justify-center text-xs"
+              >
+                ✕
+              </button>
+            </div>
+
+            {/* Link Share Story Card Render Target (9:16 Aspect Ratio optimized look) */}
+            <div 
+              ref={linkStoryCardRef}
+              className="w-full aspect-[9/16] bg-neutral-950 text-white rounded-2xl p-6 flex flex-col justify-between relative overflow-hidden shadow-xl border border-neutral-800 text-center"
+            >
+              <div className="absolute -top-12 -right-12 w-40 h-40 bg-neutral-800 rounded-full blur-2xl opacity-50 pointer-events-none" />
+              <div className="absolute -bottom-12 -left-12 w-40 h-40 bg-neutral-900 rounded-full blur-2xl opacity-50 pointer-events-none" />
+
+              <div className="relative z-10 flex items-center justify-center gap-2">
+                <div className="w-6 h-6 bg-white text-neutral-950 rounded-full font-black text-[10px] flex items-center justify-center tracking-tighter">
+                  U
+                </div>
+                <span className="font-mono text-[10px] uppercase font-bold tracking-widest text-neutral-400">UNSAID SECRETS</span>
+              </div>
+
+              <div className="relative z-10 my-auto space-y-4 px-2">
+                <div className="w-16 h-16 bg-neutral-900 border border-neutral-800 rounded-2xl mx-auto flex items-center justify-center text-xl font-bold font-mono">
+                  @{handle}
+                </div>
+                <div className="space-y-1">
+                  <h2 className="text-xl font-extrabold tracking-tight text-white">Send me an anonymous message!</h2>
+                  <p className="text-xs font-mono text-neutral-400">
+                    Drop a secret thought, question, or confession. Everything stays completely anonymous.
+                  </p>
+                </div>
+              </div>
+
+              <div className="relative z-10 bg-neutral-900/90 backdrop-blur-md border border-neutral-800 rounded-xl p-4 space-y-2">
+                <p className="font-mono text-[10px] text-neutral-400 uppercase tracking-wider">Tap my link</p>
+                <p className="font-mono text-xs font-bold text-white tracking-tight">[Put Your Link Here]</p>
+              </div>
+            </div>
+
+            <div className="w-full space-y-2">
+              <button
+                onClick={handleDownloadLinkStory}
+                disabled={isGeneratingLinkStory}
+                className="w-full py-3.5 bg-neutral-900 hover:bg-neutral-800 text-white font-mono text-xs font-bold uppercase tracking-wider rounded-xl transition-all shadow-xs flex items-center justify-center gap-2 disabled:opacity-50"
+              >
+                <Icons.Download />
+                <span>{isGeneratingLinkStory ? 'Rendering Image...' : 'Download Link Story Card (PNG)'}</span>
+              </button>
+              <p className="text-[10px] font-mono text-center text-neutral-400">
+                Post this to your IG story so followers can easily open your link!
               </p>
             </div>
 
