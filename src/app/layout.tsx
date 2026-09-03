@@ -14,7 +14,7 @@ const jetbrainsMono = JetBrains_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "UNSAID — Freedom Wall & Anonymous Stories",
+  title: "TambayanEselyu — Freedom Wall & Anonymous Stories",
   description: "A safe, uninhibited anonymous space to share your thoughts, rants, and stories.",
   icons: {
     icon: "https://cdn.reuvendev.site/Images/Icon/unsaid/U.png", 

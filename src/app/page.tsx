@@ -47,6 +47,7 @@ const Icons = {
       strokeWidth="2" 
       strokeLinecap="round" 
       strokeLinejoin="round"
+      className="transform transition-transform active:scale-125"
     >
       <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/>
     </svg>
@@ -62,12 +63,6 @@ const Icons = {
       <polyline points="9 12 11 14 15 10"></polyline>
     </svg>
   ),
-  Inbox: () => (
-    <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-      <polyline points="22 12 16 12 14 15 10 15 8 12 2 12"></polyline>
-      <path d="M5.45 5.11L2 12v6a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-6l-3.45-6.89A2 2 0 0 0 16.76 4H7.24a2 2 0 0 0-1.79 1.11z"></path>
-    </svg>
-  )
 };
 
 export default function HomePage() {
@@ -101,7 +96,6 @@ export default function HomePage() {
     }
   }, []);
 
-  // Fetch / Listen to posts dynamically when category changes
   useEffect(() => {
     setLoading(true);
     setHasMore(true);
@@ -126,12 +120,12 @@ export default function HomePage() {
         let formattedDate = "Just now";
         if (data.createdAt) {
           const dateObj = data.createdAt.toDate();
-          formattedDate = dateObj.toLocaleDateString([], { month: 'short', day: 'numeric', year: 'numeric' }) + ' at ' + dateObj.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+          formattedDate = dateObj.toLocaleDateString([], { month: 'short', day: 'numeric', year: 'numeric' }) + ' | ' + dateObj.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
         }
 
         fetchedPosts.push({
           id: docSnap.id,
-          authorAlias: data.authorAlias || "UNSAID #00000",
+          authorAlias: data.authorAlias || "Anonymous Louisian",
           content: data.content || "",
           category: data.category || "thoughts",
           createdAt: formattedDate,
@@ -205,7 +199,7 @@ export default function HomePage() {
 
         morePosts.push({
           id: docSnap.id,
-          authorAlias: data.authorAlias || "UNSAID #00000",
+          authorAlias: data.authorAlias || "Anonymous Louisian",
           content: data.content || "",
           category: data.category || "thoughts",
           createdAt: formattedDate,
@@ -287,7 +281,7 @@ export default function HomePage() {
     const postUrl = `${window.location.origin}/post/${id}`;
     if (navigator.share) {
       try {
-        await navigator.share({ title: 'UNSAID Freedom Wall Entry', url: postUrl });
+        await navigator.share({ title: 'Tambayan Eselyu Entry', url: postUrl });
         return;
       } catch (err) {}
     }
@@ -303,11 +297,11 @@ export default function HomePage() {
   });
 
   return (
-    <div className="min-h-screen bg-white text-neutral-900 font-sans selection:bg-neutral-900 selection:text-white relative">
-      <header className="sticky top-0 z-50 bg-white/85 backdrop-blur-md border-b border-neutral-200">
+    <div className="min-h-screen bg-neutral-50/50 text-neutral-900 font-sans selection:bg-neutral-900 selection:text-white relative">
+      <header className="sticky top-0 z-50 bg-white/90 backdrop-blur-md border-b border-neutral-200/80 shadow-2xs">
         <div className="max-w-2xl mx-auto px-6 h-16 flex items-center justify-between">
           <Link href="/" className="font-mono text-xl font-black tracking-tighter hover:opacity-70 transition-opacity">
-            UNSAID.
+            TAMBAYAN<span className="text-emerald-600">.</span>
           </Link>
           <nav className="flex items-center gap-5 font-mono text-[11px] font-bold tracking-widest text-neutral-500 uppercase">
             <Link href="/about" className="hover:text-neutral-900 transition-colors">About</Link>
@@ -320,36 +314,22 @@ export default function HomePage() {
         <div className="mb-12">
           <p className="font-mono text-[11px] font-bold text-neutral-400 tracking-widest uppercase mb-4 flex items-center gap-2">
             <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
-            Freedom Wall & Secret Drop
+            SLU Freedom Wall
           </p>
           <h1 className="text-4xl md:text-5xl font-extrabold tracking-tight mb-6 leading-tight text-neutral-900">
-            Say what you<br />can't say.
+            Tambayan <br />Eselyu
           </h1>
           <p className="text-base text-neutral-600 leading-relaxed max-w-md mb-8">
-            An open space for thoughts, confessions, and stories. Share what's on your mind entirely without identity or setup your own anonymous inbox link.
+            A safe space for Louisian thoughts, confessions, rants, and stories you can't say out loud.
           </p>
           
           <div className="flex flex-wrap items-center gap-3">
             <Link 
               href="/post" 
-              className="inline-flex items-center gap-2 bg-neutral-900 text-white font-mono text-xs font-bold uppercase tracking-wider px-6 py-3.5 rounded hover:bg-neutral-800 transition-all active:scale-95 shadow-sm"
+              className="inline-flex items-center gap-2 bg-neutral-900 text-white font-mono text-xs font-bold uppercase tracking-wider px-6 py-3.5 rounded-lg hover:bg-neutral-800 transition-all active:scale-95 shadow-sm"
             >
               <Icons.Pen />
               <span>Say Something</span>
-            </Link>
-            <Link 
-              href="/inbox/create" 
-              className="inline-flex items-center gap-2 bg-neutral-100 hover:bg-neutral-200 text-neutral-900 font-mono text-xs font-bold uppercase tracking-wider px-6 py-3.5 rounded transition-all active:scale-95 border border-neutral-200"
-            >
-              <Icons.Inbox />
-              <span>Get Secret Inbox</span>
-            </Link>
-            <Link 
-              href="/inbox/my" 
-              className="inline-flex items-center gap-2 bg-neutral-100 hover:bg-neutral-200 text-neutral-900 font-mono text-xs font-bold uppercase tracking-wider px-6 py-3.5 rounded transition-all active:scale-95 border border-neutral-200"
-            >
-              <Icons.Inbox />
-              <span>My Inboxes</span>
             </Link>
           </div>
         </div>
@@ -363,21 +343,21 @@ export default function HomePage() {
             type="text"
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            placeholder="Search entries, keywords, or alias tags..."
-            className="w-full pl-10 pr-4 py-3 bg-neutral-50 border border-neutral-200 rounded-lg text-sm text-neutral-900 placeholder:text-neutral-400 focus:outline-none focus:border-neutral-900 focus:bg-white transition-all font-mono"
+            placeholder="Search entries, keywords, or campus alias..."
+            className="w-full pl-10 pr-4 py-3 bg-white border border-neutral-200 rounded-xl text-sm text-neutral-900 placeholder:text-neutral-400 focus:outline-none focus:border-neutral-900 focus:ring-1 focus:ring-neutral-900 transition-all font-mono shadow-2xs"
           />
         </div>
 
         {/* Category Filters */}
-        <div className="flex items-center gap-2 overflow-x-auto pb-4 mb-10 border-b border-neutral-200 hide-scrollbar">
+        <div className="flex items-center gap-2 overflow-x-auto pb-4 mb-8 border-b border-neutral-200/80 hide-scrollbar">
           {CATEGORIES.map((cat) => (
             <button
               key={cat.id}
               onClick={() => setSelectedCategory(cat.id)}
-              className={`px-4 py-2 text-xs font-mono font-semibold uppercase tracking-wider rounded whitespace-nowrap transition-all ${
+              className={`px-4 py-2 text-xs font-mono font-semibold uppercase tracking-wider rounded-lg whitespace-nowrap transition-all ${
                 selectedCategory === cat.id
                   ? "bg-neutral-900 text-white shadow-sm"
-                  : "bg-neutral-100 text-neutral-600 hover:bg-neutral-200 hover:text-neutral-900"
+                  : "bg-white text-neutral-600 border border-neutral-200/80 hover:bg-neutral-100 hover:text-neutral-900"
               }`}
             >
               {cat.label}
@@ -385,27 +365,14 @@ export default function HomePage() {
           ))}
         </div>
 
-        {/* Minimalist Articles Link */}
-        <div className="flex items-center justify-between mb-8 px-1">
-          <span className="font-mono text-xs uppercase tracking-wider text-neutral-400">
-            Looking for deeper reads?
-          </span>
-          <Link
-            href="/articles"
-            className="inline-flex items-center gap-1.5 font-mono text-xs font-bold uppercase tracking-wider text-neutral-900 hover:text-emerald-700 transition-colors group"
-          >
-            <span>Explore Articles Archive</span>
-            <span className="group-hover:translate-x-0.5 transition-transform">→</span>
-          </Link>
-        </div>
-
         {/* Feed List */}
         {loading ? (
-          <div className="py-16 text-center font-mono text-sm text-neutral-400 animate-pulse">
-            Connecting to live feed...
+          <div className="py-20 text-center font-mono text-sm text-neutral-400 border border-dashed border-neutral-200 rounded-2xl bg-white/50">
+            <div className="w-2 h-2 rounded-full bg-emerald-500 animate-ping mx-auto mb-3"></div>
+            Connecting to live campus feed...
           </div>
         ) : (
-          <div className="space-y-8">
+          <div className="space-y-6">
             {filteredPosts.map((post) => {
               const hasVoted = votedPosts[post.id];
               const isLocked = votingLocked[post.id];
@@ -415,10 +382,10 @@ export default function HomePage() {
               return (
                 <article 
                   key={post.id} 
-                  className={`p-6 rounded-lg transition-all relative ${
+                  className={`p-5 sm:p-6 rounded-2xl transition-all duration-300 relative group hover:-translate-y-1 hover:shadow-xl ${
                     isDev 
-                      ? "bg-emerald-50/40 border-2 border-emerald-500/60 shadow-md ring-1 ring-emerald-500/20" 
-                      : "bg-white border border-neutral-200 shadow-2xs hover:border-neutral-300"
+                      ? "bg-emerald-50/50 border-2 border-emerald-500/60 shadow-md ring-1 ring-emerald-500/20" 
+                      : "bg-white border border-neutral-200/80 shadow-xs hover:border-neutral-300"
                   }`}
                 >
                   {isDev && (
@@ -428,22 +395,28 @@ export default function HomePage() {
                     </div>
                   )}
 
-                  <div className={`flex items-center justify-between mb-3 ${isDev ? 'mt-1' : ''}`}>
-                    <div className="flex items-center gap-2 font-mono text-[11px] uppercase tracking-wider">
-                      <span className={`font-bold ${isDev ? 'text-emerald-900' : 'text-neutral-900'}`}>
+                  {/* Responsive Header */}
+                  <div className={`flex flex-wrap items-center justify-between gap-y-2 mb-3 ${isDev ? 'mt-1' : ''}`}>
+                    <div className="flex items-center gap-2 font-mono text-[11px] uppercase tracking-wider min-w-0">
+                      <span className={`px-2.5 py-1 rounded-md border font-bold truncate max-w-[150px] sm:max-w-none ${
+                        isDev 
+                          ? 'bg-emerald-100/80 text-emerald-900 border-emerald-200' 
+                          : 'bg-neutral-100 text-neutral-800 border-neutral-200/60'
+                      }`}>
                         {post.authorAlias}
                       </span>
-                      <span className="text-neutral-300">•</span>
-                      <span className="text-neutral-400">{post.createdAt}</span>
+                      <span className="text-neutral-300 shrink-0">•</span>
+                      <span className="text-neutral-400 text-[10px] shrink-0">{post.createdAt}</span>
                     </div>
-                    <span className={`text-[10px] font-mono uppercase tracking-widest px-2.5 py-1 rounded ${
-                      isDev ? 'bg-emerald-100 text-emerald-800 font-bold' : 'bg-neutral-100 text-neutral-600'
+                    <span className={`text-[10px] font-mono uppercase tracking-widest px-2.5 py-1 rounded-md shrink-0 ${
+                      isDev ? 'bg-emerald-100 text-emerald-800 font-bold' : 'bg-neutral-100/80 text-neutral-600 border border-neutral-200/40'
                     }`}>
                       {post.category}
                     </span>
                   </div>
                   
-                  <p className={`text-lg md:text-xl font-medium mb-6 leading-relaxed ${
+                  {/* Responsive Content Text */}
+                  <p className={`text-base sm:text-lg md:text-xl font-normal mb-6 leading-relaxed break-words ${
                     isDev ? 'text-emerald-950 font-semibold' : 'text-neutral-800'
                   }`}>
                     {post.content}
@@ -457,13 +430,13 @@ export default function HomePage() {
                         height="80"
                         frameBorder="0"
                         allow="encrypted-media"
-                        className="rounded-lg border border-neutral-100"
+                        className="rounded-xl border border-neutral-100 shadow-2xs"
                       />
                     </div>
                   )}
 
-                  <div className={`flex items-center justify-between pt-4 border-t ${isDev ? 'border-emerald-200/60' : 'border-neutral-100'}`}>
-                    <div className="flex items-center gap-6 font-mono text-xs font-semibold">
+                  <div className={`flex flex-wrap items-center justify-between gap-y-3 pt-4 border-t ${isDev ? 'border-emerald-200/60' : 'border-neutral-100'}`}>
+                    <div className="flex items-center gap-4 sm:gap-6 font-mono text-xs font-semibold">
                       <button 
                         onClick={() => handleVoteToggle(post.id)}
                         disabled={isLocked}
@@ -514,8 +487,8 @@ export default function HomePage() {
             })}
             
             {filteredPosts.length === 0 && (
-              <div className="py-12 text-center font-mono text-sm text-neutral-400">
-                {searchQuery ? `No entries found matching "${searchQuery}"` : "No entries found in this category. Be the first to post!"}
+              <div className="py-16 text-center font-mono text-sm text-neutral-400 border border-dashed border-neutral-200 rounded-2xl bg-white/50">
+                {searchQuery ? `No entries found matching "${searchQuery}"` : "No entries found in this category. Be the first to share your thoughts!"}
               </div>
             )}
 
@@ -525,7 +498,7 @@ export default function HomePage() {
                 <button
                   onClick={loadMorePosts}
                   disabled={loadingMore}
-                  className="px-6 py-3 bg-neutral-100 hover:bg-neutral-200 text-neutral-700 font-mono text-xs font-bold uppercase tracking-wider rounded-lg transition-all disabled:opacity-50"
+                  className="px-6 py-3 bg-white hover:bg-neutral-100 text-neutral-700 border border-neutral-200 font-mono text-xs font-bold uppercase tracking-wider rounded-xl transition-all disabled:opacity-50 shadow-2xs"
                 >
                   {loadingMore ? 'Loading more...' : 'Load More Entries'}
                 </button>
@@ -538,7 +511,7 @@ export default function HomePage() {
       {/* Inline Report Modal */}
       {activeReportPostId && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-xs">
-          <div className="w-full max-w-md bg-white rounded-xl shadow-xl border border-neutral-200 overflow-hidden">
+          <div className="w-full max-w-md bg-white rounded-2xl shadow-2xl border border-neutral-200 overflow-hidden animate-in fade-in zoom-in-95 duration-200">
             <div className="flex items-center justify-between px-6 py-4 border-b border-neutral-100">
               <h3 className="font-mono text-sm font-bold uppercase tracking-wider text-neutral-900">Report Entry</h3>
               <button onClick={() => setActiveReportPostId(null)} className="text-neutral-400 hover:text-neutral-900 transition-colors p-1">
@@ -554,7 +527,7 @@ export default function HomePage() {
                 <select
                   value={selectedReason}
                   onChange={(e) => setSelectedReason(e.target.value)}
-                  className="w-full p-3 bg-neutral-50 border border-neutral-200 rounded-lg text-sm text-neutral-900 font-mono focus:outline-none focus:border-neutral-900"
+                  className="w-full p-3 bg-neutral-50 border border-neutral-200 rounded-xl text-sm text-neutral-900 font-mono focus:outline-none focus:border-neutral-900"
                 >
                   {REPORT_REASONS.map((reason) => (
                     <option key={reason} value={reason}>{reason}</option>
@@ -571,7 +544,7 @@ export default function HomePage() {
                   onChange={(e) => setReportDetails(e.target.value)}
                   placeholder="Provide any extra context for moderators..."
                   rows={3}
-                  className="w-full p-3 bg-neutral-50 border border-neutral-200 rounded-lg text-sm text-neutral-900 placeholder:text-neutral-400 font-mono focus:outline-none focus:border-neutral-900 resize-none"
+                  className="w-full p-3 bg-neutral-50 border border-neutral-200 rounded-xl text-sm text-neutral-900 placeholder:text-neutral-400 font-mono focus:outline-none focus:border-neutral-900 resize-none"
                 />
               </div>
 
@@ -579,14 +552,14 @@ export default function HomePage() {
                 <button
                   type="button"
                   onClick={() => setActiveReportPostId(null)}
-                  className="px-4 py-2 rounded font-mono text-xs font-bold uppercase tracking-wider text-neutral-600 hover:bg-neutral-100 transition-colors"
+                  className="px-4 py-2 rounded-lg font-mono text-xs font-bold uppercase tracking-wider text-neutral-600 hover:bg-neutral-100 transition-colors"
                 >
                   Cancel
                 </button>
                 <button
                   type="submit"
                   disabled={isSubmittingReport}
-                  className="px-5 py-2 rounded bg-rose-600 text-white font-mono text-xs font-bold uppercase tracking-wider hover:bg-rose-700 transition-colors disabled:opacity-50"
+                  className="px-5 py-2 rounded-lg bg-rose-600 text-white font-mono text-xs font-bold uppercase tracking-wider hover:bg-rose-700 transition-colors disabled:opacity-50 shadow-sm"
                 >
                   {isSubmittingReport ? 'Submitting...' : 'Submit Report'}
                 </button>

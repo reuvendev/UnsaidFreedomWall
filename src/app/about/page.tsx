@@ -18,7 +18,7 @@ export default function AboutPage() {
       <header className="sticky top-0 z-50 bg-white/85 backdrop-blur-md border-b border-neutral-200">
         <div className="max-w-2xl mx-auto px-6 h-16 flex items-center justify-between">
           <Link href="/" className="font-mono text-xl font-black tracking-tighter hover:opacity-70 transition-opacity">
-            UNSAID.
+            TAMBAYAN.
           </Link>
           <Link 
             href="/" 
@@ -36,16 +36,16 @@ export default function AboutPage() {
             Project Overview
           </p>
           <h1 className="text-3xl md:text-4xl font-extrabold tracking-tight text-neutral-900">
-            About UNSAID.
+            About TAMBAYAN.
           </h1>
         </div>
 
         <div className="space-y-6 text-neutral-700 leading-relaxed text-base mb-10">
           <p>
-            <strong className="text-neutral-900">UNSAID</strong> is a modern, uninhibited digital freedom wall tailored for navigating life, studies, and everyday experiences. 
+            <strong className="text-neutral-900">TAMBAYAN</strong> is a modern, uninhibited digital student hangout and freedom wall tailored for navigating campus life, studies, rants, and everyday experiences. 
           </p>
           <p>
-            Built as a minimalist platform to let people express thoughts, anonymous confessions, academic rants, and personal stories without the friction of social media identity markers. Every thought published is randomized with a secure tracking tag.
+            Built as a minimalist platform to let people express thoughts, anonymous confessions, academic updates, and personal stories without the friction of social media identity markers. Every thought published goes through manual moderation and is tagged securely.
           </p>
         </div>
 
@@ -57,26 +57,12 @@ export default function AboutPage() {
               <span>Created & Developed By</span>
             </div>
             <div className="font-mono text-sm font-semibold text-neutral-900">
-              ReuvenDev
+              Nevz
             </div>
             <p className="text-xs text-neutral-500 mt-1 font-mono">
-              BSIT Student
+              
             </p>
           </section>
-
-          {/* Section: Collaboration / AI Assistant
-          <section className="p-6 bg-neutral-50 border border-neutral-200 rounded-lg">
-            <div className="flex items-center gap-2.5 font-mono text-xs font-bold text-neutral-900 uppercase tracking-wider mb-4">
-              <Icons.Bot />
-              <span>Engineering Support</span>
-            </div>
-            <p className="text-sm text-neutral-600 leading-relaxed mb-3">
-              Co-developed and structured with assistance from <a href="https://gemini.google.com" target="_blank" rel="noopener noreferrer" className="font-semibold text-neutral-900 underline underline-offset-4 hover:text-neutral-600 transition-colors">gemini.google.com</a>.
-            </p>
-            <span className="inline-block font-mono text-[10px] uppercase tracking-wider bg-neutral-200/60 text-neutral-600 px-2 py-0.5 rounded">
-              AI Collaborative Partner
-            </span>
-          </section> */}
 
           {/* Section: Core Stack */}
           <section className="p-6 bg-neutral-50 border border-neutral-200 rounded-lg">
@@ -125,7 +111,7 @@ export default function AboutPage() {
               <span>Design & Philosophy</span>
             </div>
             <p className="text-sm text-neutral-600 leading-relaxed">
-              Inspired by brutalist typography, monochrome UI aesthetics, and anonymous bulletin boards.
+              Inspired by brutalist typography, monochrome UI aesthetics, and secure anonymous student hangouts.
             </p>
           </section>
         </div>

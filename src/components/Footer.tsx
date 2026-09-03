@@ -25,7 +25,7 @@ export function Footer() {
       <div className="max-w-2xl mx-auto px-6 py-12 flex flex-col md:flex-row items-start md:items-center justify-between gap-6">
         <div className="space-y-2">
           <div className="flex items-center gap-2 font-mono text-xs font-bold tracking-tighter text-neutral-900">
-            <span>UNSAID.</span>
+            <span>Tambayan.</span>
             <span className="text-neutral-300">•</span>
             <span className="text-neutral-500 font-normal">Freedom Wall</span>
           </div>

@@ -10,7 +10,7 @@ export default function ContactPage() {
       <header className="sticky top-0 z-50 bg-white/85 backdrop-blur-md border-b border-neutral-200">
         <div className="max-w-2xl mx-auto px-6 h-16 flex items-center justify-between">
           <Link href="/" className="font-mono text-xl font-black tracking-tighter hover:opacity-70 transition-opacity">
-            UNSAID.
+            TAMBAYAN.
           </Link>
           <Link 
             href="/" 
@@ -45,7 +45,7 @@ export default function ContactPage() {
                 href="mailto:your-email@gmail.com" 
                 className="font-mono text-xs font-bold bg-white px-4 py-3 border border-neutral-200 rounded text-neutral-900 hover:bg-neutral-900 hover:text-white transition-colors inline-block shadow-sm"
               >
-                reuvendev@proton.me
+                unsaideselyu@gmail.com
               </a>
             </div>
           </section>

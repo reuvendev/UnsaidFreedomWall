@@ -57,6 +57,7 @@ export default function PostPage() {
   const [category, setCategory] = useState('thoughts');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+  const [successMessage, setSuccessMessage] = useState(false);
 
   // Spotify integration state
   const [spotifyUrl, setSpotifyUrl] = useState('');
@@ -66,7 +67,7 @@ export default function PostPage() {
 
   const generateAlias = () => {
     const randomNum = Math.floor(10000 + Math.random() * 90000);
-    return `UNSAID #${randomNum}`;
+    return `Louisian #${randomNum}`;
   };
 
   // Helper to extract Spotify Track ID from normal URLs or URI strings
@@ -125,6 +126,7 @@ export default function PostPage() {
         upvotes: 0,
         replies: 0,
         createdAt: serverTimestamp(),
+        status: 'pending', // Requires manual review before appearing in the public feed
       };
 
       if (spotifyTrackId) {
@@ -133,10 +135,13 @@ export default function PostPage() {
 
       await addDoc(collection(db, 'posts'), postData);
 
-      router.push('/');
+      setSuccessMessage(true);
+      setTimeout(() => {
+        router.push('/');
+      }, 3000);
     } catch (err) {
       console.error('Error creating post:', err);
-      setError('Failed to publish entry. Please check your connection.');
+      setError('Failed to submit entry. Please check your connection.');
       setLoading(false);
     }
   };
@@ -159,13 +164,19 @@ export default function PostPage() {
             Publish Anonymously.
           </h1>
           <p className="text-sm text-neutral-600 leading-relaxed">
-            Your identity is completely protected. A random secure alias tag will be generated for your entry.
+            Your identity is completely protected. All entries are manually reviewed by moderators before being published to the feed.
           </p>
         </div>
 
         {error && (
           <div className="mb-6 p-4 bg-rose-50 border border-rose-200 rounded-lg text-xs font-mono text-rose-600">
             {error}
+          </div>
+        )}
+
+        {successMessage && (
+          <div className="mb-6 p-4 bg-emerald-50 border border-emerald-200 rounded-lg text-xs font-mono text-emerald-700">
+            Entry submitted successfully! It is now pending manual review and will appear on the feed once approved. Redirecting...
           </div>
         )}
 
@@ -254,7 +265,7 @@ export default function PostPage() {
               <Link href="/guidelines" className="underline hover:text-neutral-900 transition-colors font-medium">
                 Community Guidelines
               </Link>{' '}
-              and safety standards. All entries are moderated to ensure a respectful environment.
+              and safety standards. All entries undergo manual review before publication.
             </p>
 
             <div className="flex items-center justify-end gap-4">
@@ -266,13 +277,13 @@ export default function PostPage() {
               </Link>
               <button
                 type="submit"
-                disabled={loading}
+                disabled={loading || successMessage}
                 className={`inline-flex items-center gap-2 bg-neutral-900 text-white font-mono text-xs font-bold uppercase tracking-wider px-6 py-3.5 rounded hover:bg-neutral-800 transition-all active:scale-95 shadow-sm ${
-                  loading ? "opacity-50 cursor-not-allowed" : ""
+                  (loading || successMessage) ? "opacity-50 cursor-not-allowed" : ""
                 }`}
               >
                 <Icons.Send />
-                <span>{loading ? 'Publishing...' : 'Publish Entry'}</span>
+                <span>{loading ? 'Submitting...' : successMessage ? 'Submitted!' : 'Submit for Review'}</span>
               </button>
             </div>
           </div>

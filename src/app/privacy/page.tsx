@@ -1,3 +1,5 @@
+'use client';
+
 import React from 'react';
 import Link from 'next/link';
 
@@ -7,11 +9,11 @@ export default function PrivacyPolicyPage() {
       <header className="sticky top-0 z-50 bg-white/85 backdrop-blur-md border-b border-neutral-200">
         <div className="max-w-2xl mx-auto px-6 h-16 flex items-center justify-between">
           <Link href="/" className="font-mono text-xl font-black tracking-tighter hover:opacity-70 transition-opacity">
-            UNSAID.
+            TAMBAYAN.
           </Link>
           <nav className="flex items-center gap-5 font-mono text-[11px] font-bold tracking-widest text-neutral-500 uppercase">
-            <Link href="/about" className="hover:text-neutral-900 transition-colors">About</Link>
             <Link href="/guidelines" className="hover:text-neutral-900 transition-colors">Guidelines</Link>
+            <Link href="/" className="hover:text-neutral-900 transition-colors">Feed →</Link>
           </nav>
         </div>
       </header>
@@ -32,13 +34,13 @@ export default function PrivacyPolicyPage() {
         <div className="space-y-6 text-neutral-700 text-sm md:text-base leading-relaxed">
           <section className="space-y-3">
             <h2 className="font-mono text-sm font-bold uppercase tracking-wider text-neutral-900">
-              1. Complete Anonymity & No Data Collection
+              1. Complete Anonymity & No Personal Tracking
             </h2>
             <p>
-              <strong>Unsaid</strong> is built on a strict privacy-first foundation. We do not collect, store, require, or track any personal user information. There are no user accounts, registration forms, or login requirements. 
+              <strong>Tambayan</strong> is built on a privacy-first foundation. We do not collect, store, require, or track any personal user information. There are no user accounts, registration forms, or login requirements. 
             </p>
             <p>
-              When you submit a post or a thought to the wall, it is published completely anonymously. We do not track your real identity, email address, or personal profile data.
+              When you submit a post or a thought to the wall, it is published completely anonymously under an assigned alias code. We do not track your real identity, email address, or personal profile data.
             </p>
           </section>
 
@@ -56,7 +58,7 @@ export default function PrivacyPolicyPage() {
               3. Advertising & Third-Party Cookies (Pending Review)
             </h2>
             <p>
-              To support the future hosting and maintenance of Unsaid, we have applied for Google AdSense integration, which is currently pending review and approval. 
+              To support the future hosting and maintenance of Tambayan, we have applied for Google AdSense integration, which is currently pending review and approval. 
             </p>
             <ul className="list-disc pl-5 space-y-1 font-mono text-xs text-neutral-600">
               <li>Once approved, Google as a third-party vendor may use cookies to serve ads on our site.</li>
@@ -70,7 +72,7 @@ export default function PrivacyPolicyPage() {
               4. Content Moderation
             </h2>
             <p>
-              All public contributions are vetted via automated filters and community reports. When a post is reported, only the public text content and metadata associated with that specific post are reviewed by moderators to ensure compliance with our safety guidelines.
+              All public contributions are <strong>manually reviewed and vetted by administrators before publishing</strong> to ensure compliance with our safety guidelines. Only the public text content and metadata associated with approved posts are stored in the public database.
             </p>
           </section>
 
