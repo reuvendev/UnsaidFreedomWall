@@ -29,15 +29,19 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en">
-      <body className={`${inter.variable} ${jetbrainsMono.variable} font-sans antialiased min-h-screen flex flex-col bg-white text-neutral-900`}>
+      <head>
+        {/* Google AdSense Meta Tag Verification */}
+        <meta name="google-adsense-account" content="ca-pub-4528898772462835" />
+
         {/* Google AdSense Script */}
         <Script
           async
-          src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-XXXXXXXXXXXXXXXX"
+          src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-4528898772462835"
           crossOrigin="anonymous"
           strategy="afterInteractive"
         />
-        
+      </head>
+      <body className={`${inter.variable} ${jetbrainsMono.variable} font-sans antialiased min-h-screen flex flex-col bg-white text-neutral-900`}>
         <div className="flex-1">
           {children}
         </div>
