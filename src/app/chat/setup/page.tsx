@@ -84,7 +84,7 @@ export default function ChatSetupPage() {
             TAMBAYAN<span className="text-emerald-600">.</span>
           </Link>
           <span className="font-mono text-[11px] font-bold text-neutral-400 uppercase tracking-widest">
-            1:1 Setup
+            Chat
           </span>
         </div>
       </header>
@@ -98,7 +98,7 @@ export default function ChatSetupPage() {
             Choose your profile
           </h1>
           <p className="text-sm text-neutral-600 leading-relaxed font-mono">
-            Set up how other Louisian students will see you during your anonymous 1:1 conversations.
+            Set up how other Louisian students will see you during your anonymous conversations.
           </p>
         </div>
 
@@ -112,7 +112,7 @@ export default function ChatSetupPage() {
               type="text"
               value={nickname}
               onChange={(e) => setNickname(e.target.value)}
-              placeholder="e.g. SilentLouisian_42"
+              placeholder="e.g. ILuvNavi"
               maxLength={25}
               required
               /* text-base on mobile prevents iOS zoom */

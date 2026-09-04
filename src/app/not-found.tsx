@@ -10,7 +10,7 @@ export default function NotFound() {
       <header className="sticky top-0 z-50 bg-white/85 backdrop-blur-md border-b border-neutral-200">
         <div className="max-w-2xl mx-auto px-6 h-16 flex items-center justify-between">
           <Link href="/" className="font-mono text-xl font-black tracking-tighter hover:opacity-70 transition-opacity">
-            UNSAID.
+            TAMBAYAN.
           </Link>
           <Link 
             href="/" 

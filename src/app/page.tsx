@@ -345,7 +345,7 @@ export default function HomePage() {
               className="inline-flex items-center gap-2 bg-white text-neutral-900 border border-neutral-200 font-mono text-xs font-bold uppercase tracking-wider px-6 py-3.5 rounded-lg hover:bg-neutral-100 transition-all active:scale-95 shadow-2xs"
             >
               <Icons.Users />
-              <span>Find Chatmate ⚡</span>
+              <span>Find Chatmate</span>
             </Link>
           </div>
         </div>
