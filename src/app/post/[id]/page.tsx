@@ -394,7 +394,7 @@ export default function PostDetailPage() {
             href="/"
             className="font-mono text-xl font-black tracking-tighter hover:opacity-70 transition-opacity"
           >
-            UNSAID.
+            TAMBAYAN.
           </Link>
 
           <Link
