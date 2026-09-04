@@ -5,34 +5,32 @@ import Link from 'next/link';
 import { 
   collection, 
   query, 
-  where, 
   orderBy, 
   onSnapshot, 
+  addDoc, 
+  serverTimestamp, 
   doc, 
-  updateDoc, 
-  deleteDoc 
+  deleteDoc, 
+  increment, 
+  updateDoc 
 } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
+import { PostProps } from '@/app/page'; // Adjust path if needed
 import { loginAdmin, logoutAdmin, checkAdminAuth } from '../actions';
 
-interface PendingPost {
-  id: string;
-  authorAlias: string;
-  content: string;
-  category: string;
-  createdAt: string;
-  spotifyTrackId?: string;
-}
+const CATEGORIES = [
+  { id: 'thoughts', label: 'Thoughts' },
+  { id: 'love', label: 'Love & Connections' },
+  { id: 'rants', label: 'Rants' },
+  { id: 'life', label: 'City Life' },
+  { id: 'others', label: 'Others' },
+];
 
 const Icons = {
-  Shield: () => (
+  Code: () => (
     <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-      <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"></path>
-    </svg>
-  ),
-  Check: () => (
-    <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-      <polyline points="20 6 9 17 4 12"></polyline>
+      <polyline points="16 18 22 12 16 6"></polyline>
+      <polyline points="8 6 2 12 8 18"></polyline>
     </svg>
   ),
   Trash: () => (
@@ -40,15 +38,37 @@ const Icons = {
       <polyline points="3 6 5 6 21 6"></polyline>
       <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
     </svg>
+  ),
+  Send: () => (
+    <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <line x1="22" y1="2" x2="11" y2="13"></line>
+      <polygon points="22 2 15 22 11 13 2 9 22 2"></polygon>
+    </svg>
+  ),
+  MessageSquare: () => (
+    <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path>
+    </svg>
   )
 };
 
-export default function AdminModerationPage() {
+export default function AdminPostPortal() {
   const [isAuthenticated, setIsAuthenticated] = useState<boolean | null>(null);
   const [authError, setAuthError] = useState<string>("");
-  const [pendingPosts, setPendingPosts] = useState<PendingPost[]>([]);
+  const [posts, setPosts] = useState<PostProps[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
-  const [processingId, setProcessingId] = useState<string | null>(null);
+
+  // New Post Form State
+  const [content, setContent] = useState<string>('');
+  const [category, setCategory] = useState<string>('thoughts');
+  const [spotifyTrackId, setSpotifyTrackId] = useState<string>('');
+  const [isSubmitting, setIsSubmitting] = useState<boolean>(false);
+  const [authorAlias, setAuthorAlias] = useState<string>('Lead Developer');
+
+  // Quick Reply States (keyed by postId)
+  const [replyInputs, setReplyInputs] = useState<{ [postId: string]: string }>({});
+  const [replyAliases, setReplyAliases] = useState<{ [postId: string]: string }>({});
+  const [submittingReplyId, setSubmittingReplyId] = useState<string | null>(null);
 
   // Verify server-side authentication status on mount
   useEffect(() => {
@@ -56,7 +76,7 @@ export default function AdminModerationPage() {
       const authed = await checkAdminAuth();
       setIsAuthenticated(authed);
       if (authed) {
-        setupPendingPostsListener();
+        setupPostsListener();
       } else {
         setLoading(false);
       }
@@ -73,7 +93,7 @@ export default function AdminModerationPage() {
     if (result.success) {
       setIsAuthenticated(true);
       setLoading(true);
-      setupPendingPostsListener();
+      setupPostsListener();
     } else {
       setAuthError(result.error || "Authentication failed");
     }
@@ -84,67 +104,106 @@ export default function AdminModerationPage() {
     setIsAuthenticated(false);
   };
 
-  const setupPendingPostsListener = () => {
-    const q = query(
-      collection(db, "posts"), 
-      where("status", "==", "pending"), 
-      orderBy("createdAt", "desc")
-    );
-
+  const setupPostsListener = () => {
+    const q = query(collection(db, 'posts'), orderBy('createdAt', 'desc'));
     const unsubscribe = onSnapshot(q, (snapshot) => {
-      const posts: PendingPost[] = [];
+      const fetched: PostProps[] = [];
       snapshot.forEach((docSnap) => {
         const data = docSnap.data();
-        let formattedDate = "Just now";
+        let formattedDate = 'Just now';
         if (data.createdAt) {
           const dObj = data.createdAt.toDate();
           formattedDate = dObj.toLocaleDateString([], { month: 'short', day: 'numeric' }) + ' at ' + dObj.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
         }
 
-        posts.push({
+        fetched.push({
           id: docSnap.id,
-          authorAlias: data.authorAlias || "Anonymous Louisian",
-          content: data.content || "",
-          category: data.category || "thoughts",
+          authorAlias: data.authorAlias || 'UNSAID #00000',
+          content: data.content || '',
+          category: data.category || 'thoughts',
           createdAt: formattedDate,
+          upvotes: data.upvotes || 0,
+          replies: data.replies || 0,
           spotifyTrackId: data.spotifyTrackId || null,
         });
       });
-
-      setPendingPosts(posts);
-      setLoading(false);
-    }, (error) => {
-      console.error("Error fetching pending posts:", error);
+      setPosts(fetched);
       setLoading(false);
     });
 
     return () => unsubscribe();
   };
 
-  const handleApprove = async (id: string) => {
-    setProcessingId(id);
+  const handleCreatePost = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!content.trim() || isSubmitting) return;
+
+    setIsSubmitting(true);
     try {
-      const postRef = doc(db, "posts", id);
-      await updateDoc(postRef, { status: 'approved' });
+      let trackIdClean = spotifyTrackId.trim();
+      if (trackIdClean.includes('spotify.com/track/')) {
+        const parts = trackIdClean.split('track/');
+        trackIdClean = parts[1].split('?')[0];
+      }
+
+      await addDoc(collection(db, 'posts'), {
+        authorAlias: authorAlias.trim() || 'Lead Developer',
+        content: content.trim(),
+        category,
+        spotifyTrackId: trackIdClean || null,
+        upvotes: 0,
+        replies: 0,
+        isDeveloperPost: true,
+        createdAt: serverTimestamp(),
+      });
+
+      setContent('');
+      setSpotifyTrackId('');
+      alert('Developer post successfully published!');
     } catch (error) {
-      console.error("Error approving post:", error);
-      alert("Failed to approve entry.");
+      console.error('Error creating post:', error);
+      alert('Failed to publish post.');
     } finally {
-      setProcessingId(null);
+      setIsSubmitting(false);
     }
   };
 
-  const handleDelete = async (id: string) => {
-    if (!confirm("Are you sure you want to reject and delete this entry?")) return;
-    
-    setProcessingId(id);
+  const handleDeletePost = async (postId: string) => {
+    if (!confirm('Are you sure you want to delete this post?')) return;
     try {
-      await deleteDoc(doc(db, "posts", id));
+      await deleteDoc(doc(db, 'posts', postId));
     } catch (error) {
-      console.error("Error deleting post:", error);
-      alert("Failed to delete entry.");
+      console.error('Error deleting post:', error);
+      alert('Failed to delete.');
+    }
+  };
+
+  const handleQuickReplySubmit = async (postId: string, e: React.FormEvent) => {
+    e.preventDefault();
+    const replyText = replyInputs[postId];
+    if (!replyText || !replyText.trim() || submittingReplyId === postId) return;
+
+    setSubmittingReplyId(postId);
+    try {
+      const alias = replyAliases[postId]?.trim() || 'Lead Developer [ADMIN]';
+
+      await addDoc(collection(db, 'posts', postId, 'replies'), {
+        content: replyText.trim(),
+        authorAlias: alias,
+        createdAt: serverTimestamp(),
+      });
+
+      const postRef = doc(db, 'posts', postId);
+      await updateDoc(postRef, {
+        replies: increment(1),
+      });
+
+      setReplyInputs((prev) => ({ ...prev, [postId]: '' }));
+    } catch (error) {
+      console.error('Error adding admin reply:', error);
+      alert('Failed to submit reply.');
     } finally {
-      setProcessingId(null);
+      setSubmittingReplyId(null);
     }
   };
 
@@ -164,7 +223,7 @@ export default function AdminModerationPage() {
         <div className="w-full max-w-md p-8 bg-neutral-950 border border-neutral-800 rounded-xl shadow-2xl space-y-6">
           <div className="text-center space-y-2">
             <span className="font-mono text-xs text-rose-500 uppercase tracking-widest font-bold">Encrypted Gateway</span>
-            <h1 className="text-2xl font-black tracking-tight text-white">Admin Moderation</h1>
+            <h1 className="text-2xl font-black tracking-tight text-white">Admin Login</h1>
             <p className="text-xs font-mono text-neutral-400">Environment-secured authentication required.</p>
           </div>
 
@@ -201,19 +260,19 @@ export default function AdminModerationPage() {
     );
   }
 
-  // 2. Protected Moderation Dashboard View
+  // 2. Protected Publishing Dashboard View
   return (
     <div className="min-h-screen bg-neutral-950 text-neutral-100 font-sans selection:bg-neutral-100 selection:text-neutral-950">
       {/* Navbar */}
       <header className="sticky top-0 z-50 bg-neutral-950/85 backdrop-blur-md border-b border-neutral-800">
         <div className="max-w-3xl mx-auto px-6 h-16 flex items-center justify-between">
-          <div className="flex items-center gap-2 font-mono text-xs font-bold uppercase tracking-wider text-amber-400">
-            <Icons.Shield />
-            <span>Moderation Queue ({pendingPosts.length})</span>
+          <div className="flex items-center gap-2 font-mono text-xs font-bold uppercase tracking-wider text-emerald-400">
+            <Icons.Code />
+            <span>Developer Publishing Portal</span>
           </div>
           <div className="flex items-center gap-4 font-mono text-xs">
-            <Link href="/admin/portal" className="text-neutral-400 hover:text-white transition-colors">
-              Developer Portal
+            <Link href="/admin" className="text-neutral-400 hover:text-white transition-colors">
+              Moderation Queue
             </Link>
             <button
               onClick={handleLogout}
@@ -229,83 +288,175 @@ export default function AdminModerationPage() {
       </header>
 
       <main className="max-w-3xl mx-auto px-6 pt-10 pb-24">
-        <div className="mb-8">
-          <h1 className="text-2xl font-black tracking-tight text-white mb-2">
-            Pending Submissions
-          </h1>
-          <p className="text-xs font-mono text-neutral-400">
-            Review user-submitted entries. Approved entries will instantly go live on the public feed.
-          </p>
+        {/* Create Post Card */}
+        <div className="mb-12 p-6 bg-neutral-900 border border-neutral-800 rounded-xl shadow-lg">
+          <h2 className="font-mono text-xs font-bold uppercase tracking-widest text-neutral-400 mb-4 flex items-center gap-2">
+            <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
+            Broadcast as Admin / Developer
+          </h2>
+
+          <form onSubmit={handleCreatePost} className="space-y-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div>
+                <label className="block font-mono text-[11px] font-semibold text-neutral-400 uppercase tracking-wider mb-1.5">
+                  Admin/Dev Alias
+                </label>
+                <input 
+                  type="text"
+                  value={authorAlias}
+                  onChange={(e) => setAuthorAlias(e.target.value)}
+                  placeholder="e.g. Lead Developer"
+                  className="w-full p-2.5 bg-neutral-950 border border-neutral-800 rounded text-xs font-mono text-white placeholder:text-neutral-600 focus:outline-none focus:border-neutral-600"
+                />
+              </div>
+
+              <div>
+                <label className="block font-mono text-[11px] font-semibold text-neutral-400 uppercase tracking-wider mb-1.5">
+                  Category
+                </label>
+                <select
+                  value={category}
+                  onChange={(e) => setCategory(e.target.value)}
+                  className="w-full p-2.5 bg-neutral-950 border border-neutral-800 rounded text-xs font-mono text-white focus:outline-none focus:border-neutral-600"
+                >
+                  {CATEGORIES.map((cat) => (
+                    <option key={cat.id} value={cat.id}>{cat.label}</option>
+                  ))}
+                </select>
+              </div>
+            </div>
+
+            <div>
+              <label className="block font-mono text-[11px] font-semibold text-neutral-400 uppercase tracking-wider mb-1.5">
+                Content / Announcement
+              </label>
+              <textarea 
+                rows={4}
+                value={content}
+                onChange={(e) => setContent(e.target.value)}
+                placeholder="Write system updates, official notes, or developer thoughts..."
+                className="w-full p-3 bg-neutral-950 border border-neutral-800 rounded text-sm font-mono text-white placeholder:text-neutral-600 focus:outline-none focus:border-neutral-600 resize-none"
+              />
+            </div>
+
+            <div>
+              <label className="block font-mono text-[11px] font-semibold text-neutral-400 uppercase tracking-wider mb-1.5">
+                Spotify Track ID or URL (Optional)
+              </label>
+              <input 
+                type="text"
+                value={spotifyTrackId}
+                onChange={(e) => setSpotifyTrackId(e.target.value)}
+                placeholder="e.g. 4cOdK2wGLETKBW3PvgPWqT"
+                className="w-full p-2.5 bg-neutral-950 border border-neutral-800 rounded text-xs font-mono text-white placeholder:text-neutral-600 focus:outline-none focus:border-neutral-600"
+              />
+            </div>
+
+            <div className="flex justify-end pt-2">
+              <button 
+                type="submit"
+                disabled={isSubmitting || !content.trim()}
+                className="inline-flex items-center gap-2 bg-emerald-500 hover:bg-emerald-400 text-neutral-950 font-mono text-xs font-bold uppercase tracking-wider px-6 py-2.5 rounded transition-all disabled:opacity-50"
+              >
+                <Icons.Send />
+                <span>{isSubmitting ? 'Publishing...' : 'Publish Official Entry'}</span>
+              </button>
+            </div>
+          </form>
+        </div>
+
+        {/* Live Feed Browser with Quick Management */}
+        <div className="mb-6 flex items-center justify-between">
+          <h3 className="font-mono text-xs font-bold uppercase tracking-widest text-neutral-400">
+            Browse & Manage All Posts ({posts.length})
+          </h3>
         </div>
 
         {loading ? (
           <div className="py-12 text-center font-mono text-xs text-neutral-500 animate-pulse">
-            Loading pending submissions...
+            Loading feed entries...
           </div>
-        ) : pendingPosts.length === 0 ? (
+        ) : posts.length === 0 ? (
           <div className="py-12 text-center font-mono text-xs text-neutral-500 border border-dashed border-neutral-800 rounded-xl">
-            🎉 All caught up! There are no pending entries to review.
+            No entries found.
           </div>
         ) : (
           <div className="space-y-6">
-            {pendingPosts.map((post) => {
-              const isProcessing = processingId === post.id;
-
-              return (
-                <div 
-                  key={post.id} 
-                  className="p-5 bg-neutral-900 border border-neutral-800 rounded-lg space-y-4 shadow-lg"
-                >
-                  <div className="flex items-center justify-between">
+            {posts.map((post) => (
+              <div key={post.id} className="p-5 bg-neutral-900 border border-neutral-800 rounded-lg space-y-4">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                  <div className="space-y-1.5 flex-1">
                     <div className="flex items-center gap-2 font-mono text-[11px] uppercase tracking-wider text-neutral-400">
                       <span className="text-white font-bold">{post.authorAlias}</span>
                       <span>•</span>
                       <span>{post.createdAt}</span>
+                      <span className="bg-neutral-800 px-2 py-0.5 rounded text-[10px] text-neutral-300">
+                        {post.category}
+                      </span>
                     </div>
-                    <span className="bg-amber-500/10 text-amber-400 border border-amber-500/20 px-2 py-0.5 rounded text-[10px] font-mono uppercase tracking-wider">
-                      {post.category}
-                    </span>
+                    <p className="text-sm font-medium text-neutral-200 line-clamp-2">
+                      {post.content}
+                    </p>
                   </div>
 
-                  <p className="text-sm font-medium text-neutral-200 whitespace-pre-wrap leading-relaxed">
-                    {post.content}
-                  </p>
-
-                  {post.spotifyTrackId && (
-                    <div>
-                      <iframe
-                        src={`https://open.spotify.com/embed/track/${post.spotifyTrackId}?utm_source=generator&theme=0`}
-                        width="100%"
-                        height="80"
-                        frameBorder="0"
-                        allow="encrypted-media"
-                        className="rounded border border-neutral-800"
-                      />
-                    </div>
-                  )}
-
-                  <div className="flex items-center justify-end gap-3 pt-3 border-t border-neutral-800/60">
-                    <button
-                      onClick={() => handleDelete(post.id)}
-                      disabled={isProcessing}
-                      className="inline-flex items-center gap-1.5 px-3.5 py-2 bg-rose-500/10 hover:bg-rose-500/20 text-rose-400 border border-rose-500/20 font-mono text-[11px] font-bold uppercase tracking-wider rounded transition-colors disabled:opacity-50"
+                  <div className="flex items-center gap-3 shrink-0">
+                    <Link 
+                      href={`/post/${post.id}`}
+                      target="_blank"
+                      className="px-3 py-1.5 bg-neutral-800 hover:bg-neutral-700 text-neutral-200 font-mono text-[11px] uppercase tracking-wider rounded transition-colors"
+                    >
+                      View Page ↗
+                    </Link>
+                    <button 
+                      onClick={() => handleDeletePost(post.id)}
+                      className="p-2 bg-rose-500/10 hover:bg-rose-500/20 text-rose-400 rounded transition-colors"
+                      title="Delete post"
                     >
                       <Icons.Trash />
-                      <span>Reject & Delete</span>
-                    </button>
-
-                    <button
-                      onClick={() => handleApprove(post.id)}
-                      disabled={isProcessing}
-                      className="inline-flex items-center gap-1.5 px-4 py-2 bg-emerald-500 hover:bg-emerald-400 text-neutral-950 font-mono text-[11px] font-bold uppercase tracking-wider rounded transition-colors disabled:opacity-50"
-                    >
-                      <Icons.Check />
-                      <span>{isProcessing ? 'Processing...' : 'Approve & Publish'}</span>
                     </button>
                   </div>
                 </div>
-              );
-            })}
+
+                {/* Inline Admin/Dev Reply Form per post */}
+                <form 
+                  onSubmit={(e) => handleQuickReplySubmit(post.id, e)}
+                  className="pt-3 border-t border-neutral-800/60 space-y-2.5"
+                >
+                  <div className="flex items-center gap-2 font-mono text-[10px] uppercase tracking-wider text-neutral-400">
+                    <Icons.MessageSquare />
+                    <span>Quick Admin Reply</span>
+                  </div>
+
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+                    <input
+                      type="text"
+                      placeholder="Alias (e.g. Lead Dev [ADMIN])"
+                      value={replyAliases[post.id] || ''}
+                      onChange={(e) => setReplyAliases({ ...replyAliases, [post.id]: e.target.value })}
+                      className="p-2 bg-neutral-950 border border-neutral-800 rounded text-xs font-mono text-white placeholder:text-neutral-600 focus:outline-none focus:border-neutral-600"
+                    />
+
+                    <input
+                      type="text"
+                      placeholder="Write administrative reply..."
+                      value={replyInputs[post.id] || ''}
+                      onChange={(e) => setReplyInputs({ ...replyInputs, [post.id]: e.target.value })}
+                      className="sm:col-span-2 p-2 bg-neutral-950 border border-neutral-800 rounded text-xs font-mono text-white placeholder:text-neutral-600 focus:outline-none focus:border-neutral-600"
+                    />
+                  </div>
+
+                  <div className="flex justify-end">
+                    <button
+                      type="submit"
+                      disabled={submittingReplyId === post.id || !replyInputs[post.id]?.trim()}
+                      className="px-4 py-1.5 bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-400 border border-emerald-500/20 font-mono text-[11px] font-bold uppercase tracking-wider rounded transition-colors disabled:opacity-40"
+                    >
+                      {submittingReplyId === post.id ? 'Sending...' : 'Post Reply'}
+                    </button>
+                  </div>
+                </form>
+              </div>
+            ))}
           </div>
         )}
       </main>
