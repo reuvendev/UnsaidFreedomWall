@@ -307,7 +307,7 @@ export default function PostDetailPage() {
 
       const replyData = {
         content: sanitizedContent,
-        authorAlias: `UNSAID #${randomId}`,
+        authorAlias: `Louisian #${randomId}`,
         createdAt: serverTimestamp(),
       };
 
