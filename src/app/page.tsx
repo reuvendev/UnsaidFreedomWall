@@ -109,20 +109,27 @@ export default function HomePage() {
     setHasMore(true);
 
     let q;
+    // Query only posts where status is "approved"
     if (selectedCategory === "all") {
-      q = query(collection(db, "posts"), orderBy("createdAt", "desc"), limit(10));
+      q = query(
+        collection(db, "posts"), 
+        where("status", "==", "approved"),
+        orderBy("createdAt", "desc"), 
+        limit(10)
+      );
     } else {
       q = query(
         collection(db, "posts"), 
+        where("status", "==", "approved"),
         where("category", "==", selectedCategory), 
         orderBy("createdAt", "desc"), 
         limit(10)
       );
     }
-    
+     
     const unsubscribe = onSnapshot(q, (querySnapshot) => {
       const fetchedPosts: PostProps[] = [];
-      
+       
       querySnapshot.forEach((docSnap) => {
         const data = docSnap.data();
         let formattedDate = "Just now";
@@ -145,7 +152,7 @@ export default function HomePage() {
       });
 
       setPosts(fetchedPosts);
-      
+       
       if (querySnapshot.docs.length > 0) {
         setLastVisible(querySnapshot.docs[querySnapshot.docs.length - 1]);
         if (querySnapshot.docs.length < 10) {
@@ -174,6 +181,7 @@ export default function HomePage() {
       if (selectedCategory === "all") {
         nextQuery = query(
           collection(db, "posts"),
+          where("status", "==", "approved"),
           orderBy("createdAt", "desc"),
           startAfter(lastVisible),
           limit(10)
@@ -181,6 +189,7 @@ export default function HomePage() {
       } else {
         nextQuery = query(
           collection(db, "posts"),
+          where("status", "==", "approved"),
           where("category", "==", selectedCategory),
           orderBy("createdAt", "desc"),
           startAfter(lastVisible),
@@ -189,7 +198,7 @@ export default function HomePage() {
       }
 
       const querySnapshot = await getDocs(nextQuery);
-      
+       
       if (querySnapshot.empty) {
         setHasMore(false);
         setLoadingMore(false);
@@ -241,7 +250,7 @@ export default function HomePage() {
     try {
       const postRef = doc(db, "posts", id);
       await updateDoc(postRef, { upvotes: increment(voteChange) });
-      
+       
       const updatedVotes = { ...votedPosts };
       if (hasVoted) delete updatedVotes[id];
       else updatedVotes[id] = true;
@@ -272,7 +281,7 @@ export default function HomePage() {
       const updatedReports = { ...reportedPosts, [activeReportPostId]: true };
       setReportedPosts(updatedReports);
       localStorage.setItem('unsaid_reported_posts', JSON.stringify(updatedReports));
-      
+       
       setActiveReportPostId(null);
       setReportDetails("");
       setSelectedReason(REPORT_REASONS[0]);
@@ -330,7 +339,7 @@ export default function HomePage() {
           <p className="text-base text-neutral-600 leading-relaxed max-w-md mb-8">
             A safe space for Louisian thoughts, confessions, rants, and stories you can't say out loud.
           </p>
-          
+           
           <div className="flex flex-wrap items-center gap-3">
             <Link 
               href="/post" 
@@ -430,7 +439,7 @@ export default function HomePage() {
                       {post.category}
                     </span>
                   </div>
-                  
+                   
                   {/* Responsive Content Text */}
                   <p className={`text-base sm:text-lg md:text-xl font-normal mb-6 leading-relaxed break-words ${
                     isDev ? 'text-emerald-950 font-semibold' : 'text-neutral-800'
@@ -501,7 +510,7 @@ export default function HomePage() {
                 </article>
               );
             })}
-            
+             
             {filteredPosts.length === 0 && (
               <div className="py-16 text-center font-mono text-sm text-neutral-400 border border-dashed border-neutral-200 rounded-2xl bg-white/50">
                 {searchQuery ? `No entries found matching "${searchQuery}"` : "No entries found in this category. Be the first to share your thoughts!"}
