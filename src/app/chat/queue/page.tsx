@@ -1,197 +1,237 @@
 'use client';
 
-import React, { useEffect, useState, useRef } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { 
-  collection, query, where, getDocs, addDoc, 
-  updateDoc, doc, serverTimestamp, onSnapshot, limit, deleteDoc, Timestamp 
+  collection, doc, addDoc, updateDoc, deleteDoc, 
+  getDocs, getDoc, query, where, onSnapshot, serverTimestamp 
 } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 
 const Icons = {
-  Zap: () => (
-    <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-      <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"></polygon>
+  Loader: () => (
+    <svg className="animate-spin" xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M21 12a9 9 0 1 1-6.219-8.56"></path>
     </svg>
-  ),
+  )
 };
 
 export default function ChatQueuePage() {
   const router = useRouter();
-  const [statusText, setStatusText] = useState('Initializing secure queue...');
-  const matchedRef = useRef(false);
+  const [statusText, setStatusText] = useState('Initializing secure matchmaking...');
+  const [currentRoomId, setCurrentRoomId] = useState<string | null>(null);
 
   useEffect(() => {
-    let activeUnsubscribe: (() => void) | null = null;
-    let roomRefId: string | null = null;
     let isMounted = true;
+    let unsubscribeRoom: (() => void) | null = null;
+    let cleanupTimeout: NodeJS.Timeout | null = null;
 
-    const startMatchmaking = async () => {
-      let storedId = localStorage.getItem('unsaid_chat_user_id');
-      if (!storedId) {
-        storedId = 'user_' + Math.random().toString(36).substring(2, 11);
-        localStorage.setItem('unsaid_chat_user_id', storedId);
+    const setupMatchmaking = async () => {
+      let userId = localStorage.getItem('unsaid_chat_user_id');
+      if (!userId) {
+        userId = 'user_' + Math.random().toString(36).substring(2, 11);
+        localStorage.setItem('unsaid_chat_user_id', userId);
       }
 
-      const nickname = localStorage.getItem('unsaid_chat_nickname') || 'Anonymous Louisian';
-      const school = localStorage.getItem('unsaid_chat_school') || 'samcis';
+      // 1. Check if user is globally banned by an admin
+      try {
+        const banSnap = await getDoc(doc(db, "bannedUsers", userId));
+        if (banSnap.exists()) {
+          if (!isMounted) return;
+          setStatusText('Access Denied: Your account has been globally banned.');
+          alert('Your account has been suspended due to community guideline violations.');
+          router.push('/');
+          return;
+        }
+      } catch (err) {
+        console.error("Error checking ban status:", err);
+      }
 
-      setStatusText('Scanning for available Louisian chatmates...');
+      const nickname = localStorage.getItem('unsaid_chat_nickname');
+      const school = localStorage.getItem('unsaid_chat_school');
+
+      if (!nickname || !school) {
+        alert('Please set up your profile first.');
+        router.push('/chat/setup');
+        return;
+      }
+
+      const blockedUsers: string[] = JSON.parse(localStorage.getItem('unsaid_chat_blocked') || '[]');
+
+      setStatusText('Scanning for available chatmates...');
 
       try {
         const roomsRef = collection(db, "chatRooms");
+        const q = query(roomsRef, where("status", "==", "waiting"));
 
-        // SAFETY CLEANUP: Delete any old waiting rooms created by this user previously
-        const myOldRoomsQuery = query(roomsRef, where("hostId", "==", storedId), where("status", "==", "waiting"));
-        const myOldSnap = await getDocs(myOldRoomsQuery);
-        const cleanupPromises = myOldSnap.docs.map(oldDoc => deleteDoc(oldDoc.ref));
-        await Promise.all(cleanupPromises);
-        
-        // Find waiting rooms created by other users
-        const q = query(roomsRef, where("status", "==", "waiting"), limit(15));
-        const querySnapshot = await getDocs(q);
+        const snapshot = await getDocs(q);
+        let matchedRoomId: string | null = null;
 
-        const now = Date.now();
-        // Filter out own rooms AND filter out rooms older than 60 seconds (stale/ghost rooms)
-        const availableRooms = querySnapshot.docs.filter(docSnap => {
-          const data = docSnap.data();
-          if (data.hostId === storedId) return false;
+        const waitingRooms = snapshot.docs.map(docSnap => ({
+          id: docSnap.id,
+          ...docSnap.data()
+        })) as any[];
 
-          // Check if room has a valid timestamp and is less than 60 seconds old
-          if (data.createdAt && data.createdAt.toMillis) {
-            const ageInMs = now - data.createdAt.toMillis();
-            if (ageInMs > 60000) {
-              // Optionally delete stale abandoned rooms in the background
-              deleteDoc(docSnap.ref).catch(() => {});
-              return false;
-            }
-          }
-          return true;
+        waitingRooms.sort((a, b) => {
+          const timeA = a.createdAt?.toMillis ? a.createdAt.toMillis() : 0;
+          const timeB = b.createdAt?.toMillis ? b.createdAt.toMillis() : 0;
+          return timeA - timeB;
         });
 
-        if (availableRooms.length > 0) {
-          // Pick the valid active room
-          const targetRoomDoc = availableRooms[0];
-          
-          setStatusText('Match found! Connecting to secure room...');
-          
-          try {
-            await updateDoc(doc(db, "chatRooms", targetRoomDoc.id), {
-              status: "active",
-              guestId: storedId,
-              guestNickname: nickname,
-              guestSchool: school,
-            });
+        // 2. Find a room to join as a guest (ensuring host isn't blocked)
+        for (const roomData of waitingRooms) {
+          const hostId = roomData.hostId;
 
-            if (isMounted) {
-              matchedRef.current = true;
-              router.push(`/chat/${targetRoomDoc.id}`);
-              return;
-            }
-          } catch (updateErr) {
-            console.warn("Race condition during matching, creating new room...", updateErr);
+          // Skip own rooms or blocked hosts
+          if (hostId === userId || blockedUsers.includes(hostId)) {
+            continue;
           }
+
+          const createdAt = roomData.createdAt?.toDate ? roomData.createdAt.toDate() : new Date();
+          const isStale = (Date.now() - createdAt.getTime()) > 60000;
+          if (isStale) {
+            await deleteDoc(doc(db, "chatRooms", roomData.id)).catch(() => {});
+            continue;
+          }
+
+          matchedRoomId = roomData.id;
+          break;
         }
 
-        // If no valid rooms available, create our own fresh waiting room
         if (!isMounted) return;
-        setStatusText('Waiting for another student to join queue...');
-        
-        const newRoomRef = await addDoc(roomsRef, {
-          hostId: storedId,
-          hostNickname: nickname,
-          hostSchool: school,
-          guestId: null,
-          guestNickname: null,
-          guestSchool: null,
-          status: "waiting",
-          createdAt: serverTimestamp(),
-        });
 
-        roomRefId = newRoomRef.id;
+        if (matchedRoomId) {
+          setStatusText('Match found! Connecting to secure room...');
+          const roomRef = doc(db, "chatRooms", matchedRoomId);
+          
+          await updateDoc(roomRef, {
+            guestId: userId,
+            guestNickname: nickname,
+            guestSchool: school,
+            status: 'active'
+          });
 
-        // Listen for a real guest to activate our room
-        activeUnsubscribe = onSnapshot(doc(db, "chatRooms", newRoomRef.id), (docSnap) => {
-          if (!docSnap.exists()) return;
-          const data = docSnap.data();
-          // Ensure a guest actually joined (guestId exists and is different from host)
-          if (data && data.status === "active" && data.guestId && data.guestId !== storedId && isMounted) {
-            if (activeUnsubscribe) activeUnsubscribe();
-            matchedRef.current = true;
-            setStatusText('Chatmate found! Entering room...');
-            router.push(`/chat/${newRoomRef.id}`);
-          }
-        });
+          router.push(`/chat/${matchedRoomId}`);
+        } else {
+          // 3. Create our own waiting room
+          setStatusText('No match found instantly. Waiting for someone to join...');
+          
+          const newRoomRef = await addDoc(collection(db, "chatRooms"), {
+            hostId: userId,
+            hostNickname: nickname,
+            hostSchool: school,
+            guestId: null,
+            guestNickname: null,
+            guestSchool: null,
+            status: 'waiting',
+            createdAt: serverTimestamp(),
+          });
 
-      } catch (error) {
-        console.error("Matchmaking error:", error);
+          if (!isMounted) return;
+          setCurrentRoomId(newRoomRef.id);
+
+          // Real-time listener: Check if a guest joins
+          unsubscribeRoom = onSnapshot(newRoomRef, async (docSnap) => {
+            if (!isMounted) return;
+            if (docSnap.exists()) {
+              const data = docSnap.data();
+              if (data.status === 'active' && data.guestId) {
+                // STRICT BLOCK CHECK: If a blocked user tries to join your room, delete it entirely
+                if (blockedUsers.includes(data.guestId)) {
+                  setStatusText('Skipped blocked user. Re-queueing...');
+                  try {
+                    await deleteDoc(newRoomRef);
+                  } catch (e) {}
+                  
+                  setTimeout(() => {
+                    if (isMounted) window.location.reload();
+                  }, 1000);
+                  return;
+                }
+
+                setStatusText('Peer connected! Entering chat...');
+                router.push(`/chat/${newRoomRef.id}`);
+              }
+            }
+          });
+
+          cleanupTimeout = setTimeout(async () => {
+            if (isMounted) {
+              try {
+                await deleteDoc(doc(db, "chatRooms", newRoomRef.id));
+              } catch (e) {}
+              setStatusText('Queue timed out. Click below to try again.');
+              setCurrentRoomId(null);
+            }
+          }, 45000);
+        }
+      } catch (err) {
+        console.error("Queue matchmaking error:", err);
         if (isMounted) {
-          setStatusText('Error connecting to queue. Please retry.');
+          setStatusText('Connection error. Please try again.');
         }
       }
     };
 
-    startMatchmaking();
+    setupMatchmaking();
 
     return () => {
       isMounted = false;
-      if (activeUnsubscribe) activeUnsubscribe();
-      if (roomRefId && !matchedRef.current) {
-        deleteDoc(doc(db, "chatRooms", roomRefId)).catch(() => {});
-      }
+      if (unsubscribeRoom) unsubscribeRoom();
+      if (cleanupTimeout) clearTimeout(cleanupTimeout);
     };
   }, [router]);
 
-  const handleCancel = () => {
-    matchedRef.current = false;
+  const handleCancel = async () => {
+    if (currentRoomId) {
+      try {
+        await deleteDoc(doc(db, "chatRooms", currentRoomId));
+      } catch (e) {
+        console.error("Error cleaning up room on cancel:", e);
+      }
+    }
     router.push('/');
   };
 
   return (
-    <div className="min-h-screen bg-neutral-50/50 text-neutral-900 font-sans flex flex-col justify-between selection:bg-neutral-900 selection:text-white">
-      <header className="sticky top-0 z-50 bg-white/95 backdrop-blur-md border-b border-neutral-200/80">
+    <div className="min-h-screen bg-neutral-50 text-neutral-900 font-sans flex flex-col justify-between selection:bg-neutral-900 selection:text-white">
+      <header className="sticky top-0 z-50 bg-white/95 backdrop-blur-md border-b border-neutral-200/85">
         <div className="max-w-2xl mx-auto px-6 h-16 flex items-center justify-between">
           <Link href="/" className="font-mono text-xl font-black tracking-tighter hover:opacity-70 transition-opacity">
             TAMBAYAN<span className="text-emerald-600">.</span>
           </Link>
           <span className="font-mono text-[11px] font-bold text-neutral-400 uppercase tracking-widest">
-            Queue Live
+            Matchmaking Queue
           </span>
         </div>
       </header>
 
-      <main className="max-w-md mx-auto px-6 py-20 w-full flex-1 flex flex-col items-center justify-center text-center">
-        <div className="w-16 h-16 rounded-2xl bg-emerald-50 border border-emerald-200 flex items-center justify-center mb-6 relative text-emerald-600">
-          <div className="absolute inset-0 rounded-2xl bg-emerald-400/20 animate-ping"></div>
-          <Icons.Zap />
-        </div>
-
-        <h1 className="text-2xl font-extrabold tracking-tight text-neutral-900 mb-3">
-          Finding Your Match
-        </h1>
-
-        <p className="font-mono text-xs text-neutral-500 uppercase tracking-wider mb-8 leading-relaxed max-w-xs">
-          {statusText}
-        </p>
-
-        <div className="w-full bg-white p-6 rounded-2xl border border-neutral-200/80 shadow-2xs mb-8 space-y-3 text-left">
-          <div className="flex items-center justify-between font-mono text-xs">
-            <span className="text-neutral-400">Campus Network:</span>
-            <span className="text-neutral-900 font-bold">Saint Louis University</span>
-          </div>
-          <div className="flex items-center justify-between font-mono text-xs">
-            <span className="text-neutral-400">Encryption:</span>
-            <span className="text-emerald-600 font-bold">1:1 Anonymous</span>
+      <main className="max-w-md mx-auto px-6 py-20 w-full flex-1 flex flex-col items-center justify-center text-center space-y-8">
+        <div className="relative flex items-center justify-center">
+          <div className="absolute w-24 h-24 bg-emerald-500/10 rounded-full animate-ping"></div>
+          <div className="relative w-20 h-20 bg-white border border-neutral-200 rounded-2xl shadow-sm flex items-center justify-center text-emerald-600">
+            <Icons.Loader />
           </div>
         </div>
 
-        <button
-          onClick={handleCancel}
-          className="px-6 py-3 bg-white hover:bg-neutral-100 text-neutral-700 border border-neutral-200 font-mono text-xs font-bold uppercase tracking-wider rounded-xl transition-all shadow-2xs active:scale-95 cursor-pointer"
-        >
-          Cancel & Return Home
-        </button>
+        <div className="space-y-3">
+          <h1 className="text-2xl font-extrabold tracking-tight text-neutral-900">
+            Finding your match
+          </h1>
+          <p className="font-mono text-xs text-neutral-500 max-w-xs mx-auto leading-relaxed">
+            {statusText}
+          </p>
+        </div>
+
+        <div className="w-full pt-4">
+          <button
+            onClick={handleCancel}
+            className="w-full py-3.5 bg-white hover:bg-neutral-100 text-neutral-700 border border-neutral-200 font-mono text-xs font-bold uppercase tracking-wider rounded-xl transition-all shadow-2xs cursor-pointer active:scale-98"
+          >
+            Cancel & Return Home
+          </button>
+        </div>
       </main>
     </div>
   );

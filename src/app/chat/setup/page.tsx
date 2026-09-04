@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 
@@ -42,6 +42,19 @@ export default function ChatSetupPage() {
   const [nickname, setNickname] = useState('');
   const [selectedSchool, setSelectedSchool] = useState(SLU_SCHOOLS[0].id);
   const [isSubmitting, setIsSubmitting] = useState(false);
+
+  // Load previously saved values from localStorage on mount
+  useEffect(() => {
+    const savedNickname = localStorage.getItem('unsaid_chat_nickname');
+    const savedSchool = localStorage.getItem('unsaid_chat_school');
+
+    if (savedNickname) {
+      setNickname(savedNickname);
+    }
+    if (savedSchool && SLU_SCHOOLS.some(s => s.id === savedSchool)) {
+      setSelectedSchool(savedSchool);
+    }
+  }, []);
 
   const handleStartChat = (e: React.FormEvent) => {
     e.preventDefault();
@@ -102,7 +115,8 @@ export default function ChatSetupPage() {
               placeholder="e.g. SilentLouisian_42"
               maxLength={25}
               required
-              className="w-full px-4 py-3 bg-neutral-50 border border-neutral-200 rounded-xl text-sm font-mono text-neutral-900 placeholder:text-neutral-400 focus:outline-none focus:border-neutral-900 transition-all"
+              /* text-base on mobile prevents iOS zoom */
+              className="w-full px-4 py-3 bg-neutral-50 border border-neutral-200 rounded-xl text-base sm:text-sm font-mono text-neutral-900 placeholder:text-neutral-400 focus:outline-none focus:border-neutral-900 transition-all"
             />
           </div>
 
