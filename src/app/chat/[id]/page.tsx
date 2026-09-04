@@ -259,7 +259,7 @@ export default function ChatRoomPage() {
                 </span>
               )}
             </div>
-            <p className="font-mono text-[10px] text-neutral-400">Secure 1:1 SLU Campus Session</p>
+            <p className="font-mono text-[10px] text-neutral-400">Anonymous Chat</p>
           </div>
         </div>
 
