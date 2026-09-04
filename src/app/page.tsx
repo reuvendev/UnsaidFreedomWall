@@ -2,7 +2,12 @@
 
 import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
-import { collection, onSnapshot, query, orderBy, limit, startAfter, getDocs, doc, updateDoc, increment, addDoc, serverTimestamp, where, DocumentData, QueryDocumentSnapshot } from 'firebase/firestore';
+import { useRouter } from 'next/navigation';
+import { 
+  collection, onSnapshot, query, orderBy, limit, startAfter, 
+  getDocs, doc, updateDoc, increment, addDoc, serverTimestamp, 
+  where, DocumentData, QueryDocumentSnapshot 
+} from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 
 export interface PostProps {
@@ -63,9 +68,12 @@ const Icons = {
       <polyline points="9 12 11 14 15 10"></polyline>
     </svg>
   ),
+  Users: () => <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path><circle cx="9" cy="7" r="4"></circle><path d="M23 21v-2a4 4 0 0 0-3-3.87"></path><path d="M16 3.13a4 4 0 0 1 0 7.75"></path></svg>,
 };
 
 export default function HomePage() {
+  const router = useRouter();
+
   const [selectedCategory, setSelectedCategory] = useState<string>("all");
   const [searchQuery, setSearchQuery] = useState<string>("");
   const [posts, setPosts] = useState<PostProps[]>([]);
@@ -78,7 +86,7 @@ export default function HomePage() {
   const [votedPosts, setVotedPosts] = useState<Record<string, boolean>>({});
   const [votingLocked, setVotingLocked] = useState<Record<string, boolean>>({});
   const [reportedPosts, setReportedPosts] = useState<Record<string, boolean>>({});
-  
+
   // Report Modal States
   const [activeReportPostId, setActiveReportPostId] = useState<string | null>(null);
   const [selectedReason, setSelectedReason] = useState<string>(REPORT_REASONS[0]);
@@ -120,7 +128,7 @@ export default function HomePage() {
         let formattedDate = "Just now";
         if (data.createdAt) {
           const dateObj = data.createdAt.toDate();
-          formattedDate = dateObj.toLocaleDateString([], { month: 'short', day: 'numeric', year: 'numeric' }) + ' | ' + dateObj.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+          formattedDate = dateObj.toLocaleDateString([], { month: 'short', day: 'numeric', year: 'numeric' }) + ' at ' + dateObj.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
         }
 
         fetchedPosts.push({
@@ -298,7 +306,7 @@ export default function HomePage() {
 
   return (
     <div className="min-h-screen bg-neutral-50/50 text-neutral-900 font-sans selection:bg-neutral-900 selection:text-white relative">
-      <header className="sticky top-0 z-50 bg-white/90 backdrop-blur-md border-b border-neutral-200/80 shadow-2xs">
+      <header className="sticky top-0 z-50 bg-white/95 backdrop-blur-md border-b border-neutral-200/80 shadow-2xs">
         <div className="max-w-2xl mx-auto px-6 h-16 flex items-center justify-between">
           <Link href="/" className="font-mono text-xl font-black tracking-tighter hover:opacity-70 transition-opacity">
             TAMBAYAN<span className="text-emerald-600">.</span>
@@ -311,7 +319,7 @@ export default function HomePage() {
       </header>
 
       <main className="max-w-2xl mx-auto px-6 pt-16 pb-24">
-        <div className="mb-12">
+        <div className="mb-10">
           <p className="font-mono text-[11px] font-bold text-neutral-400 tracking-widest uppercase mb-4 flex items-center gap-2">
             <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
             SLU Freedom Wall
@@ -330,6 +338,14 @@ export default function HomePage() {
             >
               <Icons.Pen />
               <span>Say Something</span>
+            </Link>
+
+            <Link 
+              href="/chat/setup" 
+              className="inline-flex items-center gap-2 bg-white text-neutral-900 border border-neutral-200 font-mono text-xs font-bold uppercase tracking-wider px-6 py-3.5 rounded-lg hover:bg-neutral-100 transition-all active:scale-95 shadow-2xs"
+            >
+              <Icons.Users />
+              <span>Find Chatmate ⚡</span>
             </Link>
           </div>
         </div>
@@ -510,56 +526,63 @@ export default function HomePage() {
 
       {/* Inline Report Modal */}
       {activeReportPostId && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-xs">
-          <div className="w-full max-w-md bg-white rounded-2xl shadow-2xl border border-neutral-200 overflow-hidden animate-in fade-in zoom-in-95 duration-200">
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-neutral-900/40 backdrop-blur-xs">
+          <div className="w-full max-w-md bg-white rounded-2xl shadow-xl border border-neutral-200/80 overflow-hidden animate-in fade-in zoom-in-95 duration-200">
             <div className="flex items-center justify-between px-6 py-4 border-b border-neutral-100">
-              <h3 className="font-mono text-sm font-bold uppercase tracking-wider text-neutral-900">Report Entry</h3>
-              <button onClick={() => setActiveReportPostId(null)} className="text-neutral-400 hover:text-neutral-900 transition-colors p-1">
+              <h3 className="font-mono text-xs font-bold uppercase tracking-widest text-neutral-900">
+                Report Entry
+              </h3>
+              <button 
+                onClick={() => setActiveReportPostId(null)} 
+                className="text-neutral-400 hover:text-neutral-900 transition-colors p-1 rounded-lg hover:bg-neutral-100"
+              >
                 <Icons.Close />
               </button>
             </div>
 
-            <form onSubmit={handleReportSubmit} className="p-6 space-y-4">
+            <form onSubmit={handleReportSubmit} className="p-6 space-y-5">
               <div>
-                <label className="block font-mono text-xs font-semibold text-neutral-700 uppercase tracking-wider mb-2">
+                <label className="block font-mono text-[11px] font-bold text-neutral-500 uppercase tracking-wider mb-2">
                   Select Reason
                 </label>
-                <select
-                  value={selectedReason}
-                  onChange={(e) => setSelectedReason(e.target.value)}
-                  className="w-full p-3 bg-neutral-50 border border-neutral-200 rounded-xl text-sm text-neutral-900 font-mono focus:outline-none focus:border-neutral-900"
-                >
-                  {REPORT_REASONS.map((reason) => (
-                    <option key={reason} value={reason}>{reason}</option>
-                  ))}
-                </select>
+                <div className="relative">
+                  <select
+                    value={selectedReason}
+                    onChange={(e) => setSelectedReason(e.target.value)}
+                    className="w-full p-3 bg-neutral-50 border border-neutral-200 rounded-xl text-xs text-neutral-900 font-mono focus:outline-none focus:border-neutral-900 transition-all appearance-none cursor-pointer"
+                  >
+                    {REPORT_REASONS.map((reason) => (
+                      <option key={reason} value={reason}>{reason}</option>
+                    ))}
+                  </select>
+                </div>
               </div>
 
               <div>
-                <label className="block font-mono text-xs font-semibold text-neutral-700 uppercase tracking-wider mb-2">
-                  Additional Details (Optional)
+                <label className="block font-mono text-[11px] font-bold text-neutral-500 uppercase tracking-wider mb-2">
+                  Additional Details <span className="text-neutral-300 font-normal">(Optional)</span>
                 </label>
                 <textarea
                   value={reportDetails}
                   onChange={(e) => setReportDetails(e.target.value)}
                   placeholder="Provide any extra context for moderators..."
                   rows={3}
-                  className="w-full p-3 bg-neutral-50 border border-neutral-200 rounded-xl text-sm text-neutral-900 placeholder:text-neutral-400 font-mono focus:outline-none focus:border-neutral-900 resize-none"
+                  className="w-full p-3 bg-neutral-50 border border-neutral-200 rounded-xl text-xs text-neutral-900 placeholder:text-neutral-400 font-mono focus:outline-none focus:border-neutral-900 transition-all resize-none shadow-2xs"
                 />
               </div>
 
-              <div className="flex items-center justify-end gap-3 pt-4 border-t border-neutral-100">
+              <div className="flex items-center justify-end gap-3 pt-2">
                 <button
                   type="button"
                   onClick={() => setActiveReportPostId(null)}
-                  className="px-4 py-2 rounded-lg font-mono text-xs font-bold uppercase tracking-wider text-neutral-600 hover:bg-neutral-100 transition-colors"
+                  className="px-4 py-2.5 rounded-xl font-mono text-xs font-bold uppercase tracking-wider text-neutral-600 hover:bg-neutral-100 transition-colors"
                 >
                   Cancel
                 </button>
                 <button
                   type="submit"
                   disabled={isSubmittingReport}
-                  className="px-5 py-2 rounded-lg bg-rose-600 text-white font-mono text-xs font-bold uppercase tracking-wider hover:bg-rose-700 transition-colors disabled:opacity-50 shadow-sm"
+                  className="px-5 py-2.5 rounded-xl bg-neutral-900 hover:bg-neutral-800 text-white font-mono text-xs font-bold uppercase tracking-wider transition-all disabled:opacity-50 shadow-sm active:scale-95"
                 >
                   {isSubmittingReport ? 'Submitting...' : 'Submit Report'}
                 </button>
