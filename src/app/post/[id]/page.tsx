@@ -164,7 +164,7 @@ export default function PostDetailPage() {
 
           setPost({
             id: postSnap.id,
-            authorAlias: data.authorAlias || 'UNSAID #00000',
+            authorAlias: data.authorAlias || 'Louisian #00000',
             content: data.content || '',
             category: data.category || 'thoughts',
             createdAt: formattedPostDate,
@@ -219,7 +219,7 @@ export default function PostDetailPage() {
 
           fetchedReplies.push({
             id: rSnap.id,
-            authorAlias: rData.authorAlias || 'UNSAID #99999',
+            authorAlias: rData.authorAlias || 'Louisian #99999',
             content: rData.content || '',
             createdAt: formattedReplyDate,
           });
