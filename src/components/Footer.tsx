@@ -2,12 +2,19 @@
 
 import React, { useState, useEffect } from 'react';
 import Link from "next/link";
+import { usePathname } from 'next/navigation';
 import { collection, getDocs } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 
 export function Footer() {
+  const pathname = usePathname();
   const [totalPosts, setTotalPosts] = useState<number | null>(null);
   const [isDarkMode, setIsDarkMode] = useState<boolean>(false);
+
+  // Hide the footer entirely on chat room routes (e.g. /chat/room_id)
+  if (pathname?.includes('/chat/')) {
+    return null;
+  }
 
   useEffect(() => {
     // Function to check and update theme from localStorage
