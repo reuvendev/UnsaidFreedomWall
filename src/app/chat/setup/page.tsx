@@ -40,13 +40,12 @@ const SLU_SCHOOLS = [
 // Comprehensive bad word / racist term list (English & Tagalog, roots & common variations)
 const BANNED_WORDS = [
   // English Profanity & Slurs
-  'gook', 'nigger', 'nigga', 'fag', 'faggot', 'retard', 'tranny', 'chink', 'spic', 
-  'whore', 'slut', 'bitch', 'bastard', 'cunt', 'dick', 'cock', 'pussy', 'asshole', 'motherfucker',
+  'nigger', 'nigga', 'dick', 'cock', 'pussy', 'asshole', 'motherfucker',
   
   // Tagalog / Filipino Profanity & Slurs
   'gago', 'g@g0', 'g4g0', 'putangina', 'tangina', 'puta', 'pota', 'putang', 'tanga', 't@ng@', 
-  'bobo', 'b0b0', 'ulol', 'olul', 'hayop', 'inutil', 'kupal', 'puki', 'pekpek', 'titi', 'tite', 'burat', 'etits', 
-  'kantot', 'jakol', 'pakshet', 'punyeta', 'lecheng', 'leche', 'burikat', 'hinayupak'
+  'bobo', 'b0b0', 'ulol', 'olul', 'hayop', 'inutil', 'puki', 'pekpek', 'titi', 'tite', 'burat', 'etits', 
+  'kantot', 'jakol'
 ];
 
 /**
