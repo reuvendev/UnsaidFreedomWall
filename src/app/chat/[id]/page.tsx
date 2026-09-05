@@ -24,6 +24,13 @@ const SLU_SCHOOL_LABELS: Record<string, string> = {
   stela: 'STELA',
 };
 
+const REPORT_REASONS = [
+  { id: 'harassment', label: 'Harassment or Bullying' },
+  { id: 'inappropriate', label: 'Inappropriate Content' },
+  { id: 'spam', label: 'Spam or Bot Activity' },
+  { id: 'other', label: 'Other' },
+];
+
 const Icons = {
   Send: () => (
     <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -49,6 +56,12 @@ const Icons = {
       <circle cx="12" cy="5" r="1"></circle>
       <circle cx="12" cy="19" r="1"></circle>
     </svg>
+  ),
+  X: () => (
+    <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <line x1="18" y1="6" x2="6" y2="18"></line>
+      <line x1="6" y1="6" x2="18" y2="18"></line>
+    </svg>
   )
 };
 
@@ -66,6 +79,11 @@ export default function ChatRoomPage() {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [chatStatus, setChatStatus] = useState<'active' | 'closed' | 'blocked'>('active');
   const [blockedByMe, setBlockedByMe] = useState(false);
+  
+  // Report Modal States
+  const [isReportModalOpen, setIsReportModalOpen] = useState(false);
+  const [selectedReason, setSelectedReason] = useState('harassment');
+  const [isSubmittingReport, setIsSubmittingReport] = useState(false);
   
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
@@ -190,15 +208,16 @@ export default function ChatRoomPage() {
     }
   };
 
-  const handleBlockUser = async () => {
-    if (!roomData || !userId) return;
-    
-    const otherUserId = roomData.hostId === userId ? roomData.guestId : roomData.hostId;
-    
+  const handleOpenReportModal = () => {
     setIsMenuOpen(false);
-    if (!confirm("Are you sure you want to block and report this user? This will end the chat immediately and prevent future matches with them.")) {
-      return;
-    }
+    setIsReportModalOpen(true);
+  };
+
+  const handleSubmitReport = async () => {
+    if (!roomData || !userId || isSubmittingReport) return;
+    
+    setIsSubmittingReport(true);
+    const otherUserId = roomData.hostId === userId ? roomData.guestId : roomData.hostId;
 
     if (otherUserId) {
       const blockedUsers: string[] = JSON.parse(localStorage.getItem('unsaid_chat_blocked') || '[]');
@@ -209,19 +228,26 @@ export default function ChatRoomPage() {
     }
 
     try {
+      // Save report with reason
       await addDoc(collection(db, "reports"), {
         roomId: roomId,
         reporterId: userId,
         reportedUserId: otherUserId,
+        reason: selectedReason,
         createdAt: serverTimestamp()
       });
 
+      // Update room to blocked status
       await updateDoc(doc(db, "chatRooms", roomId), { 
         status: 'blocked',
         blockedBy: userId 
       });
+
+      setIsReportModalOpen(false);
     } catch (e) {
       console.error("Error reporting/blocking user:", e);
+    } finally {
+      setIsSubmittingReport(false);
     }
   };
 
@@ -241,7 +267,8 @@ export default function ChatRoomPage() {
   const isInactive = chatStatus !== 'active';
 
   return (
-    <div className="h-[100dvh] w-full bg-neutral-50 text-neutral-900 font-sans flex flex-col justify-between selection:bg-neutral-900 selection:text-white overflow-hidden">
+    <div className="h-[100dvh] w-full bg-neutral-50 text-neutral-900 font-sans flex flex-col justify-between selection:bg-neutral-900 selection:text-white overflow-hidden relative">
+      
       {/* Header */}
       <header className="shrink-0 bg-white/95 backdrop-blur-md border-b border-neutral-200/80 px-3 sm:px-6 h-16 flex items-center justify-between shadow-2xs z-10 gap-2">
         <div className="flex items-center gap-2.5 min-w-0 flex-1">
@@ -272,7 +299,7 @@ export default function ChatRoomPage() {
             </button>
           )}
 
-          {/* More Dropdown Menu for Block & Report */}
+          {/* More Dropdown Menu */}
           <div className="relative">
             <button 
               aria-label="More options"
@@ -283,9 +310,9 @@ export default function ChatRoomPage() {
             </button>
 
             {isMenuOpen && (
-              <div className="absolute right-0 mt-2 w-48 bg-white border border-neutral-200 rounded-2xl shadow-xl py-2 z-50">
+              <div className="absolute right-0 mt-2 w-48 bg-white border border-neutral-200 rounded-2xl shadow-xl py-2 z-50 animate-in fade-in zoom-in-95 duration-100">
                 <button
-                  onClick={handleBlockUser}
+                  onClick={handleOpenReportModal}
                   className="w-full px-4 py-2.5 text-left font-mono text-xs font-bold text-red-600 hover:bg-red-50 flex items-center space-x-2 transition-colors cursor-pointer"
                 >
                   <Icons.ShieldAlert />
@@ -386,6 +413,76 @@ export default function ChatRoomPage() {
           </form>
         )}
       </footer>
-  </div>
+
+      {/* Custom Mobile-Responsive Report Modal */}
+      {isReportModalOpen && (
+        <div className="fixed inset-0 bg-neutral-900/50 backdrop-blur-xs flex items-center justify-center z-50 p-4">
+          <div className="bg-white border border-neutral-200 rounded-3xl max-w-md w-full p-6 shadow-2xl space-y-5 animate-in fade-in zoom-in-95 duration-150">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2.5 text-rose-600">
+                <div className="p-2 bg-rose-50 rounded-xl">
+                  <Icons.ShieldAlert />
+                </div>
+                <h3 className="font-mono text-sm font-bold uppercase tracking-wider text-neutral-900">
+                  Block & Report User
+                </h3>
+              </div>
+              <button 
+                onClick={() => setIsReportModalOpen(false)}
+                className="p-1.5 hover:bg-neutral-100 text-neutral-500 rounded-xl transition-colors cursor-pointer"
+              >
+                <Icons.X />
+              </button>
+            </div>
+
+            <p className="text-xs text-neutral-600 font-sans leading-relaxed">
+              This will immediately terminate the chat, block this peer from future matching, and send a moderation report. Please select a reason:
+            </p>
+
+            <div className="space-y-2">
+              {REPORT_REASONS.map((reason) => (
+                <label 
+                  key={reason.id} 
+                  className={`flex items-center gap-3 p-3 rounded-xl border text-xs font-mono font-medium transition-all cursor-pointer ${
+                    selectedReason === reason.id 
+                      ? 'border-neutral-900 bg-neutral-50 text-neutral-900 shadow-2xs' 
+                      : 'border-neutral-200 text-neutral-600 hover:border-neutral-300'
+                  }`}
+                >
+                  <input 
+                    type="radio" 
+                    name="reportReason" 
+                    value={reason.id}
+                    checked={selectedReason === reason.id}
+                    onChange={(e) => setSelectedReason(e.target.value)}
+                    className="accent-neutral-900"
+                  />
+                  <span>{reason.label}</span>
+                </label>
+              ))}
+            </div>
+
+            <div className="flex items-center gap-3 pt-2">
+              <button
+                type="button"
+                onClick={() => setIsReportModalOpen(false)}
+                className="flex-1 py-3 bg-neutral-100 hover:bg-neutral-200 text-neutral-700 font-mono text-xs font-bold uppercase tracking-wider rounded-xl transition-all cursor-pointer"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                disabled={isSubmittingReport}
+                onClick={handleSubmitReport}
+                className="flex-1 py-3 bg-rose-600 hover:bg-rose-700 text-white font-mono text-xs font-bold uppercase tracking-wider rounded-xl transition-all shadow-sm disabled:opacity-50 cursor-pointer flex items-center justify-center gap-2"
+              >
+                {isSubmittingReport ? 'Submitting...' : 'Confirm Block'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+    </div>
   );
 }

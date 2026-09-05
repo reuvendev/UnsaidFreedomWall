@@ -11,6 +11,7 @@ interface ChatReportItem {
   roomId: string;
   reporterId: string;
   reportedUserId: string;
+  reportedUserNickname?: string;
   createdAt: string;
   roomStatus?: string;
 }
@@ -65,13 +66,29 @@ export default function AdminReportsPage() {
       for (const docSnap of querySnapshot.docs) {
         const data = docSnap.data();
         const roomId = data.roomId;
+        const reportedUserId = data.reportedUserId || "";
 
         let roomStatus = "unknown";
+        let reportedUserNickname = "Unknown";
+
         if (roomId) {
           const roomRef = doc(db, "chatRooms", roomId);
           const roomSnap = await getDoc(roomRef);
           if (roomSnap.exists()) {
-            roomStatus = roomSnap.data().status || "active";
+            const roomData = roomSnap.data();
+            roomStatus = roomData.status || "active";
+
+            // Attempt to resolve nickname from common room data schemas (adjust keys if yours differ)
+            if (reportedUserId) {
+              if (roomData.nicknames && roomData.nicknames[reportedUserId]) {
+                reportedUserNickname = roomData.nicknames[reportedUserId];
+              } else if (roomData.participantsData && roomData.participantsData[reportedUserId]?.nickname) {
+                reportedUserNickname = roomData.participantsData[reportedUserId].nickname;
+              } else if (roomData.users && Array.isArray(roomData.users)) {
+                const foundUser = roomData.users.find((u: any) => u.uid === reportedUserId || u.id === reportedUserId);
+                if (foundUser?.nickname) reportedUserNickname = foundUser.nickname;
+              }
+            }
           }
         }
 
@@ -79,7 +96,8 @@ export default function AdminReportsPage() {
           id: docSnap.id,
           roomId: roomId || "",
           reporterId: data.reporterId || "Anonymous",
-          reportedUserId: data.reportedUserId || "",
+          reportedUserId,
+          reportedUserNickname,
           createdAt: data.createdAt ? new Date(data.createdAt.toDate()).toLocaleString() : "Unknown",
           roomStatus,
         });
@@ -100,13 +118,14 @@ export default function AdminReportsPage() {
       return;
     }
 
-    const confirmed = window.confirm(`Are you sure you want to globally ban user: ${report.reportedUserId}? This will permanently block them from entering the queue.`);
+    const confirmed = window.confirm(`Are you sure you want to globally ban user: ${report.reportedUserNickname} (${report.reportedUserId})? This will permanently block them from entering the queue.`);
     if (!confirmed) return;
 
     try {
       // 1. Add user to global banned collection
       await setDoc(doc(db, "bannedUsers", report.reportedUserId), {
         bannedAt: new Date(),
+        nickname: report.reportedUserNickname || "Unknown",
         reason: "Admin review from campus chat safety report"
       });
 
@@ -232,23 +251,52 @@ export default function AdminReportsPage() {
                   <span className="text-neutral-500">{report.createdAt}</span>
                 </div>
 
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 font-mono text-xs bg-neutral-900 p-4 rounded-lg border border-neutral-800/60">
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 font-mono text-xs bg-neutral-900 p-4 rounded-lg border border-neutral-800/60">
                   <div>
                     <span className="text-neutral-500 block text-[10px] uppercase tracking-widest">Reporter ID:</span>
                     <span className="text-neutral-300 break-all">{report.reporterId}</span>
                   </div>
                   <div>
+                    <span className="text-neutral-500 block text-[10px] uppercase tracking-widest">Reported User Nickname:</span>
+                    <span className="text-amber-400 font-bold break-all text-sm">{report.reportedUserNickname}</span>
+                  </div>
+                  <div>
                     <span className="text-neutral-500 block text-[10px] uppercase tracking-widest">Reported User ID:</span>
-                    <span className="text-rose-400 font-bold break-all">{report.reportedUserId || 'Unknown'}</span>
+                    <span className="text-rose-400 font-semibold break-all">{report.reportedUserId || 'Unknown'}</span>
                   </div>
                 </div>
 
-                <div className="flex items-center justify-between pt-2">
-                  <span className="font-mono text-xs text-neutral-500">
-                    Room Reference: <span className="text-neutral-300">{report.roomId}</span>
-                  </span>
+                <div className="flex flex-wrap items-center justify-between gap-3 pt-2">
+                  <div className="font-mono text-xs text-neutral-500 flex items-center gap-2">
+                    <span>Room Reference:</span>
+                    {report.roomId ? (
+                      <Link 
+                        href={`/chat/${report.roomId}`} 
+                        target="_blank"
+                        className="text-emerald-400 hover:text-emerald-300 underline font-mono tracking-wider transition-colors inline-flex items-center gap-1"
+                      >
+                        <span>{report.roomId}</span>
+                        <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                          <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"></path>
+                          <polyline points="15 3 21 3 21 9"></polyline>
+                          <line x1="10" y1="14" x2="21" y2="3"></line>
+                        </svg>
+                      </Link>
+                    ) : (
+                      <span className="text-neutral-600">None</span>
+                    )}
+                  </div>
 
                   <div className="flex items-center gap-3">
+                    {report.roomId && (
+                      <Link
+                        href={`/chat/${report.roomId}`}
+                        target="_blank"
+                        className="px-4 py-2 bg-emerald-600/20 hover:bg-emerald-600/30 text-emerald-400 border border-emerald-500/30 font-mono text-xs font-bold uppercase rounded-lg transition-colors inline-flex items-center gap-1.5"
+                      >
+                        <span>Visit Room</span>
+                      </Link>
+                    )}
                     <button
                       onClick={() => handleDismissReport(report.id)}
                       className="px-4 py-2 bg-neutral-800 hover:bg-neutral-700 text-neutral-300 font-mono text-xs font-bold uppercase rounded-lg transition-colors cursor-pointer"
