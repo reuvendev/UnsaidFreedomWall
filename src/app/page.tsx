@@ -69,6 +69,7 @@ const Icons = {
     </svg>
   ),
   Users: () => <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path><circle cx="9" cy="7" r="4"></circle><path d="M23 21v-2a4 4 0 0 0-3-3.87"></path><path d="M16 3.13a4 4 0 0 1 0 7.75"></path></svg>,
+  Coffee: () => <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M18 8h1a4 4 0 0 1 0 8h-1"></path><path d="M2 8h16v9a4 4 0 0 1-4 4H6a4 4 0 0 1-4-4V8z"></path><line x1="6" y1="1" x2="6" y2="4"></line><line x1="10" y1="1" x2="10" y2="4"></line><line x1="14" y1="1" x2="14" y2="4"></line></svg>,
 };
 
 export default function HomePage() {
@@ -164,7 +165,7 @@ export default function HomePage() {
 
       setLoading(false);
     }, (error) => {
-      console.error("Error listening to posts (Check Firebase composite indexes):", error);
+      console.error("Error listening to posts:", error);
       setLoading(false);
     });
 
@@ -232,7 +233,7 @@ export default function HomePage() {
         setHasMore(false);
       }
     } catch (error) {
-      console.error("Error loading more posts. Ensure Firestore composite indexes are built:", error);
+      console.error("Error loading more posts:", error);
     } finally {
       setLoadingMore(false);
     }
@@ -318,7 +319,7 @@ export default function HomePage() {
           <Link href="/" className="font-mono text-xl font-black tracking-tighter hover:opacity-70 transition-opacity">
             TAMBAYAN<span className="text-emerald-600">.</span>
           </Link>
-          <nav className="flex items-center gap-5 font-mono text-[11px] font-bold tracking-widest text-neutral-500 uppercase">
+          <nav className="flex items-center gap-4 sm:gap-5 font-mono text-[11px] font-bold tracking-widest text-neutral-500 uppercase">
             <Link href="/about" className="hover:text-neutral-900 transition-colors">About</Link>
             <Link href="/guidelines" className="hover:text-neutral-900 transition-colors">Guidelines</Link>
           </nav>
@@ -338,7 +339,8 @@ export default function HomePage() {
             A safe space for Louisian thoughts, confessions, rants, and stories you can't say out loud.
           </p>
            
-          <div className="flex flex-wrap items-center gap-3">
+          {/* Main Action Buttons including Support */}
+          <div className="flex flex-wrap items-center justify-center sm:justify-start gap-3">
             <Link 
               href="/post" 
               className="inline-flex items-center gap-2 bg-neutral-900 text-white font-mono text-xs font-bold uppercase tracking-wider px-6 py-3.5 rounded-lg hover:bg-neutral-800 transition-all active:scale-95 shadow-sm"
@@ -353,6 +355,14 @@ export default function HomePage() {
             >
               <Icons.Users />
               <span>Find Chatmate</span>
+            </Link>
+
+            <Link 
+              href="/support" 
+              className="inline-flex items-center gap-2 bg-emerald-50 text-emerald-700 border border-emerald-200 font-mono text-xs font-bold uppercase tracking-wider px-5 py-3.5 rounded-lg hover:bg-emerald-100 transition-all active:scale-95 shadow-2xs"
+            >
+              <Icons.Coffee />
+              <span>Support This Project</span>
             </Link>
           </div>
         </div>
@@ -418,7 +428,6 @@ export default function HomePage() {
                     </div>
                   )}
 
-                  {/* Responsive Header */}
                   <div className={`flex flex-wrap items-center justify-between gap-y-2 mb-3 ${isDev ? 'mt-1' : ''}`}>
                     <div className="flex items-center gap-2 font-mono text-[11px] uppercase tracking-wider min-w-0">
                       <span className={`px-2.5 py-1 rounded-md border font-bold truncate max-w-[150px] sm:max-w-none ${
@@ -438,7 +447,6 @@ export default function HomePage() {
                     </span>
                   </div>
                    
-                  {/* Responsive Content Text */}
                   <p className={`text-base sm:text-lg md:text-xl font-normal mb-6 leading-relaxed break-words ${
                     isDev ? 'text-emerald-950 font-semibold' : 'text-neutral-800'
                   }`}>
@@ -495,27 +503,26 @@ export default function HomePage() {
                       )}
 
                       <button
-                          onClick={() => handleShare(post.id)}
-                          className={`flex items-center gap-1.5 font-mono text-[11px] font-semibold transition-colors uppercase tracking-wider ${
-                            isDev ? 'text-emerald-800 hover:text-emerald-950' : 'text-neutral-400 hover:text-neutral-900'
+                        onClick={() => handleShare(post.id)}
+                        className={`flex items-center gap-1.5 font-mono text-[11px] font-semibold transition-colors uppercase tracking-wider ${
+                          isDev ? 'text-emerald-800 hover:text-emerald-950' : 'text-neutral-400 hover:text-neutral-900'
                         }`}
                       >
-                          <Icons.Share />
-                          <span>{copiedId === post.id ? 'Copied!' : 'Share'}</span>
+                        <Icons.Share />
+                        <span>{copiedId === post.id ? 'Copied!' : 'Share'}</span>
                       </button>
+                    </div>
                   </div>
-                </div>
-              </article>
-            );
-          })}
-            
+                </article>
+              );
+            })}
+             
             {filteredPosts.length === 0 && (
               <div className="py-16 text-center font-mono text-sm text-neutral-400 border border-dashed border-neutral-200 rounded-2xl bg-white/50">
                 {searchQuery ? `No entries found matching "${searchQuery}"` : "No entries found in this category. Be the first to share your thoughts!"}
               </div>
             )}
 
-            {/* Load More Button */}
             {hasMore && searchQuery.trim() === "" && (
               <div className="pt-6 text-center">
                 <button
@@ -597,7 +604,7 @@ export default function HomePage() {
             </form>
           </div>
         </div>
-    )}
-  </div>
+      )}
+    </div>
   );
 }
