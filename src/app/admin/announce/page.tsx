@@ -154,6 +154,7 @@ export default function AdminPostPortal() {
         upvotes: 0,
         replies: 0,
         isDeveloperPost: true,
+        status: 'approved',
         createdAt: serverTimestamp(),
       });
 
