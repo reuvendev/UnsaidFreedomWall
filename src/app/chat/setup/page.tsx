@@ -112,7 +112,7 @@ export default function ChatSetupPage() {
               type="text"
               value={nickname}
               onChange={(e) => setNickname(e.target.value)}
-              placeholder="e.g. ILuvNavi"
+              placeholder="e.g. someone"
               maxLength={25}
               required
               /* text-base on mobile prevents iOS zoom */
