@@ -16,7 +16,7 @@ const jetbrainsMono = JetBrains_Mono({
 
 export const metadata: Metadata = {
   title: "TambayanEselyu — Freedom Wall & Anonymous Chat",
-  description: "A safe, uninhibited anonymous space to share your thoughts, rants, and stories.",
+  description: "A safe, uninhibited anonymous space to share your thoughts, and rants.",
   icons: {
     icon: "https://cdn.reuvendev.site/Images/Icon/unsaid/U.png", 
   },
