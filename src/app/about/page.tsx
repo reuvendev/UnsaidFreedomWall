@@ -60,7 +60,6 @@ export default function AboutPage() {
               Nevz
             </div>
             <p className="text-xs text-neutral-500 mt-1 font-mono">
-              
             </p>
           </section>
 

@@ -110,6 +110,7 @@ export default function PostDetailPage() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [hasVoted, setHasVoted] = useState(false);
   const [votingLocked, setVotingLocked] = useState(false);
+  const [isDarkMode, setIsDarkMode] = useState<boolean>(false);
 
   // Modal State for Reporting (handles both posts and replies)
   const [reportModalOpen, setReportModalOpen] = useState(false);
@@ -117,6 +118,31 @@ export default function PostDetailPage() {
   const [selectedReason, setSelectedReason] = useState(REPORT_REASONS[0]);
   const [customReason, setCustomReason] = useState('');
   const [isSubmittingReport, setIsSubmittingReport] = useState(false);
+
+  // Sync Dark Mode state instantly without transition
+  useEffect(() => {
+    const checkTheme = () => {
+      try {
+        const storedTheme = localStorage.getItem('unsaid_dark_mode');
+        if (storedTheme !== null) {
+          setIsDarkMode(JSON.parse(storedTheme));
+        } else if (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches) {
+          setIsDarkMode(true);
+        }
+      } catch (e) {
+        // Ignore
+      }
+    };
+
+    checkTheme();
+    window.addEventListener('storage', checkTheme);
+    const interval = setInterval(checkTheme, 300);
+
+    return () => {
+      window.removeEventListener('storage', checkTheme);
+      clearInterval(interval);
+    };
+  }, []);
 
   useEffect(() => {
     try {
@@ -302,7 +328,6 @@ export default function PostDetailPage() {
     try {
       const randomId = Math.floor(10000 + Math.random() * 90000);
 
-      // Apply automatic censorship to English and Tagalog bad words
       const sanitizedContent = censorText(replyContent.trim());
 
       const replyData = {
@@ -331,7 +356,6 @@ export default function PostDetailPage() {
     }
   };
 
-  // Open the report modal
   const openReportModal = (type: 'post' | 'reply', id: string, snippet: string) => {
     setReportingTarget({ type, id, snippet });
     setSelectedReason(REPORT_REASONS[0]);
@@ -339,7 +363,6 @@ export default function PostDetailPage() {
     setReportModalOpen(true);
   };
 
-  // Submit report to Firestore
   const handleReportSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!reportingTarget || isSubmittingReport) return;
@@ -370,7 +393,7 @@ export default function PostDetailPage() {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-white flex items-center justify-center font-mono text-xs text-neutral-400 animate-pulse">
+      <div className={`min-h-screen flex items-center justify-center font-mono text-xs ${isDarkMode ? 'bg-neutral-950 text-neutral-500' : 'bg-white text-neutral-400'}`}>
         Loading entry...
       </div>
     );
@@ -378,7 +401,6 @@ export default function PostDetailPage() {
 
   if (!post) return null;
 
-  // Check if main post is from an admin or developer
   const isPostAdminOrDev = 
     post.isDeveloperPost || 
     post.authorAlias.toLowerCase().includes('admin') || 
@@ -386,20 +408,20 @@ export default function PostDetailPage() {
     post.authorAlias.toLowerCase().includes('dev');
 
   return (
-    <div className="min-h-screen bg-white text-neutral-900 font-sans selection:bg-neutral-900 selection:text-white">
+    <div className={`min-h-screen font-sans ${isDarkMode ? 'bg-neutral-950 text-neutral-100 selection:bg-neutral-100 selection:text-neutral-950' : 'bg-white text-neutral-900 selection:bg-neutral-900 selection:text-white'}`}>
       {/* Header */}
-      <header className="sticky top-0 z-50 bg-white/85 backdrop-blur-md border-b border-neutral-200">
+      <header className={`sticky top-0 z-50 backdrop-blur-md border-b ${isDarkMode ? 'bg-neutral-950/85 border-neutral-800' : 'bg-white/85 border-neutral-200'}`}>
         <div className="max-w-2xl mx-auto px-6 h-16 flex items-center justify-between">
           <Link
             href="/"
-            className="font-mono text-xl font-black tracking-tighter hover:opacity-70 transition-opacity"
+            className={`font-mono text-xl font-black tracking-tighter hover:opacity-75 ${isDarkMode ? 'text-white' : 'text-neutral-900'}`}
           >
             TAMBAYAN.
           </Link>
 
           <Link
             href="/"
-            className="font-mono text-xs font-semibold text-neutral-500 hover:text-neutral-900 transition-colors uppercase tracking-wider"
+            className={`font-mono text-xs font-semibold uppercase tracking-wider ${isDarkMode ? 'text-neutral-400 hover:text-white' : 'text-neutral-500 hover:text-neutral-900'}`}
           >
             ← Back to Feed
           </Link>
@@ -408,33 +430,33 @@ export default function PostDetailPage() {
 
       <main className="max-w-2xl mx-auto px-6 pt-12 pb-24">
         {/* Main Post Card */}
-        <article className="p-6 bg-white border border-neutral-200 rounded-lg mb-10 relative">
+        <article className={`p-6 border rounded-lg mb-10 relative ${isDarkMode ? 'bg-neutral-900/50 border-neutral-800' : 'bg-white border-neutral-200'}`}>
           <div className="flex items-center justify-between mb-3">
             <div className="flex items-center gap-2 font-mono text-[11px] uppercase tracking-wider">
-              <span className={`font-bold ${isPostAdminOrDev ? 'text-emerald-600' : 'text-neutral-900'}`}>
+              <span className={`font-bold ${isPostAdminOrDev ? 'text-emerald-500' : isDarkMode ? 'text-white' : 'text-neutral-900'}`}>
                 {post.authorAlias}
               </span>
 
               {isPostAdminOrDev && (
-                <span className="bg-emerald-50 text-emerald-700 border border-emerald-200 px-2 py-0.5 rounded text-[9px] uppercase font-bold tracking-widest">
+                <span className={`border px-2 py-0.5 rounded text-[9px] uppercase font-bold tracking-widest ${isDarkMode ? 'bg-emerald-950/50 text-emerald-400 border-emerald-800' : 'bg-emerald-50 text-emerald-700 border-emerald-200'}`}>
                   ADMIN / DEV
                 </span>
               )}
 
-              <span className="text-neutral-300">•</span>
+              <span className={isDarkMode ? 'text-neutral-700' : 'text-neutral-300'}>•</span>
 
-              <span className="text-neutral-400">
+              <span className={isDarkMode ? 'text-neutral-500' : 'text-neutral-400'}>
                 {post.createdAt}
               </span>
             </div>
 
             <div className="flex items-center gap-3">
-              <span className="text-[10px] font-mono uppercase tracking-widest bg-neutral-100 text-neutral-600 px-2.5 py-1 rounded">
+              <span className={`text-[10px] font-mono uppercase tracking-widest px-2.5 py-1 rounded ${isDarkMode ? 'bg-neutral-800 text-neutral-300' : 'bg-neutral-100 text-neutral-600'}`}>
                 {post.category}
               </span>
               <button
                 onClick={() => openReportModal('post', post.id, post.content)}
-                className="inline-flex items-center gap-1 font-mono text-[11px] text-neutral-400 hover:text-rose-600 transition-colors"
+                className={`inline-flex items-center gap-1 font-mono text-[11px] ${isDarkMode ? 'text-neutral-500 hover:text-rose-400' : 'text-neutral-400 hover:text-rose-600'}`}
                 title="Report post"
               >
                 <Icons.Flag />
@@ -443,7 +465,7 @@ export default function PostDetailPage() {
             </div>
           </div>
 
-          <p className="text-xl md:text-2xl font-medium text-neutral-900 mb-6 leading-relaxed">
+          <p className={`text-xl md:text-2xl font-medium mb-6 leading-relaxed ${isDarkMode ? 'text-neutral-100' : 'text-neutral-900'}`}>
             {post.content}
           </p>
 
@@ -451,27 +473,29 @@ export default function PostDetailPage() {
           {post.spotifyTrackId && (
             <div className="mb-6">
               <iframe
-                src={`https://open.spotify.com/embed/track/${post.spotifyTrackId}?utm_source=generator&theme=0`}
+                src={`https://open.spotify.com/embed/track/${post.spotifyTrackId}?utm_source=generator&theme=${isDarkMode ? '1' : '0'}`}
                 width="100%"
                 height="80"
                 frameBorder="0"
                 allow="encrypted-media"
-                className="rounded-lg border border-neutral-100"
+                className={`rounded-lg border ${isDarkMode ? 'border-neutral-800' : 'border-neutral-100'}`}
               />
             </div>
           )}
 
-          <div className="flex items-center gap-6 font-mono text-xs font-semibold pt-4 border-t border-neutral-100">
+          <div className={`flex items-center gap-6 font-mono text-xs font-semibold pt-4 border-t ${isDarkMode ? 'border-neutral-800' : 'border-neutral-100'}`}>
             <button
               onClick={handleVoteToggle}
               disabled={votingLocked}
-              className={`flex items-center gap-2 transition-colors ${
+              className={`flex items-center gap-2 ${
                 votingLocked
                   ? 'opacity-50 cursor-not-allowed'
                   : ''
               } ${
                 hasVoted
                   ? 'text-rose-500 hover:text-rose-600'
+                  : isDarkMode
+                  ? 'text-neutral-400 hover:text-rose-400'
                   : 'text-neutral-500 hover:text-rose-500'
               }`}
             >
@@ -483,7 +507,7 @@ export default function PostDetailPage() {
               </span>
             </button>
 
-            <div className="flex items-center gap-2 text-neutral-500">
+            <div className={`flex items-center gap-2 ${isDarkMode ? 'text-neutral-400' : 'text-neutral-500'}`}>
               <Icons.Message />
 
               <span>
@@ -499,7 +523,7 @@ export default function PostDetailPage() {
           onSubmit={handleAddReply}
           className="mb-12 space-y-4"
         >
-          <label className="block font-mono text-xs font-bold uppercase tracking-wider text-neutral-700">
+          <label className={`block font-mono text-xs font-bold uppercase tracking-wider ${isDarkMode ? 'text-neutral-300' : 'text-neutral-700'}`}>
             Leave an Anonymous Reply
           </label>
 
@@ -515,16 +539,18 @@ export default function PostDetailPage() {
               }
             }}
             placeholder="Add your thoughts to this entry..."
-            className={`w-full p-4 bg-neutral-50 border rounded-lg text-neutral-900 placeholder:text-neutral-400 focus:outline-none focus:bg-white transition-all text-sm leading-relaxed resize-none ${
+            className={`w-full p-4 border rounded-lg text-sm leading-relaxed resize-none focus:outline-none ${
               replyError
                 ? 'border-rose-500 focus:border-rose-500'
-                : 'border-neutral-200 focus:border-neutral-900'
+                : isDarkMode
+                ? 'bg-neutral-900 border-neutral-800 text-neutral-100 placeholder:text-neutral-600 focus:bg-neutral-950 focus:border-neutral-700'
+                : 'bg-neutral-50 border-neutral-200 text-neutral-900 placeholder:text-neutral-400 focus:bg-white focus:border-neutral-900'
             }`}
             required
           />
 
           {replyError && (
-            <div className="p-3 bg-rose-50 border border-rose-200 rounded-md text-rose-600 font-mono text-xs animate-fadeIn">
+            <div className={`p-3 border rounded-md font-mono text-xs ${isDarkMode ? 'bg-rose-950/50 border-rose-900 text-rose-400' : 'bg-rose-50 border-rose-200 text-rose-600'}`}>
               {replyError}
             </div>
           )}
@@ -535,7 +561,7 @@ export default function PostDetailPage() {
               disabled={
                 isSubmitting || !replyContent.trim()
               }
-              className="px-5 py-2.5 bg-neutral-900 text-white font-mono text-xs font-bold uppercase tracking-wider rounded hover:bg-neutral-800 disabled:opacity-50 transition-all active:scale-95 shadow-sm"
+              className={`px-5 py-2.5 font-mono text-xs font-bold uppercase tracking-wider rounded active:scale-95 shadow-sm disabled:opacity-50 ${isDarkMode ? 'bg-white text-neutral-950 hover:bg-neutral-200' : 'bg-neutral-900 text-white hover:bg-neutral-800'}`}
             >
               {isSubmitting ? 'Replying...' : 'Post Reply'}
             </button>
@@ -544,7 +570,7 @@ export default function PostDetailPage() {
 
         {/* Replies List */}
         <div className="space-y-6">
-          <h3 className="font-mono text-xs font-bold uppercase tracking-widest text-neutral-400 pb-2 border-b border-neutral-200">
+          <h3 className={`font-mono text-xs font-bold uppercase tracking-widest pb-2 border-b ${isDarkMode ? 'text-neutral-500 border-neutral-800' : 'text-neutral-400 border-neutral-200'}`}>
             Discussion ({replies.length})
           </h3>
 
@@ -557,28 +583,28 @@ export default function PostDetailPage() {
             return (
               <div
                 key={reply.id}
-                className="p-4 bg-neutral-50 border border-neutral-200 rounded-lg space-y-2 relative"
+                className={`p-4 border rounded-lg space-y-2 relative ${isDarkMode ? 'bg-neutral-900/40 border-neutral-800' : 'bg-neutral-50 border-neutral-200'}`}
               >
-                <div className="flex items-center justify-between font-mono text-[10px] uppercase tracking-wider text-neutral-500">
+                <div className={`flex items-center justify-between font-mono text-[10px] uppercase tracking-wider ${isDarkMode ? 'text-neutral-500' : 'text-neutral-500'}`}>
                   <div className="flex items-center gap-2">
-                    <span className={`font-bold ${isReplyAdminOrDev ? 'text-emerald-600' : 'text-neutral-800'}`}>
+                    <span className={`font-bold ${isReplyAdminOrDev ? 'text-emerald-500' : isDarkMode ? 'text-neutral-300' : 'text-neutral-800'}`}>
                       {reply.authorAlias}
                     </span>
 
                     {isReplyAdminOrDev && (
-                      <span className="bg-emerald-50 text-emerald-700 border border-emerald-200 px-1.5 py-0.5 rounded text-[8px] uppercase font-bold tracking-widest">
+                      <span className={`border px-1.5 py-0.5 rounded text-[8px] uppercase font-bold tracking-widest ${isDarkMode ? 'bg-emerald-950/50 text-emerald-400 border-emerald-800' : 'bg-emerald-50 text-emerald-700 border-emerald-200'}`}>
                         ADMIN / DEV
                       </span>
                     )}
                   </div>
 
                   <div className="flex items-center gap-3">
-                    <span className="text-neutral-400">
+                    <span className={isDarkMode ? 'text-neutral-600' : 'text-neutral-400'}>
                       {reply.createdAt}
                     </span>
                     <button
                       onClick={() => openReportModal('reply', reply.id, reply.content)}
-                      className="inline-flex items-center gap-1 font-mono text-[11px] text-neutral-400 hover:text-rose-600 transition-colors"
+                      className={`inline-flex items-center gap-1 font-mono text-[11px] ${isDarkMode ? 'text-neutral-500 hover:text-rose-400' : 'text-neutral-400 hover:text-rose-600'}`}
                       title="Report reply"
                     >
                       <Icons.Flag />
@@ -587,7 +613,7 @@ export default function PostDetailPage() {
                   </div>
                 </div>
 
-                <p className="text-sm md:text-base text-neutral-700 leading-relaxed">
+                <p className={`text-sm md:text-base leading-relaxed ${isDarkMode ? 'text-neutral-300' : 'text-neutral-700'}`}>
                   {reply.content}
                 </p>
               </div>
@@ -595,7 +621,7 @@ export default function PostDetailPage() {
           })}
 
           {replies.length === 0 && (
-            <p className="font-mono text-xs text-neutral-400 text-center py-6">
+            <p className={`font-mono text-xs text-center py-6 ${isDarkMode ? 'text-neutral-600' : 'text-neutral-400'}`}>
               No replies yet. Be the first to join the conversation.
             </p>
           )}
@@ -604,26 +630,26 @@ export default function PostDetailPage() {
 
       {/* Report Modal Popup */}
       {reportModalOpen && (
-        <div className="fixed inset-0 z-50 bg-neutral-950/60 backdrop-blur-xs flex items-center justify-center p-4">
-          <div className="bg-white border border-neutral-200 rounded-xl max-w-md w-full p-6 shadow-xl animate-fadeIn">
-            <h3 className="font-mono text-sm font-bold uppercase tracking-wider text-neutral-900 mb-2">
+        <div className="fixed inset-0 z-50 bg-neutral-950/80 backdrop-blur-xs flex items-center justify-center p-4">
+          <div className={`border rounded-xl max-w-md w-full p-6 shadow-xl ${isDarkMode ? 'bg-neutral-900 border-neutral-800 text-white' : 'bg-white border-neutral-200 text-neutral-900'}`}>
+            <h3 className={`font-mono text-sm font-bold uppercase tracking-wider mb-2 ${isDarkMode ? 'text-white' : 'text-neutral-900'}`}>
               Report {reportingTarget?.type === 'post' ? 'Post' : 'Reply'}
             </h3>
-            <p className="text-xs text-neutral-500 mb-4 line-clamp-2">
+            <p className={`text-xs mb-4 line-clamp-2 ${isDarkMode ? 'text-neutral-400' : 'text-neutral-500'}`}>
               &ldquo;{reportingTarget?.snippet}&rdquo;
             </p>
 
             <form onSubmit={handleReportSubmit} className="space-y-4">
               <div className="space-y-2">
                 {REPORT_REASONS.map((reason) => (
-                  <label key={reason} className="flex items-center gap-3 text-xs font-mono text-neutral-700 cursor-pointer">
+                  <label key={reason} className={`flex items-center gap-3 text-xs font-mono cursor-pointer ${isDarkMode ? 'text-neutral-300' : 'text-neutral-700'}`}>
                     <input 
                       type="radio" 
                       name="reportReason" 
                       value={reason}
                       checked={selectedReason === reason}
                       onChange={() => setSelectedReason(reason)}
-                      className="accent-neutral-900"
+                      className={isDarkMode ? 'accent-white' : 'accent-neutral-900'}
                     />
                     <span>{reason}</span>
                   </label>
@@ -636,23 +662,23 @@ export default function PostDetailPage() {
                   placeholder="Please specify..."
                   value={customReason}
                   onChange={(e) => setCustomReason(e.target.value)}
-                  className="w-full p-2.5 bg-neutral-50 border border-neutral-200 rounded text-xs font-mono text-neutral-900 focus:outline-none focus:border-neutral-900"
+                  className={`w-full p-2.5 border rounded text-xs font-mono focus:outline-none ${isDarkMode ? 'bg-neutral-950 border-neutral-800 text-white placeholder:text-neutral-600 focus:border-neutral-500' : 'bg-neutral-50 border-neutral-200 text-neutral-900 focus:border-neutral-900'}`}
                   required
                 />
               )}
 
-              <div className="flex items-center justify-end gap-3 pt-4 border-t border-neutral-100">
+              <div className={`flex items-center justify-end gap-3 pt-4 border-t ${isDarkMode ? 'border-neutral-800' : 'border-neutral-100'}`}>
                 <button
                   type="button"
                   onClick={() => setReportModalOpen(false)}
-                  className="px-4 py-2 font-mono text-xs font-semibold uppercase tracking-wider text-neutral-500 hover:text-neutral-900 transition-colors"
+                  className={`px-4 py-2 font-mono text-xs font-semibold uppercase tracking-wider ${isDarkMode ? 'text-neutral-400 hover:text-white' : 'text-neutral-500 hover:text-neutral-900'}`}
                 >
                   Cancel
                 </button>
                 <button
                   type="submit"
                   disabled={isSubmittingReport}
-                  className="px-5 py-2 bg-neutral-900 text-white font-mono text-xs font-bold uppercase tracking-wider rounded hover:bg-neutral-800 disabled:opacity-50 transition-all"
+                  className={`px-5 py-2 font-mono text-xs font-bold uppercase tracking-wider rounded disabled:opacity-50 ${isDarkMode ? 'bg-white text-neutral-950 hover:bg-neutral-200' : 'bg-neutral-900 text-white hover:bg-neutral-800'}`}
                 >
                   {isSubmittingReport ? 'Submitting...' : 'Submit Report'}
                 </button>

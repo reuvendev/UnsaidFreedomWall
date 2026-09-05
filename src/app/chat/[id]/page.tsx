@@ -62,7 +62,9 @@ const Icons = {
       <line x1="18" y1="6" x2="6" y2="18"></line>
       <line x1="6" y1="6" x2="18" y2="18"></line>
     </svg>
-  )
+  ),
+  Sun: () => <svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="4"/><path d="M12 2v2"/><path d="M12 20v2"/><path d="m4.93 4.93 1.41 1.41"/><path d="m17.66 17.66 1.41 1.41"/><path d="M2 12h2"/><path d="M20 12h2"/><path d="m6.34 17.66-1.41 1.41"/><path d="m19.07 4.93-1.41 1.41"/></svg>,
+  Moon: () => <svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 3a6 6 0 0 0 9 9 9 9 0 1 1-9-9Z"/></svg>,
 };
 
 export default function ChatRoomPage() {
@@ -79,6 +81,7 @@ export default function ChatRoomPage() {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [chatStatus, setChatStatus] = useState<'active' | 'closed' | 'blocked'>('active');
   const [blockedByMe, setBlockedByMe] = useState(false);
+  const [isDarkMode, setIsDarkMode] = useState<boolean>(false);
   
   // Report Modal States
   const [isReportModalOpen, setIsReportModalOpen] = useState(false);
@@ -86,6 +89,28 @@ export default function ChatRoomPage() {
   const [isSubmittingReport, setIsSubmittingReport] = useState(false);
   
   const messagesEndRef = useRef<HTMLDivElement>(null);
+
+  // Initialize Dark Mode state from localStorage
+  useEffect(() => {
+    try {
+      const storedTheme = localStorage.getItem('unsaid_dark_mode');
+      if (storedTheme) {
+        setIsDarkMode(JSON.parse(storedTheme));
+      } else if (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches) {
+        setIsDarkMode(true);
+      }
+    } catch (e) {
+      // Ignore
+    }
+  }, []);
+
+  const toggleDarkMode = () => {
+    const nextMode = !isDarkMode;
+    setIsDarkMode(nextMode);
+    try {
+      localStorage.setItem('unsaid_dark_mode', JSON.stringify(nextMode));
+    } catch (e) {}
+  };
 
   // Initialize User session
   useEffect(() => {
@@ -109,7 +134,6 @@ export default function ChatRoomPage() {
     let isMounted = true;
     const roomRef = doc(db, "chatRooms", roomId);
     
-    // REMOVED LIMIT: Fetching all messages ordered by desc
     const msgsQuery = query(
       collection(db, "chatRooms", roomId, "messages"), 
       orderBy("createdAt", "desc")
@@ -150,7 +174,6 @@ export default function ChatRoomPage() {
       if (!isMounted) return;
       const msgs: Message[] = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Message));
       
-      // Reverse back to chronological order (oldest to newest) for UI display
       setMessages(msgs.reverse());
       
       setTimeout(() => {
@@ -177,7 +200,6 @@ export default function ChatRoomPage() {
 
     setNewMessage('');
 
-    // Optimistic UI Update
     const tempId = 'temp_' + Date.now();
     const optimisticMessage: Message = {
       id: tempId,
@@ -256,7 +278,7 @@ export default function ChatRoomPage() {
 
   if (loading) {
     return (
-      <div className="h-[100dvh] w-full bg-neutral-50 flex items-center justify-center font-mono text-xs text-neutral-400">
+      <div className={`h-[100dvh] w-full flex items-center justify-center font-mono text-xs ${isDarkMode ? 'bg-neutral-950 text-neutral-400' : 'bg-neutral-50 text-neutral-400'}`}>
         Establishing secure session...
       </div>
     );
@@ -269,33 +291,37 @@ export default function ChatRoomPage() {
   const isInactive = chatStatus !== 'active';
 
   return (
-    <div className="h-[100dvh] w-full bg-neutral-50 text-neutral-900 font-sans flex flex-col justify-between selection:bg-neutral-900 selection:text-white overflow-hidden relative">
+    <div className={`h-[100dvh] w-full font-sans flex flex-col justify-between selection:bg-neutral-900 selection:text-white overflow-hidden relative ${isDarkMode ? 'bg-neutral-950 text-neutral-100' : 'bg-neutral-50 text-neutral-900'}`}>
       
       {/* Header */}
-      <header className="shrink-0 bg-white/95 backdrop-blur-md border-b border-neutral-200/80 px-3 sm:px-6 h-16 flex items-center justify-between shadow-2xs z-10 gap-2">
+      <header className={`shrink-0 backdrop-blur-md border-b px-3 sm:px-6 h-16 flex items-center justify-between shadow-2xs z-10 gap-2 ${isDarkMode ? 'bg-neutral-900/95 border-neutral-800' : 'bg-white/95 border-neutral-200/80'}`}>
         <div className="flex items-center gap-2.5 min-w-0 flex-1">
           <div className={`w-2.5 h-2.5 rounded-full shrink-0 ${isInactive ? 'bg-neutral-400' : 'bg-emerald-500 animate-pulse'}`}></div>
           <div className="min-w-0 flex-1">
             <div className="flex items-center gap-1.5 flex-wrap sm:flex-nowrap">
-              <h2 className="font-mono text-[11px] sm:text-xs font-bold uppercase tracking-wider text-neutral-900 truncate max-w-[130px] sm:max-w-xs">
+              <h2 className={`font-mono text-[11px] sm:text-xs font-bold uppercase tracking-wider truncate max-w-[130px] sm:max-w-xs ${isDarkMode ? 'text-white' : 'text-neutral-900'}`}>
                 <span className="hidden sm:inline">Chatting with: </span>
-                <span className={isInactive ? 'text-neutral-500' : 'text-emerald-600'}>{peerNickname}</span>
+                <span className={isInactive ? 'text-neutral-500' : 'text-emerald-500'}>{peerNickname}</span>
               </h2>
               {peerSchool && (
-                <span className="font-mono text-[9px] sm:text-[10px] px-1.5 py-0.2 bg-neutral-100 text-neutral-700 border border-neutral-200 rounded shrink-0">
+                <span className={`font-mono text-[9px] sm:text-[10px] px-1.5 py-0.2 border rounded shrink-0 ${isDarkMode ? 'bg-neutral-800 text-neutral-300 border-neutral-700' : 'bg-neutral-100 text-neutral-700 border-neutral-200'}`}>
                   {peerSchool}
                 </span>
               )}
             </div>
-            <p className="font-mono text-[9px] sm:text-[10px] text-neutral-400">Secure Anonymous Room</p>
+            <p className={`font-mono text-[9px] sm:text-[10px] ${isDarkMode ? 'text-neutral-500' : 'text-neutral-400'}`}>Secure Anonymous Room</p>
           </div>
         </div>
 
-        <div className="flex items-center gap-1.5 shrink-0">
+        <div className="flex items-center gap-2 shrink-0">
           {!isInactive && (
             <button
               onClick={handleEndChat}
-              className="px-2.5 sm:px-4 py-1.5 sm:py-2 bg-neutral-100 hover:bg-rose-50 text-neutral-700 hover:text-rose-600 border border-neutral-200 font-mono text-[10px] sm:text-[11px] font-bold uppercase tracking-wider rounded-lg transition-all cursor-pointer active:scale-95"
+              className={`px-2.5 sm:px-4 py-1.5 sm:py-2 border font-mono text-[10px] sm:text-[11px] font-bold uppercase tracking-wider rounded-lg cursor-pointer active:scale-95 ${
+                isDarkMode 
+                  ? 'bg-neutral-800 hover:bg-rose-950/50 text-neutral-300 hover:text-rose-400 border-neutral-700' 
+                  : 'bg-neutral-100 hover:bg-rose-50 text-neutral-700 hover:text-rose-600 border-neutral-200'
+              }`}
             >
               End Chat
             </button>
@@ -306,16 +332,24 @@ export default function ChatRoomPage() {
             <button 
               aria-label="More options"
               onClick={() => setIsMenuOpen(!isMenuOpen)}
-              className="p-1.5 sm:p-2 hover:bg-neutral-100 rounded-xl transition-colors cursor-pointer text-neutral-600 border border-neutral-200 bg-white"
+              className={`p-1.5 sm:p-2 rounded-xl cursor-pointer border ${
+                isDarkMode 
+                  ? 'bg-neutral-800 border-neutral-700 text-neutral-300 hover:bg-neutral-700' 
+                  : 'bg-white border-neutral-200 text-neutral-600 hover:bg-neutral-100'
+              }`}
             >
               <Icons.MoreVertical />
             </button>
 
             {isMenuOpen && (
-              <div className="absolute right-0 mt-2 w-48 bg-white border border-neutral-200 rounded-2xl shadow-xl py-2 z-50 animate-in fade-in zoom-in-95 duration-100">
+              <div className={`absolute right-0 mt-2 w-48 border rounded-2xl shadow-xl py-2 z-50 animate-in fade-in zoom-in-95 ${
+                isDarkMode ? 'bg-neutral-900 border-neutral-800' : 'bg-white border-neutral-200'
+              }`}>
                 <button
                   onClick={() => { setIsMenuOpen(false); setIsReportModalOpen(true); }}
-                  className="w-full px-4 py-2.5 text-left font-mono text-xs font-bold text-red-600 hover:bg-red-50 flex items-center space-x-2 transition-colors cursor-pointer"
+                  className={`w-full px-4 py-2.5 text-left font-mono text-xs font-bold flex items-center space-x-2 cursor-pointer ${
+                    isDarkMode ? 'text-rose-400 hover:bg-rose-950/40' : 'text-red-600 hover:bg-red-50'
+                  }`}
                 >
                   <Icons.ShieldAlert />
                   <span>Block & Report</span>
@@ -323,6 +357,18 @@ export default function ChatRoomPage() {
               </div>
             )}
           </div>
+
+          <button
+            onClick={toggleDarkMode}
+            aria-label="Toggle Dark Mode"
+            className={`p-2 rounded-xl border cursor-pointer ${
+              isDarkMode 
+                ? 'bg-neutral-800 border-neutral-700 text-amber-400 hover:bg-neutral-700' 
+                : 'bg-neutral-100 border-neutral-200 text-neutral-700 hover:bg-neutral-200'
+            }`}
+          >
+            {isDarkMode ? <Icons.Sun /> : <Icons.Moon />}
+          </button>
         </div>
       </header>
 
@@ -330,7 +376,9 @@ export default function ChatRoomPage() {
       <main className="flex-1 overflow-y-auto px-3 sm:px-4 py-4 sm:py-6">
         <div className="max-w-2xl w-full mx-auto space-y-4">
           <div className="text-center my-2">
-            <span className="inline-flex items-center gap-1.5 px-3 py-1 bg-neutral-100 text-neutral-500 rounded-full font-mono text-[9px] sm:text-[10px] uppercase tracking-widest border border-neutral-200/60 text-center">
+            <span className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full font-mono text-[9px] sm:text-[10px] uppercase tracking-widest border text-center ${
+              isDarkMode ? 'bg-neutral-900 text-neutral-400 border-neutral-800' : 'bg-neutral-100 text-neutral-500 border-neutral-200/60'
+            }`}>
               <Icons.Shield /> End-to-end Anonymous Room Active
             </span>
           </div>
@@ -339,13 +387,13 @@ export default function ChatRoomPage() {
             const isMe = msg.senderId === userId;
             return (
               <div key={msg.id} className={`flex flex-col ${isMe ? 'items-end' : 'items-start'}`}>
-                <span className="font-mono text-[10px] text-neutral-400 mb-1 px-1">
+                <span className={`font-mono text-[10px] mb-1 px-1 ${isDarkMode ? 'text-neutral-500' : 'text-neutral-400'}`}>
                   {isMe ? 'You' : msg.senderNickname}
                 </span>
                 <div className={`max-w-[88%] sm:max-w-[80%] px-3.5 py-2.5 sm:px-4 sm:py-3 rounded-2xl text-sm font-sans break-words ${
                   isMe 
-                    ? 'bg-neutral-900 text-white rounded-br-xs' 
-                    : 'bg-white text-neutral-900 border border-neutral-200/80 rounded-bl-xs shadow-2xs'
+                    ? isDarkMode ? 'bg-emerald-600 text-white rounded-br-xs' : 'bg-neutral-900 text-white rounded-br-xs' 
+                    : isDarkMode ? 'bg-neutral-900 text-neutral-100 border border-neutral-800 rounded-bl-xs' : 'bg-white text-neutral-900 border border-neutral-200/80 rounded-bl-xs shadow-2xs'
                 }`}>
                   {msg.text}
                 </div>
@@ -355,7 +403,9 @@ export default function ChatRoomPage() {
 
           {chatStatus === 'closed' && (
             <div className="text-center py-6">
-              <p className="font-mono text-xs text-neutral-500 font-bold bg-neutral-100 py-2.5 px-5 rounded-xl inline-block border border-neutral-200">
+              <p className={`font-mono text-xs font-bold py-2.5 px-5 rounded-xl inline-block border ${
+                isDarkMode ? 'bg-neutral-900 text-neutral-400 border-neutral-800' : 'bg-neutral-100 text-neutral-500 border-neutral-200'
+              }`}>
                 The conversation has ended.
               </p>
             </div>
@@ -363,10 +413,10 @@ export default function ChatRoomPage() {
 
           {chatStatus === 'blocked' && (
             <div className="text-center py-6 space-y-3 px-4">
-              <div className="inline-block p-3 bg-rose-50 border border-rose-200 rounded-2xl text-rose-600">
+              <div className={`inline-block p-3 border rounded-2xl ${isDarkMode ? 'bg-rose-950/40 border-rose-900/50 text-rose-400' : 'bg-rose-50 border-rose-200 text-rose-600'}`}>
                 <Icons.ShieldAlert />
               </div>
-              <p className="font-mono text-xs text-rose-600 font-bold">
+              <p className={`font-mono text-xs font-bold ${isDarkMode ? 'text-rose-400' : 'text-rose-600'}`}>
                 {blockedByMe 
                   ? "You have blocked this user. The conversation has been securely terminated." 
                   : "This user has blocked you. The conversation has been securely terminated."}
@@ -379,18 +429,22 @@ export default function ChatRoomPage() {
       </main>
 
       {/* Footer / Input Area */}
-      <footer className="shrink-0 bg-white border-t border-neutral-200/80 p-3 sm:p-4 z-10">
+      <footer className={`shrink-0 border-t p-3 sm:px-6 sm:py-4 z-10 ${isDarkMode ? 'bg-neutral-900 border-neutral-800' : 'bg-white border-neutral-200/80'}`}>
         {isInactive ? (
           <div className="max-w-2xl mx-auto flex items-center gap-3">
             <button
               onClick={() => router.push('/')}
-              className="flex-1 py-3 bg-neutral-100 hover:bg-neutral-200 text-neutral-700 border border-neutral-200 font-mono text-xs font-bold uppercase tracking-wider rounded-xl transition-all cursor-pointer active:scale-98"
+              className={`flex-1 py-3 border font-mono text-xs font-bold uppercase tracking-wider rounded-xl cursor-pointer active:scale-98 ${
+                isDarkMode ? 'bg-neutral-800 hover:bg-neutral-700 text-neutral-200 border-neutral-700' : 'bg-neutral-100 hover:bg-neutral-200 text-neutral-700 border-neutral-200'
+              }`}
             >
               Exit (Home)
             </button>
             <button
               onClick={() => router.push('/chat/queue')}
-              className="flex-1 py-3 bg-neutral-900 hover:bg-neutral-800 text-white font-mono text-xs font-bold uppercase tracking-wider rounded-xl transition-all cursor-pointer shadow-sm active:scale-98"
+              className={`flex-1 py-3 font-mono text-xs font-bold uppercase tracking-wider rounded-xl shadow-sm active:scale-98 cursor-pointer ${
+                isDarkMode ? 'bg-emerald-600 hover:bg-emerald-500 text-white' : 'bg-neutral-900 hover:bg-neutral-800 text-white'
+              }`}
             >
               Find New Match
             </button>
@@ -402,12 +456,18 @@ export default function ChatRoomPage() {
               value={newMessage}
               onChange={(e) => setNewMessage(e.target.value)}
               placeholder="Type your message..."
-              className="flex-1 px-3.5 sm:px-4 py-2.5 sm:py-3 bg-neutral-50 border border-neutral-200 rounded-xl text-base sm:text-sm font-mono text-neutral-900 placeholder:text-neutral-400 focus:outline-none focus:border-neutral-900 transition-all shadow-2xs"
+              className={`flex-1 px-3.5 sm:px-4 py-2.5 sm:py-3 border rounded-xl text-base sm:text-sm font-mono focus:outline-none shadow-2xs ${
+                isDarkMode 
+                  ? 'bg-neutral-950 border-neutral-800 text-white placeholder:text-neutral-600 focus:border-emerald-500' 
+                  : 'bg-neutral-50 border-neutral-200 text-neutral-900 placeholder:text-neutral-400 focus:border-neutral-900'
+              }`}
             />
             <button
               type="submit"
               disabled={!newMessage.trim()}
-              className="px-3.5 sm:px-5 py-2.5 sm:py-3 bg-neutral-900 hover:bg-neutral-800 text-white font-mono text-xs font-bold uppercase tracking-wider rounded-xl transition-all shadow-sm disabled:opacity-40 flex items-center gap-1.5 sm:gap-2 cursor-pointer active:scale-95 shrink-0"
+              className={`px-3.5 sm:px-5 py-2.5 sm:py-3 font-mono text-xs font-bold uppercase tracking-wider rounded-xl shadow-sm disabled:opacity-40 flex items-center gap-1.5 sm:gap-2 cursor-pointer active:scale-95 shrink-0 ${
+                isDarkMode ? 'bg-emerald-600 hover:bg-emerald-500 text-white' : 'bg-neutral-900 hover:bg-neutral-800 text-white'
+              }`}
             >
               <span className="hidden sm:inline">Send</span>
               <Icons.Send />
@@ -418,26 +478,28 @@ export default function ChatRoomPage() {
 
       {/* Report Modal */}
       {isReportModalOpen && (
-        <div className="fixed inset-0 bg-neutral-900/50 backdrop-blur-xs flex items-center justify-center z-50 p-4">
-          <div className="bg-white border border-neutral-200 rounded-3xl max-w-md w-full p-6 shadow-2xl space-y-5 animate-in fade-in zoom-in-95 duration-150">
+        <div className="fixed inset-0 bg-neutral-900/60 backdrop-blur-xs flex items-center justify-center z-50 p-4">
+          <div className={`border rounded-3xl max-w-md w-full p-6 shadow-2xl space-y-5 animate-in fade-in zoom-in-95 ${
+            isDarkMode ? 'bg-neutral-900 border-neutral-800 text-white' : 'bg-white border-neutral-200 text-neutral-900'
+          }`}>
             <div className="flex items-center justify-between">
-              <div className="flex items-center gap-2.5 text-rose-600">
-                <div className="p-2 bg-rose-50 rounded-xl">
+              <div className={`flex items-center gap-2.5 ${isDarkMode ? 'text-rose-400' : 'text-rose-600'}`}>
+                <div className={`p-2 rounded-xl ${isDarkMode ? 'bg-rose-950/60' : 'bg-rose-50'}`}>
                   <Icons.ShieldAlert />
                 </div>
-                <h3 className="font-mono text-sm font-bold uppercase tracking-wider text-neutral-900">
+                <h3 className="font-mono text-sm font-bold uppercase tracking-wider">
                   Block & Report User
                 </h3>
               </div>
               <button 
                 onClick={() => setIsReportModalOpen(false)}
-                className="p-1.5 hover:bg-neutral-100 text-neutral-500 rounded-xl transition-colors cursor-pointer"
+                className={`p-1.5 rounded-xl cursor-pointer ${isDarkMode ? 'hover:bg-neutral-800 text-neutral-400' : 'hover:bg-neutral-100 text-neutral-500'}`}
               >
                 <Icons.X />
               </button>
             </div>
 
-            <p className="text-xs text-neutral-600 font-sans leading-relaxed">
+            <p className={`text-xs font-sans leading-relaxed ${isDarkMode ? 'text-neutral-400' : 'text-neutral-600'}`}>
               This will immediately terminate the chat, block this peer from future matching, and send a moderation report. Please select a reason:
             </p>
 
@@ -445,10 +507,14 @@ export default function ChatRoomPage() {
               {REPORT_REASONS.map((reason) => (
                 <label 
                   key={reason.id} 
-                  className={`flex items-center gap-3 p-3 rounded-xl border text-xs font-mono font-medium transition-all cursor-pointer ${
+                  className={`flex items-center gap-3 p-3 rounded-xl border text-xs font-mono font-medium cursor-pointer ${
                     selectedReason === reason.id 
-                      ? 'border-neutral-900 bg-neutral-50 text-neutral-900 shadow-2xs' 
-                      : 'border-neutral-200 text-neutral-600 hover:border-neutral-300'
+                      ? isDarkMode 
+                        ? 'border-emerald-500 bg-neutral-950 text-white ring-1 ring-emerald-500/20' 
+                        : 'border-neutral-900 bg-neutral-50 text-neutral-900 shadow-2xs' 
+                      : isDarkMode 
+                        ? 'border-neutral-800 bg-neutral-950/40 text-neutral-400 hover:border-neutral-700' 
+                        : 'border-neutral-200 text-neutral-600 hover:border-neutral-300'
                   }`}
                 >
                   <input 
@@ -457,7 +523,7 @@ export default function ChatRoomPage() {
                     value={reason.id}
                     checked={selectedReason === reason.id}
                     onChange={(e) => setSelectedReason(e.target.value)}
-                    className="accent-neutral-900"
+                    className="accent-emerald-500"
                   />
                   <span>{reason.label}</span>
                 </label>
@@ -468,7 +534,9 @@ export default function ChatRoomPage() {
               <button
                 type="button"
                 onClick={() => setIsReportModalOpen(false)}
-                className="flex-1 py-3 bg-neutral-100 hover:bg-neutral-200 text-neutral-700 font-mono text-xs font-bold uppercase tracking-wider rounded-xl transition-all cursor-pointer"
+                className={`flex-1 py-3 border font-mono text-xs font-bold uppercase tracking-wider rounded-xl cursor-pointer ${
+                  isDarkMode ? 'bg-neutral-800 hover:bg-neutral-700 text-neutral-300 border-neutral-700' : 'bg-neutral-100 hover:bg-neutral-200 text-neutral-700 border-neutral-200'
+                }`}
               >
                 Cancel
               </button>
@@ -476,7 +544,7 @@ export default function ChatRoomPage() {
                 type="button"
                 disabled={isSubmittingReport}
                 onClick={handleSubmitReport}
-                className="flex-1 py-3 bg-rose-600 hover:bg-rose-700 text-white font-mono text-xs font-bold uppercase tracking-wider rounded-xl transition-all shadow-sm disabled:opacity-50 cursor-pointer flex items-center justify-center gap-2"
+                className="flex-1 py-3 bg-rose-600 hover:bg-rose-700 text-white font-mono text-xs font-bold uppercase tracking-wider rounded-xl shadow-sm disabled:opacity-50 cursor-pointer flex items-center justify-center gap-2"
               >
                 {isSubmittingReport ? 'Submitting...' : 'Confirm Block'}
               </button>

@@ -44,7 +44,7 @@ const CHARACTER_LIMIT = 280;
 
 const Icons = {
   Heart: ({ filled }: { filled?: boolean }) => (
-    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill={filled ? "currentColor" : "none"} stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="transform transition-transform active:scale-125">
+    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill={filled ? "currentColor" : "none"} stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="transform active:scale-125">
       <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/>
     </svg>
   ),
@@ -61,6 +61,8 @@ const Icons = {
   ),
   Users: () => <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path><circle cx="9" cy="7" r="4"></circle><path d="M23 21v-2a4 4 0 0 0-3-3.87"></path><path d="M16 3.13a4 4 0 0 1 0 7.75"></path></svg>,
   Coffee: () => <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M18 8h1a4 4 0 0 1 0 8h-1"></path><path d="M2 8h16v9a4 4 0 0 1-4 4H6a4 4 0 0 1-4-4V8z"></path><line x1="6" y1="1" x2="6" y2="4"></line><line x1="10" y1="1" x2="10" y2="4"></line><line x1="14" y1="1" x2="14" y2="4"></line></svg>,
+  Sun: () => <svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="4"/><path d="M12 2v2"/><path d="M12 20v2"/><path d="m4.93 4.93 1.41 1.41"/><path d="m17.66 17.66 1.41 1.41"/><path d="M2 12h2"/><path d="M20 12h2"/><path d="m6.34 17.66-1.41 1.41"/><path d="m19.07 4.93-1.41 1.41"/></svg>,
+  Moon: () => <svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 3a6 6 0 0 0 9 9 9 9 0 1 1-9-9Z"/></svg>,
 };
 
 export default function HomePage() {
@@ -87,6 +89,9 @@ export default function HomePage() {
   const [reportDetails, setReportDetails] = useState<string>("");
   const [isSubmittingReport, setIsSubmittingReport] = useState<boolean>(false);
 
+  // Dark mode state
+  const [isDarkMode, setIsDarkMode] = useState<boolean>(false);
+
   // Load localStorage states on mount
   useEffect(() => {
     try {
@@ -94,10 +99,24 @@ export default function HomePage() {
       if (storedVotes) setVotedPosts(JSON.parse(storedVotes));
       const storedReports = localStorage.getItem('unsaid_reported_posts');
       if (storedReports) setReportedPosts(JSON.parse(storedReports));
+      const storedTheme = localStorage.getItem('unsaid_dark_mode');
+      if (storedTheme) {
+        setIsDarkMode(JSON.parse(storedTheme));
+      } else if (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches) {
+        setIsDarkMode(true);
+      }
     } catch (e) {
       // Ignore
     }
   }, []);
+
+  const toggleDarkMode = () => {
+    const nextMode = !isDarkMode;
+    setIsDarkMode(nextMode);
+    try {
+      localStorage.setItem('unsaid_dark_mode', JSON.stringify(nextMode));
+    } catch (e) {}
+  };
 
   // Search Debounce Handler
   useEffect(() => {
@@ -154,7 +173,6 @@ export default function HomePage() {
     setLoading(true);
     setHasMore(true);
 
-    // If a search query is active, fetch a larger batch (e.g. 50) to filter locally efficiently
     const fetchLimit = debouncedSearch !== "" ? 50 : 10;
     const q = buildQuery(selectedCategory, fetchLimit);
       
@@ -291,15 +309,26 @@ export default function HomePage() {
   };
 
   return (
-    <div className="min-h-screen bg-neutral-50/50 text-neutral-900 font-sans selection:bg-neutral-900 selection:text-white relative">
-      <header className="sticky top-0 z-50 bg-white/95 backdrop-blur-md border-b border-neutral-200/80 shadow-2xs">
+    <div className={`min-h-screen font-sans selection:bg-neutral-900 selection:text-white relative ${isDarkMode ? 'bg-neutral-950 text-neutral-100' : 'bg-neutral-50/50 text-neutral-900'}`}>
+      <header className={`sticky top-0 z-50 backdrop-blur-md border-b shadow-2xs ${isDarkMode ? 'bg-neutral-900/95 border-neutral-800' : 'bg-white/95 border-neutral-200/80'}`}>
         <div className="max-w-2xl mx-auto px-6 h-16 flex items-center justify-between">
-          <Link href="/" className="font-mono text-xl font-black tracking-tighter hover:opacity-70 transition-opacity">
+          <Link href="/" className="font-mono text-xl font-black tracking-tighter">
             TAMBAYAN<span className="text-emerald-600">.</span>
           </Link>
-          <nav className="flex items-center gap-4 sm:gap-5 font-mono text-[11px] font-bold tracking-widest text-neutral-500 uppercase">
-            <Link href="/about" className="hover:text-neutral-900 transition-colors">About</Link>
-            <Link href="/guidelines" className="hover:text-neutral-900 transition-colors">Guidelines</Link>
+          <nav className="flex items-center gap-4 sm:gap-5 font-mono text-[11px] font-bold tracking-widest uppercase">
+            <Link href="/about" className={isDarkMode ? 'text-neutral-400 hover:text-white' : 'text-neutral-500 hover:text-neutral-900'}>About</Link>
+            <Link href="/guidelines" className={isDarkMode ? 'text-neutral-400 hover:text-white' : 'text-neutral-500 hover:text-neutral-900'}>Guidelines</Link>
+            <button
+              onClick={toggleDarkMode}
+              aria-label="Toggle Dark Mode"
+              className={`p-2 rounded-xl border cursor-pointer ${
+                isDarkMode 
+                  ? 'bg-neutral-800 border-neutral-700 text-amber-400 hover:bg-neutral-700' 
+                  : 'bg-neutral-100 border-neutral-200 text-neutral-700 hover:bg-neutral-200'
+              }`}
+            >
+              {isDarkMode ? <Icons.Sun /> : <Icons.Moon />}
+            </button>
           </nav>
         </div>
       </header>
@@ -310,23 +339,23 @@ export default function HomePage() {
             <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
             SLU Freedom Wall
           </p>
-          <h1 className="text-4xl md:text-5xl font-extrabold tracking-tight mb-6 leading-tight text-neutral-900">
+          <h1 className={`text-4xl md:text-5xl font-extrabold tracking-tight mb-6 leading-tight ${isDarkMode ? 'text-white' : 'text-neutral-900'}`}>
             Tambayan <br />Eselyu
           </h1>
-          <p className="text-base text-neutral-600 leading-relaxed max-w-md mb-8">
+          <p className={`text-base leading-relaxed max-w-md mb-8 ${isDarkMode ? 'text-neutral-400' : 'text-neutral-600'}`}>
             A safe space for Louisian thoughts, confessions, rants, and stories you can't say out loud.
           </p>
           
           <div className="flex flex-wrap items-center justify-center sm:justify-start gap-3">
-            <Link href="/post" className="inline-flex items-center gap-2 bg-neutral-900 text-white font-mono text-xs font-bold uppercase tracking-wider px-6 py-3.5 rounded-lg hover:bg-neutral-800 transition-all active:scale-95 shadow-sm">
+            <Link href="/post" className="inline-flex items-center gap-2 bg-neutral-900 dark:bg-emerald-600 text-white font-mono text-xs font-bold uppercase tracking-wider px-6 py-3.5 rounded-lg active:scale-95 shadow-sm">
               <Icons.Pen />
               <span>Say Something</span>
             </Link>
-            <Link href="/chat/setup" className="inline-flex items-center gap-2 bg-white text-neutral-900 border border-neutral-200 font-mono text-xs font-bold uppercase tracking-wider px-6 py-3.5 rounded-lg hover:bg-neutral-100 transition-all active:scale-95 shadow-2xs">
+            <Link href="/chat/setup" className={`inline-flex items-center gap-2 border font-mono text-xs font-bold uppercase tracking-wider px-6 py-3.5 rounded-lg active:scale-95 shadow-2xs ${isDarkMode ? 'bg-neutral-900 text-white border-neutral-800 hover:bg-neutral-800' : 'bg-white text-neutral-900 border-neutral-200 hover:bg-neutral-100'}`}>
               <Icons.Users />
               <span>Find Chatmate</span>
             </Link>
-            <Link href="/support" className="inline-flex items-center gap-2 bg-emerald-50 text-emerald-700 border border-emerald-200 font-mono text-xs font-bold uppercase tracking-wider px-5 py-3.5 rounded-lg hover:bg-emerald-100 transition-all active:scale-95 shadow-2xs">
+            <Link href="/support" className={`inline-flex items-center gap-2 border font-mono text-xs font-bold uppercase tracking-wider px-5 py-3.5 rounded-lg active:scale-95 shadow-2xs ${isDarkMode ? 'bg-emerald-950/40 text-emerald-300 border-emerald-900/50 hover:bg-emerald-900/40' : 'bg-emerald-50 text-emerald-700 border-emerald-200 hover:bg-emerald-100'}`}>
               <Icons.Coffee />
               <span>Support This Project</span>
             </Link>
@@ -342,19 +371,25 @@ export default function HomePage() {
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
             placeholder="Search entries, keywords, or campus alias..."
-            className="w-full pl-10 pr-4 py-3 bg-white border border-neutral-200 rounded-xl text-sm text-neutral-900 placeholder:text-neutral-400 focus:outline-none focus:border-neutral-900 focus:ring-1 focus:ring-neutral-900 transition-all font-mono shadow-2xs"
+            className={`w-full pl-10 pr-4 py-3 border rounded-xl text-sm font-mono focus:outline-none shadow-2xs ${
+              isDarkMode 
+                ? 'bg-neutral-900 border-neutral-800 text-white placeholder:text-neutral-500 focus:border-emerald-500' 
+                : 'bg-white border-neutral-200 text-neutral-900 placeholder:text-neutral-400 focus:border-neutral-900 focus:ring-1 focus:ring-neutral-900'
+            }`}
           />
         </div>
 
-        <div className="flex items-center gap-2 overflow-x-auto pb-4 mb-8 border-b border-neutral-200/80 hide-scrollbar">
+        <div className={`flex items-center gap-2 overflow-x-auto pb-4 mb-8 border-b hide-scrollbar ${isDarkMode ? 'border-neutral-800' : 'border-neutral-200/80'}`}>
           {CATEGORIES.map((cat) => (
             <button
               key={cat.id}
               onClick={() => setSelectedCategory(cat.id)}
-              className={`px-4 py-2 text-xs font-mono font-semibold uppercase tracking-wider rounded-lg whitespace-nowrap transition-all ${
+              className={`px-4 py-2 text-xs font-mono font-semibold uppercase tracking-wider rounded-lg whitespace-nowrap ${
                 selectedCategory === cat.id
-                  ? "bg-neutral-900 text-white shadow-sm"
-                  : "bg-white text-neutral-600 border border-neutral-200/80 hover:bg-neutral-100 hover:text-neutral-900"
+                  ? "bg-neutral-900 dark:bg-emerald-600 text-white shadow-sm"
+                  : isDarkMode
+                    ? "bg-neutral-900 text-neutral-400 border border-neutral-800 hover:bg-neutral-800 hover:text-white"
+                    : "bg-white text-neutral-600 border border-neutral-200/80 hover:bg-neutral-100 hover:text-neutral-900"
               }`}
             >
               {cat.label}
@@ -363,7 +398,7 @@ export default function HomePage() {
         </div>
 
         {loading ? (
-          <div className="py-20 text-center font-mono text-sm text-neutral-400 border border-dashed border-neutral-200 rounded-2xl bg-white/50">
+          <div className={`py-20 text-center font-mono text-sm border border-dashed rounded-2xl ${isDarkMode ? 'border-neutral-800 bg-neutral-900/50 text-neutral-400' : 'border-neutral-200 bg-white/50 text-neutral-400'}`}>
             <div className="w-2 h-2 rounded-full bg-emerald-500 animate-ping mx-auto mb-3"></div>
             Connecting to live campus feed...
           </div>
@@ -384,10 +419,14 @@ export default function HomePage() {
               return (
                 <article 
                   key={post.id} 
-                  className={`p-5 sm:p-6 rounded-2xl transition-all duration-300 relative group hover:-translate-y-1 hover:shadow-xl ${
+                  className={`p-5 sm:p-6 rounded-2xl relative group hover:-translate-y-1 hover:shadow-xl ${
                     isDev 
-                      ? "bg-emerald-50/50 border-2 border-emerald-500/60 shadow-md ring-1 ring-emerald-500/20" 
-                      : "bg-white border border-neutral-200/80 shadow-xs hover:border-neutral-300"
+                      ? isDarkMode 
+                        ? "bg-emerald-950/20 border-2 border-emerald-500/50 shadow-md ring-1 ring-emerald-500/10" 
+                        : "bg-emerald-50/50 border-2 border-emerald-500/60 shadow-md ring-1 ring-emerald-500/20"
+                      : isDarkMode
+                        ? "bg-neutral-900 border border-neutral-800 shadow-xs hover:border-neutral-700"
+                        : "bg-white border border-neutral-200/80 shadow-xs hover:border-neutral-300"
                   }`}
                 >
                   {isDev && (
@@ -401,16 +440,18 @@ export default function HomePage() {
                     <div className="flex items-center gap-2 font-mono text-[11px] uppercase tracking-wider min-w-0">
                       <span className={`px-2.5 py-1 rounded-md border font-bold truncate max-w-[150px] sm:max-w-none ${
                         isDev 
-                          ? 'bg-emerald-100/80 text-emerald-900 border-emerald-200' 
-                          : 'bg-neutral-100 text-neutral-800 border-neutral-200/60'
+                          ? isDarkMode ? 'bg-emerald-950 text-emerald-300 border-emerald-800' : 'bg-emerald-100/80 text-emerald-900 border-emerald-200'
+                          : isDarkMode ? 'bg-neutral-800 text-neutral-300 border-neutral-700' : 'bg-neutral-100 text-neutral-800 border-neutral-200/60'
                       }`}>
                         {post.authorAlias}
                       </span>
-                      <span className="text-neutral-300 shrink-0">•</span>
+                      <span className="text-neutral-500 shrink-0">•</span>
                       <span className="text-neutral-400 text-[10px] shrink-0">{post.createdAt}</span>
                     </div>
                     <span className={`text-[10px] font-mono uppercase tracking-widest px-2.5 py-1 rounded-md shrink-0 ${
-                      isDev ? 'bg-emerald-100 text-emerald-800 font-bold' : 'bg-neutral-100/80 text-neutral-600 border border-neutral-200/40'
+                      isDev 
+                        ? 'bg-emerald-100 text-emerald-800 font-bold' 
+                        : isDarkMode ? 'bg-neutral-800 text-neutral-400 border border-neutral-700/50' : 'bg-neutral-100/80 text-neutral-600 border border-neutral-200/40'
                     }`}>
                       {post.category}
                     </span>
@@ -418,7 +459,9 @@ export default function HomePage() {
                    
                   <div className="mb-6">
                     <p className={`text-base sm:text-lg md:text-xl font-normal leading-relaxed break-words whitespace-pre-wrap ${
-                      isDev ? 'text-emerald-950 font-semibold' : 'text-neutral-800'
+                      isDev 
+                        ? isDarkMode ? 'text-emerald-200 font-semibold' : 'text-emerald-950 font-semibold' 
+                        : isDarkMode ? 'text-neutral-200' : 'text-neutral-800'
                     }`}>
                       {displayContent}
                     </p>
@@ -426,7 +469,7 @@ export default function HomePage() {
                     {isLongContent && (
                       <button
                         onClick={() => toggleExpand(post.id)}
-                        className="mt-2 text-xs font-mono font-bold uppercase tracking-wider text-emerald-600 hover:text-emerald-700 transition-colors inline-block focus:outline-none"
+                        className="mt-2 text-xs font-mono font-bold uppercase tracking-wider text-emerald-500 hover:text-emerald-400 inline-block focus:outline-none"
                       >
                         {isExpanded ? 'See less' : 'See more'}
                       </button>
@@ -436,27 +479,31 @@ export default function HomePage() {
                   {post.spotifyTrackId && (
                     <div className="mb-6">
                       <iframe
-                        src={`https://open.spotify.com/embed/track/${post.spotifyTrackId}?utm_source=generator&theme=0`}
+                        src={`https://open.spotify.com/embed/track/${post.spotifyTrackId}?utm_source=generator&theme=${isDarkMode ? '1' : '0'}`}
                         width="100%"
                         height="80"
                         frameBorder="0"
                         allow="encrypted-media"
-                        className="rounded-xl border border-neutral-100 shadow-2xs"
+                        className={`rounded-xl border shadow-2xs ${isDarkMode ? 'border-neutral-800' : 'border-neutral-100'}`}
                       />
                     </div>
                   )}
 
-                  <div className={`flex flex-wrap items-center justify-between gap-y-3 pt-4 border-t ${isDev ? 'border-emerald-200/60' : 'border-neutral-100'}`}>
+                  <div className={`flex flex-wrap items-center justify-between gap-y-3 pt-4 border-t ${
+                    isDev 
+                      ? isDarkMode ? 'border-emerald-900/40' : 'border-emerald-200/60' 
+                      : isDarkMode ? 'border-neutral-800' : 'border-neutral-100'
+                  }`}>
                     <div className="flex items-center gap-4 sm:gap-6 font-mono text-xs font-semibold">
                       <button 
                         onClick={() => handleVoteToggle(post.id)}
                         disabled={isLocked}
-                        className={`flex items-center gap-2 transition-colors ${
+                        className={`flex items-center gap-2 ${
                           isLocked ? "opacity-50 cursor-not-allowed" : ""
                         } ${
                           hasVoted 
                             ? "text-rose-500 hover:text-rose-600" 
-                            : isDev ? "text-emerald-700 hover:text-rose-500" : "text-neutral-500 hover:text-rose-500"
+                            : isDev ? "text-emerald-600 hover:text-rose-500" : isDarkMode ? "text-neutral-400 hover:text-rose-500" : "text-neutral-500 hover:text-rose-500"
                         }`}
                       >
                         <Icons.Heart filled={hasVoted} />
@@ -464,7 +511,7 @@ export default function HomePage() {
                       </button>
                       <Link 
                         href={`/post/${post.id}`}
-                        className={`flex items-center gap-2 transition-colors ${isDev ? 'text-emerald-800 hover:text-emerald-950' : 'text-neutral-500 hover:text-neutral-900'}`}
+                        className={`flex items-center gap-2 ${isDev ? 'text-emerald-600 hover:text-emerald-400' : isDarkMode ? 'text-neutral-400 hover:text-white' : 'text-neutral-500 hover:text-neutral-900'}`}
                       >
                         <Icons.Message />
                         <span>{post.replies} Replies</span>
@@ -476,7 +523,7 @@ export default function HomePage() {
                         <button
                           onClick={() => setActiveReportPostId(post.id)}
                           disabled={isReported}
-                          className="font-mono text-[11px] text-neutral-400 hover:text-rose-600 transition-colors uppercase tracking-wider disabled:opacity-50"
+                          className="font-mono text-[11px] text-neutral-400 hover:text-rose-600 uppercase tracking-wider disabled:opacity-50"
                         >
                           {isReported ? 'Reported' : 'Report'}
                         </button>
@@ -484,8 +531,8 @@ export default function HomePage() {
 
                       <button
                         onClick={() => handleShare(post.id)}
-                        className={`flex items-center gap-1.5 font-mono text-[11px] font-semibold transition-colors uppercase tracking-wider ${
-                          isDev ? 'text-emerald-800 hover:text-emerald-950' : 'text-neutral-400 hover:text-neutral-900'
+                        className={`flex items-center gap-1.5 font-mono text-[11px] font-semibold uppercase tracking-wider ${
+                          isDev ? 'text-emerald-600 hover:text-emerald-400' : isDarkMode ? 'text-neutral-400 hover:text-white' : 'text-neutral-400 hover:text-neutral-900'
                         }`}
                       >
                         <Icons.Share />
@@ -498,7 +545,7 @@ export default function HomePage() {
             })}
              
             {posts.length === 0 && (
-              <div className="py-16 text-center font-mono text-sm text-neutral-400 border border-dashed border-neutral-200 rounded-2xl bg-white/50">
+              <div className={`py-16 text-center font-mono text-sm border border-dashed rounded-2xl ${isDarkMode ? 'border-neutral-800 bg-neutral-900/50 text-neutral-400' : 'border-neutral-200 bg-white/50 text-neutral-400'}`}>
                 {searchQuery ? `No entries found matching "${searchQuery}"` : "No entries found in this category. Be the first to share your thoughts!"}
               </div>
             )}
@@ -508,7 +555,9 @@ export default function HomePage() {
                 <button
                   onClick={loadMorePosts}
                   disabled={loadingMore}
-                  className="px-6 py-3 bg-white hover:bg-neutral-100 text-neutral-700 border border-neutral-200 font-mono text-xs font-bold uppercase tracking-wider rounded-xl transition-all disabled:opacity-50 shadow-2xs"
+                  className={`px-6 py-3 border font-mono text-xs font-bold uppercase tracking-wider rounded-xl disabled:opacity-50 shadow-2xs ${
+                    isDarkMode ? 'bg-neutral-900 border-neutral-800 text-neutral-300 hover:bg-neutral-800' : 'bg-white border-neutral-200 text-neutral-700 hover:bg-neutral-100'
+                  }`}
                 >
                   {loadingMore ? 'Loading more...' : 'Load More Entries'}
                 </button>
@@ -519,15 +568,17 @@ export default function HomePage() {
       </main>
 
       {activeReportPostId && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-neutral-900/40 backdrop-blur-xs">
-          <div className="w-full max-w-md bg-white rounded-2xl shadow-xl border border-neutral-200/80 overflow-hidden animate-in fade-in zoom-in-95 duration-200">
-            <div className="flex items-center justify-between px-6 py-4 border-b border-neutral-100">
-              <h3 className="font-mono text-xs font-bold uppercase tracking-widest text-neutral-900">
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-neutral-950/60 backdrop-blur-xs">
+          <div className={`w-full max-w-md rounded-2xl shadow-xl border overflow-hidden ${
+            isDarkMode ? 'bg-neutral-900 border-neutral-800 text-white' : 'bg-white border-neutral-200/80 text-neutral-900'
+          }`}>
+            <div className={`flex items-center justify-between px-6 py-4 border-b ${isDarkMode ? 'border-neutral-800' : 'border-neutral-100'}`}>
+              <h3 className="font-mono text-xs font-bold uppercase tracking-widest">
                 Report Entry
               </h3>
               <button 
                 onClick={() => setActiveReportPostId(null)} 
-                className="text-neutral-400 hover:text-neutral-900 transition-colors p-1 rounded-lg hover:bg-neutral-100"
+                className="text-neutral-400 hover:text-white p-1 rounded-lg"
               >
                 <Icons.Close />
               </button>
@@ -535,14 +586,16 @@ export default function HomePage() {
 
             <form onSubmit={handleReportSubmit} className="p-6 space-y-5">
               <div>
-                <label className="block font-mono text-[11px] font-bold text-neutral-500 uppercase tracking-wider mb-2">
+                <label className="block font-mono text-[11px] font-bold text-neutral-400 uppercase tracking-wider mb-2">
                   Select Reason
                 </label>
                 <div className="relative">
                   <select
                     value={selectedReason}
                     onChange={(e) => setSelectedReason(e.target.value)}
-                    className="w-full p-3 bg-neutral-50 border border-neutral-200 rounded-xl text-xs text-neutral-900 font-mono focus:outline-none focus:border-neutral-900 transition-all appearance-none cursor-pointer"
+                    className={`w-full p-3 border rounded-xl text-xs font-mono focus:outline-none appearance-none cursor-pointer ${
+                      isDarkMode ? 'bg-neutral-950 border-neutral-800 text-white focus:border-emerald-500' : 'bg-neutral-50 border-neutral-200 text-neutral-900 focus:border-neutral-900'
+                    }`}
                   >
                     {REPORT_REASONS.map((reason) => (
                       <option key={reason} value={reason}>{reason}</option>
@@ -552,15 +605,17 @@ export default function HomePage() {
               </div>
 
               <div>
-                <label className="block font-mono text-[11px] font-bold text-neutral-500 uppercase tracking-wider mb-2">
-                  Additional Details <span className="text-neutral-300 font-normal">(Optional)</span>
+                <label className="block font-mono text-[11px] font-bold text-neutral-400 uppercase tracking-wider mb-2">
+                  Additional Details <span className="text-neutral-500 font-normal">(Optional)</span>
                 </label>
                 <textarea
                   value={reportDetails}
                   onChange={(e) => setReportDetails(e.target.value)}
                   placeholder="Provide any extra context for moderators..."
                   rows={3}
-                  className="w-full p-3 bg-neutral-50 border border-neutral-200 rounded-xl text-xs text-neutral-900 placeholder:text-neutral-400 font-mono focus:outline-none focus:border-neutral-900 transition-all resize-none shadow-2xs"
+                  className={`w-full p-3 border rounded-xl text-xs placeholder:text-neutral-500 font-mono focus:outline-none resize-none shadow-2xs ${
+                    isDarkMode ? 'bg-neutral-950 border-neutral-800 text-white focus:border-emerald-500' : 'bg-neutral-50 border-neutral-200 text-neutral-900 focus:border-neutral-900'
+                  }`}
                 />
               </div>
 
@@ -568,14 +623,14 @@ export default function HomePage() {
                 <button
                   type="button"
                   onClick={() => setActiveReportPostId(null)}
-                  className="px-4 py-2.5 rounded-xl font-mono text-xs font-bold uppercase tracking-wider text-neutral-600 hover:bg-neutral-100 transition-colors"
+                  className={`px-4 py-2.5 rounded-xl font-mono text-xs font-bold uppercase tracking-wider ${isDarkMode ? 'text-neutral-400 hover:text-white' : 'text-neutral-600 hover:text-neutral-900'}`}
                 >
                   Cancel
                 </button>
                 <button
                   type="submit"
                   disabled={isSubmittingReport}
-                  className="px-5 py-2.5 rounded-xl bg-neutral-900 hover:bg-neutral-800 text-white font-mono text-xs font-bold uppercase tracking-wider transition-all disabled:opacity-50 shadow-sm active:scale-95"
+                  className="px-5 py-2.5 rounded-xl bg-neutral-900 dark:bg-emerald-600 text-white font-mono text-xs font-bold uppercase tracking-wider disabled:opacity-50 shadow-sm"
                 >
                   {isSubmittingReport ? 'Submitting...' : 'Submit Report'}
                 </button>
