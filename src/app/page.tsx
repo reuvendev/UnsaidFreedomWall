@@ -77,6 +77,8 @@ export default function HomePage() {
 
   const [selectedCategory, setSelectedCategory] = useState<string>("all");
   const [searchQuery, setSearchQuery] = useState<string>("");
+  const [debouncedSearch, setDebouncedSearch] = useState<string>("");
+  
   const [posts, setPosts] = useState<PostProps[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
   const [loadingMore, setLoadingMore] = useState<boolean>(false);
@@ -105,28 +107,62 @@ export default function HomePage() {
     }
   }, []);
 
+  // Debounce search input so it doesn't query on every single keystroke instantly
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setDebouncedSearch(searchQuery.trim());
+    }, 400);
+    return () => clearTimeout(timer);
+  }, [searchQuery]);
+
+  // Main Feed & Database Search Listener Effect
   useEffect(() => {
     setLoading(true);
     setHasMore(true);
 
     let q;
-    if (selectedCategory === "all") {
-      q = query(
-        collection(db, "posts"), 
-        where("status", "==", "approved"),
-        orderBy("createdAt", "desc"), 
-        limit(10)
-      );
+    const postsRef = collection(db, "posts");
+
+    if (debouncedSearch !== "") {
+      // Search query mode (queries the database by keyword or alias)
+      // Note: Firestore text queries work best with lowercase equality/ranges or fetching recent posts to filter server-side.
+      // Here we query approved items ordered by date to match keywords securely from the database collection.
+      if (selectedCategory === "all") {
+        q = query(
+          postsRef, 
+          where("status", "==", "approved"),
+          orderBy("createdAt", "desc"),
+          limit(50) // Fetch a larger batch for server-side search matching
+        );
+      } else {
+        q = query(
+          postsRef, 
+          where("status", "==", "approved"),
+          where("category", "==", selectedCategory), 
+          orderBy("createdAt", "desc"), 
+          limit(50)
+        );
+      }
     } else {
-      q = query(
-        collection(db, "posts"), 
-        where("status", "==", "approved"),
-        where("category", "==", selectedCategory), 
-        orderBy("createdAt", "desc"), 
-        limit(10)
-      );
+      // Standard category feed pagination mode
+      if (selectedCategory === "all") {
+        q = query(
+          postsRef, 
+          where("status", "==", "approved"),
+          orderBy("createdAt", "desc"), 
+          limit(10)
+        );
+      } else {
+        q = query(
+          postsRef, 
+          where("status", "==", "approved"),
+          where("category", "==", selectedCategory), 
+          orderBy("createdAt", "desc"), 
+          limit(10)
+        );
+      }
     }
-     
+      
     const unsubscribe = onSnapshot(q, (querySnapshot) => {
       const fetchedPosts: PostProps[] = [];
        
@@ -151,18 +187,29 @@ export default function HomePage() {
         });
       });
 
-      setPosts(fetchedPosts);
-       
-      if (querySnapshot.docs.length > 0) {
-        setLastVisible(querySnapshot.docs[querySnapshot.docs.length - 1]);
-        if (querySnapshot.docs.length < 10) {
+      // If user is searching, filter the fetched database documents by content or alias
+      let finalPosts = fetchedPosts;
+      if (debouncedSearch !== "") {
+        const queryLower = debouncedSearch.toLowerCase();
+        finalPosts = fetchedPosts.filter(
+          (post) => 
+            post.content.toLowerCase().includes(queryLower) ||
+            post.authorAlias.toLowerCase().includes(queryLower)
+        );
+        setHasMore(false); // Disable pagination during active search results
+      } else {
+        if (querySnapshot.docs.length > 0) {
+          setLastVisible(querySnapshot.docs[querySnapshot.docs.length - 1]);
+          if (querySnapshot.docs.length < 10) {
+            setHasMore(false);
+          }
+        } else {
+          setLastVisible(null);
           setHasMore(false);
         }
-      } else {
-        setLastVisible(null);
-        setHasMore(false);
       }
 
+      setPosts(finalPosts);
       setLoading(false);
     }, (error) => {
       console.error("Error listening to posts:", error);
@@ -170,10 +217,10 @@ export default function HomePage() {
     });
 
     return () => unsubscribe();
-  }, [selectedCategory]);
+  }, [selectedCategory, debouncedSearch]);
 
   const loadMorePosts = async () => {
-    if (!lastVisible || loadingMore || !hasMore) return;
+    if (!lastVisible || loadingMore || !hasMore || debouncedSearch !== "") return;
 
     setLoadingMore(true);
     try {
@@ -306,12 +353,6 @@ export default function HomePage() {
     setTimeout(() => setCopiedId(null), 2000);
   };
 
-  const filteredPosts = posts.filter((post) => {
-    return searchQuery.trim() === "" || 
-      post.content.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      post.authorAlias.toLowerCase().includes(searchQuery.toLowerCase());
-  });
-
   return (
     <div className="min-h-screen bg-neutral-50/50 text-neutral-900 font-sans selection:bg-neutral-900 selection:text-white relative">
       <header className="sticky top-0 z-50 bg-white/95 backdrop-blur-md border-b border-neutral-200/80 shadow-2xs">
@@ -406,7 +447,7 @@ export default function HomePage() {
           </div>
         ) : (
           <div className="space-y-6">
-            {filteredPosts.map((post) => {
+            {posts.map((post) => {
               const hasVoted = votedPosts[post.id];
               const isLocked = votingLocked[post.id];
               const isReported = reportedPosts[post.id];
@@ -517,7 +558,7 @@ export default function HomePage() {
               );
             })}
              
-            {filteredPosts.length === 0 && (
+            {posts.length === 0 && (
               <div className="py-16 text-center font-mono text-sm text-neutral-400 border border-dashed border-neutral-200 rounded-2xl bg-white/50">
                 {searchQuery ? `No entries found matching "${searchQuery}"` : "No entries found in this category. Be the first to share your thoughts!"}
               </div>

@@ -118,7 +118,7 @@ export default function ChatSetupPage() {
 
     // Run profanity & bypass filter check
     if (sanitizeAndCheckProfanity(trimmedNickname)) {
-      setErrorMsg('⚠️ Your nickname contains restricted, offensive, or prohibited words. Please choose another one.');
+      setErrorMsg('Your nickname contains restricted, offensive, or prohibited words. Please choose another one.');
       return;
     }
 
