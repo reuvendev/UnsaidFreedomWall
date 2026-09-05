@@ -109,7 +109,6 @@ export default function HomePage() {
     setHasMore(true);
 
     let q;
-    // Query only posts where status is "approved"
     if (selectedCategory === "all") {
       q = query(
         collection(db, "posts"), 
@@ -165,7 +164,7 @@ export default function HomePage() {
 
       setLoading(false);
     }, (error) => {
-      console.error("Error listening to posts:", error);
+      console.error("Error listening to posts (Check Firebase composite indexes):", error);
       setLoading(false);
     });
 
@@ -173,7 +172,7 @@ export default function HomePage() {
   }, [selectedCategory]);
 
   const loadMorePosts = async () => {
-    if (!lastVisible || loadingMore) return;
+    if (!lastVisible || loadingMore || !hasMore) return;
 
     setLoadingMore(true);
     try {
@@ -201,7 +200,6 @@ export default function HomePage() {
        
       if (querySnapshot.empty) {
         setHasMore(false);
-        setLoadingMore(false);
         return;
       }
 
@@ -234,7 +232,7 @@ export default function HomePage() {
         setHasMore(false);
       }
     } catch (error) {
-      console.error("Error loading more posts:", error);
+      console.error("Error loading more posts. Ensure Firestore composite indexes are built:", error);
     } finally {
       setLoadingMore(false);
     }
@@ -497,20 +495,20 @@ export default function HomePage() {
                       )}
 
                       <button
-                        onClick={() => handleShare(post.id)}
-                        className={`flex items-center gap-1.5 font-mono text-[11px] font-semibold transition-colors uppercase tracking-wider ${
-                          isDev ? 'text-emerald-800 hover:text-emerald-950' : 'text-neutral-400 hover:text-neutral-900'
+                          onClick={() => handleShare(post.id)}
+                          className={`flex items-center gap-1.5 font-mono text-[11px] font-semibold transition-colors uppercase tracking-wider ${
+                            isDev ? 'text-emerald-800 hover:text-emerald-950' : 'text-neutral-400 hover:text-neutral-900'
                         }`}
                       >
-                        <Icons.Share />
-                        <span>{copiedId === post.id ? 'Copied!' : 'Share'}</span>
+                          <Icons.Share />
+                          <span>{copiedId === post.id ? 'Copied!' : 'Share'}</span>
                       </button>
-                    </div>
                   </div>
-                </article>
-              );
-            })}
-             
+                </div>
+              </article>
+            );
+          })}
+            
             {filteredPosts.length === 0 && (
               <div className="py-16 text-center font-mono text-sm text-neutral-400 border border-dashed border-neutral-200 rounded-2xl bg-white/50">
                 {searchQuery ? `No entries found matching "${searchQuery}"` : "No entries found in this category. Be the first to share your thoughts!"}
@@ -599,7 +597,7 @@ export default function HomePage() {
             </form>
           </div>
         </div>
-      )}
-    </div>
+    )}
+  </div>
   );
 }
