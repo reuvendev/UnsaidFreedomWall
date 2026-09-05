@@ -114,7 +114,6 @@ export default function ChatRoomPage() {
     let isMounted = true;
     const roomRef = doc(db, "chatRooms", roomId);
     
-    // OPTIMIZATION 2: Increased initial message batch to 25 reads
     const msgsQuery = query(
       collection(db, "chatRooms", roomId, "messages"), 
       orderBy("createdAt", "asc"),
@@ -131,7 +130,6 @@ export default function ChatRoomPage() {
         setRoomData(data);
         setLoading(false);
 
-        // Robust Peer ID resolution
         const hostId = data.hostId;
         const guestId = data.guestId;
         const currentPeerId = hostId === userId ? guestId : hostId;
@@ -155,7 +153,6 @@ export default function ChatRoomPage() {
           setIsPeerTyping(false);
         }
 
-        // Room Status Management & OPTIMIZATION 3: Detach listeners immediately when inactive
         if (data.status === 'blocked') {
           setChatStatus('blocked');
           if (data.blockedBy === userId) setBlockedByMe(true);
@@ -194,7 +191,7 @@ export default function ChatRoomPage() {
     };
   }, [roomId, userId]);
 
-  // OPTIMIZATION: Throttled typing indicator interval
+  // Throttled typing indicator interval
   const handleTypingChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
     const val = e.target.value;
     setNewMessage(val);
@@ -224,23 +221,26 @@ export default function ChatRoomPage() {
 
   const handleSendMessage = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!newMessage.trim() || !userId || chatStatus !== 'active') return;
-
     const textToSend = newMessage.trim();
+    if (!textToSend || !userId || chatStatus !== 'active') return;
+
+    // Clear local input immediately for snappy UI response
     setNewMessage('');
 
     try {
-      await updateDoc(doc(db, "chatRooms", roomId), {
-        "typing.userId": null,
-        "typing.timestamp": 0
-      }).catch(() => {});
-
-      await addDoc(collection(db, "chatRooms", roomId, "messages"), {
-        senderId: userId,
-        senderNickname: nickname,
-        text: textToSend,
-        createdAt: serverTimestamp()
-      });
+      // Execute message write and typing reset concurrently/independently without blocking UI
+      await Promise.all([
+        addDoc(collection(db, "chatRooms", roomId, "messages"), {
+          senderId: userId,
+          senderNickname: nickname,
+          text: textToSend,
+          createdAt: serverTimestamp()
+        }),
+        updateDoc(doc(db, "chatRooms", roomId), {
+          "typing.userId": null,
+          "typing.timestamp": 0
+        }).catch(() => {})
+      ]);
     } catch (error) {
       console.error("Failed to send message:", error);
     }
