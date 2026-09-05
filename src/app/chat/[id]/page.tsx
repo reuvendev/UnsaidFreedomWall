@@ -4,7 +4,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { 
   collection, doc, updateDoc, onSnapshot, 
-  addDoc, query, orderBy, limit, serverTimestamp 
+  addDoc, query, orderBy, serverTimestamp 
 } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 
@@ -109,10 +109,10 @@ export default function ChatRoomPage() {
     let isMounted = true;
     const roomRef = doc(db, "chatRooms", roomId);
     
+    // REMOVED LIMIT: Fetching all messages ordered by desc
     const msgsQuery = query(
       collection(db, "chatRooms", roomId, "messages"), 
-      orderBy("createdAt", "asc"),
-      limit(25)
+      orderBy("createdAt", "desc")
     );
 
     let unsubscribeRoom: (() => void) | undefined;
@@ -149,7 +149,10 @@ export default function ChatRoomPage() {
     unsubscribeMsgs = onSnapshot(msgsQuery, (snapshot) => {
       if (!isMounted) return;
       const msgs: Message[] = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Message));
-      setMessages(msgs);
+      
+      // Reverse back to chronological order (oldest to newest) for UI display
+      setMessages(msgs.reverse());
+      
       setTimeout(() => {
         messagesEndRef.current?.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
       }, 60);
@@ -165,9 +168,29 @@ export default function ChatRoomPage() {
   const handleSendMessage = async (e: React.FormEvent) => {
     e.preventDefault();
     const textToSend = newMessage.trim();
-    if (!textToSend || !userId || chatStatus !== 'active') return;
+    if (!textToSend || !userId) return;
+
+    if (chatStatus !== 'active') {
+      alert("This conversation is no longer active.");
+      return;
+    }
 
     setNewMessage('');
+
+    // Optimistic UI Update
+    const tempId = 'temp_' + Date.now();
+    const optimisticMessage: Message = {
+      id: tempId,
+      senderId: userId,
+      senderNickname: nickname,
+      text: textToSend,
+      createdAt: new Date(),
+    };
+
+    setMessages((prev) => [...prev, optimisticMessage]);
+    setTimeout(() => {
+      messagesEndRef.current?.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+    }, 50);
 
     try {
       await addDoc(collection(db, "chatRooms", roomId, "messages"), {
@@ -178,6 +201,9 @@ export default function ChatRoomPage() {
       });
     } catch (error) {
       console.error("Failed to send message:", error);
+      setMessages((prev) => prev.filter((m) => m.id !== tempId));
+      setNewMessage(textToSend);
+      alert("Failed to send message. Please check your connection.");
     }
   };
 
