@@ -4,7 +4,7 @@ import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { 
   collection, doc, updateDoc, onSnapshot, 
-  addDoc, query, orderBy, serverTimestamp 
+  addDoc, query, orderBy, limit, serverTimestamp 
 } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 
@@ -113,9 +113,18 @@ export default function ChatRoomPage() {
 
     let isMounted = true;
     const roomRef = doc(db, "chatRooms", roomId);
-    const msgsQuery = query(collection(db, "chatRooms", roomId, "messages"), orderBy("createdAt", "asc"));
+    
+    // OPTIMIZATION 2: Increased initial message batch to 25 reads
+    const msgsQuery = query(
+      collection(db, "chatRooms", roomId, "messages"), 
+      orderBy("createdAt", "asc"),
+      limit(25)
+    );
 
-    const unsubscribeRoom = onSnapshot(roomRef, (docSnap) => {
+    let unsubscribeRoom: (() => void) | undefined;
+    let unsubscribeMsgs: (() => void) | undefined;
+
+    unsubscribeRoom = onSnapshot(roomRef, (docSnap) => {
       if (!isMounted) return;
       if (docSnap.exists()) {
         const data = docSnap.data();
@@ -146,23 +155,29 @@ export default function ChatRoomPage() {
           setIsPeerTyping(false);
         }
 
-        // Room Status Management
+        // Room Status Management & OPTIMIZATION 3: Detach listeners immediately when inactive
         if (data.status === 'blocked') {
           setChatStatus('blocked');
           if (data.blockedBy === userId) setBlockedByMe(true);
+          unsubscribeRoom?.();
+          unsubscribeMsgs?.();
         } else if (data.status === 'closed' || data.status === 'ended') {
           setChatStatus('closed');
+          unsubscribeRoom?.();
+          unsubscribeMsgs?.();
         }
       } else {
         setChatStatus('closed');
         setLoading(false);
+        unsubscribeRoom?.();
+        unsubscribeMsgs?.();
       }
     }, (err) => {
       console.error("Room sync error:", err);
       setLoading(false);
     });
 
-    const unsubscribeMsgs = onSnapshot(msgsQuery, (snapshot) => {
+    unsubscribeMsgs = onSnapshot(msgsQuery, (snapshot) => {
       if (!isMounted) return;
       const msgs: Message[] = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Message));
       setMessages(msgs);
@@ -173,13 +188,13 @@ export default function ChatRoomPage() {
 
     return () => {
       isMounted = false;
-      unsubscribeRoom();
-      unsubscribeMsgs();
+      unsubscribeRoom?.();
+      unsubscribeMsgs?.();
       if (typingTimeoutRef.current) clearTimeout(typingTimeoutRef.current);
     };
   }, [roomId, userId]);
 
-  // Throttled Typing Dispatcher using client-side `Date.now()`
+  // OPTIMIZATION: Throttled typing indicator interval
   const handleTypingChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
     const val = e.target.value;
     setNewMessage(val);
@@ -196,7 +211,7 @@ export default function ChatRoomPage() {
       return;
     }
 
-    if (now - lastTypingUpdateRef.current > 1000) {
+    if (now - lastTypingUpdateRef.current > 3000) {
       lastTypingUpdateRef.current = now;
       updateDoc(doc(db, "chatRooms", roomId), {
         "typing.userId": userId,
