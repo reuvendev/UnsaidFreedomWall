@@ -37,11 +37,61 @@ const SLU_SCHOOLS = [
   },
 ];
 
+// Comprehensive bad word / racist term list (English & Tagalog, roots & common variations)
+const BANNED_WORDS = [
+  // English Profanity & Slurs
+  'gook', 'nigger', 'nigga', 'fag', 'faggot', 'retard', 'tranny', 'chink', 'spic', 'kike', 
+  'whore', 'slut', 'bitch', 'bastard', 'cunt', 'dick', 'cock', 'pussy', 'asshole', 'motherfucker',
+  
+  // Tagalog / Filipino Profanity & Slurs
+  'gago', 'g@g0', 'g4g0', 'putangina', 'puta', 'pota', 'putang', 'gandara', 'tanga', 't@ng@', 
+  'bobo', 'b0b0', 'ulol', 'olul', 'hayop', 'inutil', 'kupal', 'puki', 'pekpek', 'titi', 'tite', 'burat', 'etits', 
+  'kantot', 'jakol', 'brod', 'pakshet', 'punyeta', 'lecheng', 'leche', 'burikat', 'hinayupak'
+];
+
+/**
+ * Normalizes input text to catch bypass attempts:
+ * - Converts to lowercase
+ * - Replaces common leetspeak substitutions (@ -> a, 3 -> e, 1 -> i/l, 0 -> o, $ -> s, etc.)
+ * - Removes repeating consecutive characters (e.g., "gwaaaago" -> "gwago")
+ * - Removes spaces, symbols, and punctuation
+ */
+function sanitizeAndCheckProfanity(text: string): boolean {
+  if (!text) return false;
+
+  let cleaned = text.toLowerCase()
+    // Leetspeak / symbol replacements
+    .replace(/[@4]/g, 'a')
+    .replace(/[3]/g, 'e')
+    .replace(/[1!|]/g, 'i')
+    .replace(/[0]/g, 'o')
+    .replace(/[$5]/g, 's')
+    .replace(/[7]/g, 't')
+    // Remove all non-alphanumeric characters and spaces
+    .replace(/[^a-z]/g, '');
+
+  // Collapse repeated characters to catch bypasses like "bOOObO" or "g-a-g-o"
+  cleaned = cleaned.replace(/(.)\1+/g, '$1');
+
+  // Check against direct matches or substrings
+  for (const word of BANNED_WORDS) {
+    // Normalized check of the banned word itself
+    const normWord = word.toLowerCase().replace(/[^a-z]/g, '').replace(/(.)\1+/g, '$1');
+    
+    if (cleaned.includes(normWord)) {
+      return true; // Contains restricted word
+    }
+  }
+
+  return false;
+}
+
 export default function ChatSetupPage() {
   const router = useRouter();
   const [nickname, setNickname] = useState('');
   const [selectedSchool, setSelectedSchool] = useState(SLU_SCHOOLS[0].id);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [errorMsg, setErrorMsg] = useState('');
 
   // Load previously saved values from localStorage on mount
   useEffect(() => {
@@ -58,15 +108,24 @@ export default function ChatSetupPage() {
 
   const handleStartChat = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!nickname.trim()) {
-      alert('Please enter a valid nickname.');
+    setErrorMsg('');
+
+    const trimmedNickname = nickname.trim();
+    if (!trimmedNickname) {
+      setErrorMsg('Please enter a valid nickname.');
+      return;
+    }
+
+    // Run profanity & bypass filter check
+    if (sanitizeAndCheckProfanity(trimmedNickname)) {
+      setErrorMsg('⚠️ Your nickname contains restricted, offensive, or prohibited words. Please choose another one.');
       return;
     }
 
     setIsSubmitting(true);
 
     try {
-      localStorage.setItem('unsaid_chat_nickname', nickname.trim());
+      localStorage.setItem('unsaid_chat_nickname', trimmedNickname);
       localStorage.setItem('unsaid_chat_school', selectedSchool);
       
       router.push('/chat/queue');
@@ -111,13 +170,20 @@ export default function ChatSetupPage() {
             <input
               type="text"
               value={nickname}
-              onChange={(e) => setNickname(e.target.value)}
+              onChange={(e) => {
+                setNickname(e.target.value);
+                if (errorMsg) setErrorMsg(''); // Clear error on edit
+              }}
               placeholder="e.g. someone"
               maxLength={25}
               required
-              /* text-base on mobile prevents iOS zoom */
               className="w-full px-4 py-3 bg-neutral-50 border border-neutral-200 rounded-xl text-base sm:text-sm font-mono text-neutral-900 placeholder:text-neutral-400 focus:outline-none focus:border-neutral-900 transition-all"
             />
+            {errorMsg && (
+              <p className="text-xs font-mono text-red-600 bg-red-50 p-3 rounded-xl border border-red-200">
+                {errorMsg}
+              </p>
+            )}
           </div>
 
           {/* School Selection */}
