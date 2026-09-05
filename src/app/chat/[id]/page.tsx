@@ -209,7 +209,6 @@ export default function ChatRoomPage() {
     }
 
     try {
-      // Create a permanent record of the report in Firestore
       await addDoc(collection(db, "reports"), {
         roomId: roomId,
         reporterId: userId,
@@ -217,7 +216,6 @@ export default function ChatRoomPage() {
         createdAt: serverTimestamp()
       });
 
-      // Update room status to blocked
       await updateDoc(doc(db, "chatRooms", roomId), { 
         status: 'blocked',
         blockedBy: userId 
@@ -236,7 +234,7 @@ export default function ChatRoomPage() {
   }
 
   const isHost = roomData?.hostId === userId;
-  const peerNickname = isHost ? (roomData?.guestNickname || 'Waiting for peer...') : roomData?.hostNickname;
+  const peerNickname = isHost ? (roomData?.guestNickname || 'Waiting...') : roomData?.hostNickname;
   const peerSchoolRaw = isHost ? roomData?.guestSchool : roomData?.hostSchool;
   const peerSchool = peerSchoolRaw ? (SLU_SCHOOL_LABELS[peerSchoolRaw] || peerSchoolRaw.toUpperCase()) : '';
 
@@ -245,29 +243,30 @@ export default function ChatRoomPage() {
   return (
     <div className="h-[100dvh] w-full bg-neutral-50 text-neutral-900 font-sans flex flex-col justify-between selection:bg-neutral-900 selection:text-white overflow-hidden">
       {/* Header */}
-      <header className="shrink-0 bg-white/95 backdrop-blur-md border-b border-neutral-200/80 px-4 sm:px-6 h-16 flex items-center justify-between shadow-2xs z-10">
-        <div className="flex items-center gap-3">
-          <div className={`w-2.5 h-2.5 rounded-full ${isInactive ? 'bg-neutral-400' : 'bg-emerald-500 animate-pulse'}`}></div>
-          <div>
-            <div className="flex items-center gap-2">
-              <h2 className="font-mono text-xs font-bold uppercase tracking-wider text-neutral-900">
-                Chatting with: <span className={isInactive ? 'text-neutral-500' : 'text-emerald-600'}>{peerNickname}</span>
+      <header className="shrink-0 bg-white/95 backdrop-blur-md border-b border-neutral-200/80 px-3 sm:px-6 h-16 flex items-center justify-between shadow-2xs z-10 gap-2">
+        <div className="flex items-center gap-2.5 min-w-0 flex-1">
+          <div className={`w-2.5 h-2.5 rounded-full shrink-0 ${isInactive ? 'bg-neutral-400' : 'bg-emerald-500 animate-pulse'}`}></div>
+          <div className="min-w-0 flex-1">
+            <div className="flex items-center gap-1.5 flex-wrap sm:flex-nowrap">
+              <h2 className="font-mono text-[11px] sm:text-xs font-bold uppercase tracking-wider text-neutral-900 truncate max-w-[130px] sm:max-w-xs">
+                <span className="hidden sm:inline">Chatting with: </span>
+                <span className={isInactive ? 'text-neutral-500' : 'text-emerald-600'}>{peerNickname}</span>
               </h2>
               {peerSchool && (
-                <span className="font-mono text-[10px] px-2 py-0.5 bg-neutral-100 text-neutral-700 border border-neutral-200 rounded">
+                <span className="font-mono text-[9px] sm:text-[10px] px-1.5 py-0.2 bg-neutral-100 text-neutral-700 border border-neutral-200 rounded shrink-0">
                   {peerSchool}
                 </span>
               )}
             </div>
-            <p className="font-mono text-[10px] text-neutral-400">Anonymous Chat</p>
+            <p className="font-mono text-[9px] sm:text-[10px] text-neutral-400">Anonymous Chat</p>
           </div>
         </div>
 
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-1.5 shrink-0">
           {!isInactive && (
             <button
               onClick={handleEndChat}
-              className="px-3 sm:px-4 py-2 bg-neutral-100 hover:bg-rose-50 text-neutral-700 hover:text-rose-600 border border-neutral-200 font-mono text-[11px] font-bold uppercase tracking-wider rounded-lg transition-all cursor-pointer"
+              className="px-2.5 sm:px-4 py-1.5 sm:py-2 bg-neutral-100 hover:bg-rose-50 text-neutral-700 hover:text-rose-600 border border-neutral-200 font-mono text-[10px] sm:text-[11px] font-bold uppercase tracking-wider rounded-lg transition-all cursor-pointer active:scale-95"
             >
               End Chat
             </button>
@@ -276,8 +275,9 @@ export default function ChatRoomPage() {
           {/* More Dropdown Menu for Block & Report */}
           <div className="relative">
             <button 
+              aria-label="More options"
               onClick={() => setIsMenuOpen(!isMenuOpen)}
-              className="p-2 hover:bg-neutral-100 rounded-xl transition-colors cursor-pointer text-neutral-600 border border-neutral-200 bg-white"
+              className="p-1.5 sm:p-2 hover:bg-neutral-100 rounded-xl transition-colors cursor-pointer text-neutral-600 border border-neutral-200 bg-white"
             >
               <Icons.MoreVertical />
             </button>
@@ -298,10 +298,10 @@ export default function ChatRoomPage() {
       </header>
 
       {/* Message Feed Container */}
-      <main className="flex-1 overflow-y-auto px-4 py-6">
+      <main className="flex-1 overflow-y-auto px-3 sm:px-4 py-4 sm:py-6">
         <div className="max-w-2xl w-full mx-auto space-y-4">
           <div className="text-center my-2">
-            <span className="inline-flex items-center gap-1.5 px-3 py-1 bg-neutral-100 text-neutral-500 rounded-full font-mono text-[10px] uppercase tracking-widest border border-neutral-200/60">
+            <span className="inline-flex items-center gap-1.5 px-3 py-1 bg-neutral-100 text-neutral-500 rounded-full font-mono text-[9px] sm:text-[10px] uppercase tracking-widest border border-neutral-200/60 text-center">
               <Icons.Shield /> End-to-end Anonymous Room Active
             </span>
           </div>
@@ -313,7 +313,7 @@ export default function ChatRoomPage() {
                 <span className="font-mono text-[10px] text-neutral-400 mb-1 px-1">
                   {isMe ? 'You' : msg.senderNickname}
                 </span>
-                <div className={`max-w-[80%] px-4 py-3 rounded-2xl text-sm font-sans break-words ${
+                <div className={`max-w-[88%] sm:max-w-[80%] px-3.5 py-2.5 sm:px-4 sm:py-3 rounded-2xl text-sm font-sans break-words ${
                   isMe 
                     ? 'bg-neutral-900 text-white rounded-br-xs' 
                     : 'bg-white text-neutral-900 border border-neutral-200/80 rounded-bl-xs shadow-2xs'
@@ -333,7 +333,7 @@ export default function ChatRoomPage() {
           )}
 
           {chatStatus === 'blocked' && (
-            <div className="text-center py-6 space-y-3">
+            <div className="text-center py-6 space-y-3 px-4">
               <div className="inline-block p-3 bg-rose-50 border border-rose-200 rounded-2xl text-rose-600">
                 <Icons.ShieldAlert />
               </div>
@@ -349,7 +349,7 @@ export default function ChatRoomPage() {
         </div>
       </main>
 
-      {/* Action Footer (Exit vs Requeue) */}
+      {/* Action Footer */}
       <footer className="shrink-0 bg-white border-t border-neutral-200/80 p-3 sm:p-4 z-10 safe-area-bottom">
         {isInactive ? (
           <div className="max-w-2xl mx-auto flex items-center gap-3">
@@ -372,21 +372,20 @@ export default function ChatRoomPage() {
               type="text"
               value={newMessage}
               onChange={(e) => setNewMessage(e.target.value)}
-              placeholder="Type your message anonymously..."
-              /* text-base (16px) prevents iOS Safari auto-zoom on focus */
-              className="flex-1 px-4 py-3 bg-neutral-50 border border-neutral-200 rounded-xl text-base sm:text-sm font-mono text-neutral-900 placeholder:text-neutral-400 focus:outline-none focus:border-neutral-900 transition-all shadow-2xs"
+              placeholder="Type your message..."
+              className="flex-1 px-3.5 sm:px-4 py-2.5 sm:py-3 bg-neutral-50 border border-neutral-200 rounded-xl text-base sm:text-sm font-mono text-neutral-900 placeholder:text-neutral-400 focus:outline-none focus:border-neutral-900 transition-all shadow-2xs"
             />
             <button
               type="submit"
               disabled={!newMessage.trim()}
-              className="px-4 sm:px-5 py-3 bg-neutral-900 hover:bg-neutral-800 text-white font-mono text-xs font-bold uppercase tracking-wider rounded-xl transition-all shadow-sm disabled:opacity-40 flex items-center gap-2 cursor-pointer active:scale-95"
+              className="px-3.5 sm:px-5 py-2.5 sm:py-3 bg-neutral-900 hover:bg-neutral-800 text-white font-mono text-xs font-bold uppercase tracking-wider rounded-xl transition-all shadow-sm disabled:opacity-40 flex items-center gap-1.5 sm:gap-2 cursor-pointer active:scale-95 shrink-0"
             >
-              <span>Send</span>
+              <span className="hidden sm:inline">Send</span>
               <Icons.Send />
             </button>
           </form>
         )}
       </footer>
-    </div>
+  </div>
   );
 }
