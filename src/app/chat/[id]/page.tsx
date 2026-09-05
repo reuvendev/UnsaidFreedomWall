@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect, useRef, useCallback } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { 
   collection, doc, updateDoc, onSnapshot, 
@@ -80,11 +80,6 @@ export default function ChatRoomPage() {
   const [chatStatus, setChatStatus] = useState<'active' | 'closed' | 'blocked'>('active');
   const [blockedByMe, setBlockedByMe] = useState(false);
   
-  // Typing Indicator States & Refs
-  const [isPeerTyping, setIsPeerTyping] = useState(false);
-  const typingTimeoutRef = useRef<NodeJS.Timeout | null>(null);
-  const lastTypingUpdateRef = useRef<number>(0);
-  
   // Report Modal States
   const [isReportModalOpen, setIsReportModalOpen] = useState(false);
   const [selectedReason, setSelectedReason] = useState('harassment');
@@ -130,29 +125,6 @@ export default function ChatRoomPage() {
         setRoomData(data);
         setLoading(false);
 
-        const hostId = data.hostId;
-        const guestId = data.guestId;
-        const currentPeerId = hostId === userId ? guestId : hostId;
-
-        // Typing Indicator Evaluation
-        const typingData = data.typing;
-        if (typingData && typingData.userId === currentPeerId && typingData.userId) {
-          const typingTime = Number(typingData.timestamp) || 0;
-          const now = Date.now();
-
-          if (typingTime > 0 && now - typingTime < 4000) {
-            setIsPeerTyping(true);
-            if (typingTimeoutRef.current) clearTimeout(typingTimeoutRef.current);
-            typingTimeoutRef.current = setTimeout(() => {
-              if (isMounted) setIsPeerTyping(false);
-            }, 4000);
-          } else {
-            setIsPeerTyping(false);
-          }
-        } else {
-          setIsPeerTyping(false);
-        }
-
         if (data.status === 'blocked') {
           setChatStatus('blocked');
           if (data.blockedBy === userId) setBlockedByMe(true);
@@ -187,60 +159,23 @@ export default function ChatRoomPage() {
       isMounted = false;
       unsubscribeRoom?.();
       unsubscribeMsgs?.();
-      if (typingTimeoutRef.current) clearTimeout(typingTimeoutRef.current);
     };
   }, [roomId, userId]);
-
-  // Throttled typing indicator interval
-  const handleTypingChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
-    const val = e.target.value;
-    setNewMessage(val);
-
-    if (chatStatus !== 'active' || !userId || !roomId) return;
-
-    const now = Date.now();
-
-    if (val.trim() === '') {
-      updateDoc(doc(db, "chatRooms", roomId), {
-        "typing.userId": null,
-        "typing.timestamp": 0
-      }).catch(() => {});
-      return;
-    }
-
-    if (now - lastTypingUpdateRef.current > 3000) {
-      lastTypingUpdateRef.current = now;
-      updateDoc(doc(db, "chatRooms", roomId), {
-        "typing.userId": userId,
-        "typing.timestamp": now
-      }).catch((err) => {
-        console.debug("Typing sync skipped:", err);
-      });
-    }
-  }, [chatStatus, userId, roomId]);
 
   const handleSendMessage = async (e: React.FormEvent) => {
     e.preventDefault();
     const textToSend = newMessage.trim();
     if (!textToSend || !userId || chatStatus !== 'active') return;
 
-    // Clear local input immediately for snappy UI response
     setNewMessage('');
 
     try {
-      // Execute message write and typing reset concurrently/independently without blocking UI
-      await Promise.all([
-        addDoc(collection(db, "chatRooms", roomId, "messages"), {
-          senderId: userId,
-          senderNickname: nickname,
-          text: textToSend,
-          createdAt: serverTimestamp()
-        }),
-        updateDoc(doc(db, "chatRooms", roomId), {
-          "typing.userId": null,
-          "typing.timestamp": 0
-        }).catch(() => {})
-      ]);
+      await addDoc(collection(db, "chatRooms", roomId, "messages"), {
+        senderId: userId,
+        senderNickname: nickname,
+        text: textToSend,
+        createdAt: serverTimestamp()
+      });
     } catch (error) {
       console.error("Failed to send message:", error);
     }
@@ -392,18 +327,6 @@ export default function ChatRoomPage() {
             );
           })}
 
-          {/* Typing Indicator */}
-          {isPeerTyping && chatStatus === 'active' && (
-            <div className="flex flex-col items-start animate-in fade-in duration-200">
-              <span className="font-mono text-[10px] text-neutral-400 mb-1 px-1">{peerNickname}</span>
-              <div className="bg-white text-neutral-900 border border-neutral-200/80 rounded-2xl rounded-bl-xs px-4 py-3 shadow-2xs flex items-center gap-1.5">
-                <div className="w-1.5 h-1.5 bg-neutral-400 rounded-full animate-bounce [animation-delay:-0.3s]"></div>
-                <div className="w-1.5 h-1.5 bg-neutral-400 rounded-full animate-bounce [animation-delay:-0.15s]"></div>
-                <div className="w-1.5 h-1.5 bg-neutral-400 rounded-full animate-bounce"></div>
-              </div>
-            </div>
-          )}
-
           {chatStatus === 'closed' && (
             <div className="text-center py-6">
               <p className="font-mono text-xs text-neutral-500 font-bold bg-neutral-100 py-2.5 px-5 rounded-xl inline-block border border-neutral-200">
@@ -451,7 +374,7 @@ export default function ChatRoomPage() {
             <input
               type="text"
               value={newMessage}
-              onChange={handleTypingChange}
+              onChange={(e) => setNewMessage(e.target.value)}
               placeholder="Type your message..."
               className="flex-1 px-3.5 sm:px-4 py-2.5 sm:py-3 bg-neutral-50 border border-neutral-200 rounded-xl text-base sm:text-sm font-mono text-neutral-900 placeholder:text-neutral-400 focus:outline-none focus:border-neutral-900 transition-all shadow-2xs"
             />
