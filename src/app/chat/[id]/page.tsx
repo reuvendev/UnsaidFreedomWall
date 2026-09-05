@@ -392,7 +392,7 @@ export default function ChatRoomPage() {
                 </span>
                 <div className={`max-w-[88%] sm:max-w-[80%] px-3.5 py-2.5 sm:px-4 sm:py-3 rounded-2xl text-sm font-sans break-words ${
                   isMe 
-                    ? isDarkMode ? 'bg-emerald-600 text-white rounded-br-xs' : 'bg-neutral-900 text-white rounded-br-xs' 
+                    ? isDarkMode ? 'bg-neutral-600 text-white rounded-br-xs' : 'bg-neutral-900 text-white rounded-br-xs' 
                     : isDarkMode ? 'bg-neutral-900 text-neutral-100 border border-neutral-800 rounded-bl-xs' : 'bg-white text-neutral-900 border border-neutral-200/80 rounded-bl-xs shadow-2xs'
                 }`}>
                   {msg.text}
