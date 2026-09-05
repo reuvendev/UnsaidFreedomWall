@@ -169,7 +169,7 @@ export default function ChatSetupPage() {
             disabled={isSubmitting}
             className="w-full py-4 bg-neutral-900 hover:bg-neutral-800 text-white font-mono text-xs font-bold uppercase tracking-wider rounded-xl transition-all shadow-sm active:scale-98 disabled:opacity-50 cursor-pointer"
           >
-            {isSubmitting ? 'Entering Queue...' : 'Find Chatmate Now ⚡'}
+            {isSubmitting ? 'Entering Queue...' : 'Find Chatmate Now'}
           </button>
         </form>
       </main>
