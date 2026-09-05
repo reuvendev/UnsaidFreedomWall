@@ -1,10 +1,10 @@
 'use client';
 
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { 
   collection, doc, updateDoc, onSnapshot, 
-  addDoc, query, orderBy, serverTimestamp, getDoc 
+  addDoc, query, orderBy, serverTimestamp 
 } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 
@@ -80,6 +80,11 @@ export default function ChatRoomPage() {
   const [chatStatus, setChatStatus] = useState<'active' | 'closed' | 'blocked'>('active');
   const [blockedByMe, setBlockedByMe] = useState(false);
   
+  // Typing Indicator States & Refs
+  const [isPeerTyping, setIsPeerTyping] = useState(false);
+  const typingTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const lastTypingUpdateRef = useRef<number>(0);
+  
   // Report Modal States
   const [isReportModalOpen, setIsReportModalOpen] = useState(false);
   const [selectedReason, setSelectedReason] = useState('harassment');
@@ -87,6 +92,7 @@ export default function ChatRoomPage() {
   
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
+  // Initialize User session
   useEffect(() => {
     let storedId = localStorage.getItem('unsaid_chat_user_id');
     if (!storedId) {
@@ -98,85 +104,108 @@ export default function ChatRoomPage() {
 
     if (!roomId) {
       router.push('/');
-      return;
     }
+  }, [roomId, router]);
+
+  // Connect to Room and Messages Listeners
+  useEffect(() => {
+    if (!roomId || !userId) return;
 
     let isMounted = true;
-    let unsubscribeRoom: (() => void) | null = null;
-    let unsubscribeMsgs: (() => void) | null = null;
+    const roomRef = doc(db, "chatRooms", roomId);
+    const msgsQuery = query(collection(db, "chatRooms", roomId, "messages"), orderBy("createdAt", "asc"));
 
-    const initRoom = async () => {
-      const roomRef = doc(db, "chatRooms", roomId);
-      
-      try {
-        const snap = await getDoc(roomRef);
-        if (!isMounted) return;
+    const unsubscribeRoom = onSnapshot(roomRef, (docSnap) => {
+      if (!isMounted) return;
+      if (docSnap.exists()) {
+        const data = docSnap.data();
+        setRoomData(data);
+        setLoading(false);
 
-        if (snap.exists()) {
-          const data = snap.data();
-          
-          if (data.status === 'blocked') {
-            setChatStatus('blocked');
-            if (data.blockedBy === storedId) {
-              setBlockedByMe(true);
-            }
-          } else if (data.status === 'closed' || data.status === 'ended') {
-            setChatStatus('closed');
+        // Robust Peer ID resolution
+        const hostId = data.hostId;
+        const guestId = data.guestId;
+        const currentPeerId = hostId === userId ? guestId : hostId;
+
+        // Typing Indicator Evaluation
+        const typingData = data.typing;
+        if (typingData && typingData.userId === currentPeerId && typingData.userId) {
+          const typingTime = Number(typingData.timestamp) || 0;
+          const now = Date.now();
+
+          if (typingTime > 0 && now - typingTime < 4000) {
+            setIsPeerTyping(true);
+            if (typingTimeoutRef.current) clearTimeout(typingTimeoutRef.current);
+            typingTimeoutRef.current = setTimeout(() => {
+              if (isMounted) setIsPeerTyping(false);
+            }, 4000);
+          } else {
+            setIsPeerTyping(false);
           }
-
-          setRoomData(data);
-          setLoading(false);
         } else {
-          setChatStatus('closed');
-          setLoading(false);
-          return;
+          setIsPeerTyping(false);
         }
-      } catch (err) {
-        console.error("Error fetching room initial state:", err);
+
+        // Room Status Management
+        if (data.status === 'blocked') {
+          setChatStatus('blocked');
+          if (data.blockedBy === userId) setBlockedByMe(true);
+        } else if (data.status === 'closed' || data.status === 'ended') {
+          setChatStatus('closed');
+        }
+      } else {
+        setChatStatus('closed');
+        setLoading(false);
       }
+    }, (err) => {
+      console.error("Room sync error:", err);
+      setLoading(false);
+    });
 
-      unsubscribeRoom = onSnapshot(roomRef, (docSnap) => {
-        if (!isMounted) return;
-        if (docSnap.exists()) {
-          const data = docSnap.data();
-          setRoomData(data);
-          setLoading(false);
-
-          if (data.status === 'blocked') {
-            setChatStatus('blocked');
-            if (data.blockedBy === storedId) {
-              setBlockedByMe(true);
-            }
-          } else if (data.status === 'closed' || data.status === 'ended') {
-            setChatStatus('closed');
-          }
-        } else {
-          setChatStatus('closed');
-        }
-      });
-
-      const msgsQuery = query(collection(db, "chatRooms", roomId, "messages"), orderBy("createdAt", "asc"));
-      unsubscribeMsgs = onSnapshot(msgsQuery, (snapshot) => {
-        if (!isMounted) return;
-        const msgs: Message[] = [];
-        snapshot.forEach((doc) => {
-          msgs.push({ id: doc.id, ...doc.data() } as Message);
-        });
-        setMessages(msgs);
-        setTimeout(() => {
-          messagesEndRef.current?.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
-        }, 50);
-      });
-    };
-
-    initRoom();
+    const unsubscribeMsgs = onSnapshot(msgsQuery, (snapshot) => {
+      if (!isMounted) return;
+      const msgs: Message[] = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Message));
+      setMessages(msgs);
+      setTimeout(() => {
+        messagesEndRef.current?.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+      }, 60);
+    });
 
     return () => {
       isMounted = false;
-      if (unsubscribeRoom) unsubscribeRoom();
-      if (unsubscribeMsgs) unsubscribeMsgs();
+      unsubscribeRoom();
+      unsubscribeMsgs();
+      if (typingTimeoutRef.current) clearTimeout(typingTimeoutRef.current);
     };
-  }, [roomId, router]);
+  }, [roomId, userId]);
+
+  // Throttled Typing Dispatcher using client-side `Date.now()`
+  const handleTypingChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
+    const val = e.target.value;
+    setNewMessage(val);
+
+    if (chatStatus !== 'active' || !userId || !roomId) return;
+
+    const now = Date.now();
+
+    if (val.trim() === '') {
+      updateDoc(doc(db, "chatRooms", roomId), {
+        "typing.userId": null,
+        "typing.timestamp": 0
+      }).catch(() => {});
+      return;
+    }
+
+    if (now - lastTypingUpdateRef.current > 1000) {
+      lastTypingUpdateRef.current = now;
+      updateDoc(doc(db, "chatRooms", roomId), {
+        "typing.userId": userId,
+        "typing.timestamp": now
+      }).catch((err) => {
+        console.debug("Typing sync skipped:", err);
+      });
+    }
+  }, [chatStatus, userId, roomId]);
 
   const handleSendMessage = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -186,6 +215,11 @@ export default function ChatRoomPage() {
     setNewMessage('');
 
     try {
+      await updateDoc(doc(db, "chatRooms", roomId), {
+        "typing.userId": null,
+        "typing.timestamp": 0
+      }).catch(() => {});
+
       await addDoc(collection(db, "chatRooms", roomId, "messages"), {
         senderId: userId,
         senderNickname: nickname,
@@ -193,24 +227,19 @@ export default function ChatRoomPage() {
         createdAt: serverTimestamp()
       });
     } catch (error) {
-      console.error("Error sending message:", error);
+      console.error("Failed to send message:", error);
     }
   };
 
   const handleEndChat = async () => {
-    if (confirm("Are you sure you want to end this conversation?")) {
+    if (window.confirm("Are you sure you want to end this conversation?")) {
       try {
         await updateDoc(doc(db, "chatRooms", roomId), { status: 'closed' });
+        setChatStatus('closed');
       } catch (err) {
-        console.error(err);
+        console.error("Failed to close room:", err);
       }
-      setChatStatus('closed');
     }
-  };
-
-  const handleOpenReportModal = () => {
-    setIsMenuOpen(false);
-    setIsReportModalOpen(true);
   };
 
   const handleSubmitReport = async () => {
@@ -228,16 +257,14 @@ export default function ChatRoomPage() {
     }
 
     try {
-      // Save report with reason
       await addDoc(collection(db, "reports"), {
-        roomId: roomId,
+        roomId,
         reporterId: userId,
         reportedUserId: otherUserId,
         reason: selectedReason,
         createdAt: serverTimestamp()
       });
 
-      // Update room to blocked status
       await updateDoc(doc(db, "chatRooms", roomId), { 
         status: 'blocked',
         blockedBy: userId 
@@ -245,7 +272,7 @@ export default function ChatRoomPage() {
 
       setIsReportModalOpen(false);
     } catch (e) {
-      console.error("Error reporting/blocking user:", e);
+      console.error("Report processing error:", e);
     } finally {
       setIsSubmittingReport(false);
     }
@@ -254,7 +281,7 @@ export default function ChatRoomPage() {
   if (loading) {
     return (
       <div className="h-[100dvh] w-full bg-neutral-50 flex items-center justify-center font-mono text-xs text-neutral-400">
-        Loading secure room...
+        Establishing secure session...
       </div>
     );
   }
@@ -263,7 +290,6 @@ export default function ChatRoomPage() {
   const peerNickname = isHost ? (roomData?.guestNickname || 'Waiting...') : roomData?.hostNickname;
   const peerSchoolRaw = isHost ? roomData?.guestSchool : roomData?.hostSchool;
   const peerSchool = peerSchoolRaw ? (SLU_SCHOOL_LABELS[peerSchoolRaw] || peerSchoolRaw.toUpperCase()) : '';
-
   const isInactive = chatStatus !== 'active';
 
   return (
@@ -285,7 +311,7 @@ export default function ChatRoomPage() {
                 </span>
               )}
             </div>
-            <p className="font-mono text-[9px] sm:text-[10px] text-neutral-400">Anonymous Chat</p>
+            <p className="font-mono text-[9px] sm:text-[10px] text-neutral-400">Secure Anonymous Room</p>
           </div>
         </div>
 
@@ -299,7 +325,7 @@ export default function ChatRoomPage() {
             </button>
           )}
 
-          {/* More Dropdown Menu */}
+          {/* More Dropdown */}
           <div className="relative">
             <button 
               aria-label="More options"
@@ -312,7 +338,7 @@ export default function ChatRoomPage() {
             {isMenuOpen && (
               <div className="absolute right-0 mt-2 w-48 bg-white border border-neutral-200 rounded-2xl shadow-xl py-2 z-50 animate-in fade-in zoom-in-95 duration-100">
                 <button
-                  onClick={handleOpenReportModal}
+                  onClick={() => { setIsMenuOpen(false); setIsReportModalOpen(true); }}
                   className="w-full px-4 py-2.5 text-left font-mono text-xs font-bold text-red-600 hover:bg-red-50 flex items-center space-x-2 transition-colors cursor-pointer"
                 >
                   <Icons.ShieldAlert />
@@ -324,7 +350,7 @@ export default function ChatRoomPage() {
         </div>
       </header>
 
-      {/* Message Feed Container */}
+      {/* Message Feed */}
       <main className="flex-1 overflow-y-auto px-3 sm:px-4 py-4 sm:py-6">
         <div className="max-w-2xl w-full mx-auto space-y-4">
           <div className="text-center my-2">
@@ -351,8 +377,20 @@ export default function ChatRoomPage() {
             );
           })}
 
+          {/* Typing Indicator */}
+          {isPeerTyping && chatStatus === 'active' && (
+            <div className="flex flex-col items-start animate-in fade-in duration-200">
+              <span className="font-mono text-[10px] text-neutral-400 mb-1 px-1">{peerNickname}</span>
+              <div className="bg-white text-neutral-900 border border-neutral-200/80 rounded-2xl rounded-bl-xs px-4 py-3 shadow-2xs flex items-center gap-1.5">
+                <div className="w-1.5 h-1.5 bg-neutral-400 rounded-full animate-bounce [animation-delay:-0.3s]"></div>
+                <div className="w-1.5 h-1.5 bg-neutral-400 rounded-full animate-bounce [animation-delay:-0.15s]"></div>
+                <div className="w-1.5 h-1.5 bg-neutral-400 rounded-full animate-bounce"></div>
+              </div>
+            </div>
+          )}
+
           {chatStatus === 'closed' && (
-            <div className="text-center py-6 space-y-3">
+            <div className="text-center py-6">
               <p className="font-mono text-xs text-neutral-500 font-bold bg-neutral-100 py-2.5 px-5 rounded-xl inline-block border border-neutral-200">
                 The conversation has ended.
               </p>
@@ -376,8 +414,8 @@ export default function ChatRoomPage() {
         </div>
       </main>
 
-      {/* Action Footer */}
-      <footer className="shrink-0 bg-white border-t border-neutral-200/80 p-3 sm:p-4 z-10 safe-area-bottom">
+      {/* Footer / Input Area */}
+      <footer className="shrink-0 bg-white border-t border-neutral-200/80 p-3 sm:p-4 z-10">
         {isInactive ? (
           <div className="max-w-2xl mx-auto flex items-center gap-3">
             <button
@@ -398,7 +436,7 @@ export default function ChatRoomPage() {
             <input
               type="text"
               value={newMessage}
-              onChange={(e) => setNewMessage(e.target.value)}
+              onChange={handleTypingChange}
               placeholder="Type your message..."
               className="flex-1 px-3.5 sm:px-4 py-2.5 sm:py-3 bg-neutral-50 border border-neutral-200 rounded-xl text-base sm:text-sm font-mono text-neutral-900 placeholder:text-neutral-400 focus:outline-none focus:border-neutral-900 transition-all shadow-2xs"
             />
@@ -414,7 +452,7 @@ export default function ChatRoomPage() {
         )}
       </footer>
 
-      {/* Custom Mobile-Responsive Report Modal */}
+      {/* Report Modal */}
       {isReportModalOpen && (
         <div className="fixed inset-0 bg-neutral-900/50 backdrop-blur-xs flex items-center justify-center z-50 p-4">
           <div className="bg-white border border-neutral-200 rounded-3xl max-w-md w-full p-6 shadow-2xl space-y-5 animate-in fade-in zoom-in-95 duration-150">
