@@ -9,7 +9,7 @@ const SLU_SCHOOLS = [
     id: 'samcis', 
     name: 'SAMCIS', 
     fullName: 'School of Accountancy, Management, Computing and Information Studies', 
-    campus: 'Maryheights Campus (Bakakeng)' 
+    campus: 'Maryheights Campus' 
   },
   { 
     id: 'sea', 
