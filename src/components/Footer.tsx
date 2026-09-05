@@ -11,13 +11,7 @@ export function Footer() {
   const [totalPosts, setTotalPosts] = useState<number | null>(null);
   const [isDarkMode, setIsDarkMode] = useState<boolean>(false);
 
-  // Hide the footer entirely on chat room routes (e.g. /chat/room_id)
-  if (pathname?.includes('/chat/')) {
-    return null;
-  }
-
   useEffect(() => {
-    // Function to check and update theme from localStorage
     const checkTheme = () => {
       try {
         const storedTheme = localStorage.getItem('unsaid_dark_mode');
@@ -31,13 +25,8 @@ export function Footer() {
       }
     };
 
-    // Initial check
     checkTheme();
-
-    // Listen to custom or storage events to sync instantly across components
     window.addEventListener('storage', checkTheme);
-    
-    // Custom event listener if your toggle updates state in the same window without a storage event trigger
     const interval = setInterval(checkTheme, 300);
 
     return () => {
@@ -57,6 +46,12 @@ export function Footer() {
     }
     fetchCount();
   }, []);
+
+  // ✅ SAFE: All hooks are called above this line. 
+  // Now it can conditionally return null without breaking React rules.
+  if (pathname?.includes('/chat/')) {
+    return null;
+  }
 
   return (
     <footer className={`border-t mt-auto transition-colors duration-300 ${isDarkMode ? 'border-neutral-800 bg-neutral-950 text-neutral-100' : 'border-neutral-200 bg-neutral-50/50 text-neutral-900'}`}>
