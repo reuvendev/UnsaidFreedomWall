@@ -150,20 +150,16 @@ export default function ChatRoomPage() {
         setLoading(false);
 
         if (data.status === 'blocked') {
+          // Keep security blocks active, but allow message stream to stay readable
           setChatStatus('blocked');
           if (data.blockedBy === userId) setBlockedByMe(true);
-          unsubscribeRoom?.();
-          unsubscribeMsgs?.();
         } else if (data.status === 'closed' || data.status === 'ended') {
+          // Set to closed so input disables, but do NOT unsubscribe messages so history stays viewable
           setChatStatus('closed');
-          unsubscribeRoom?.();
-          unsubscribeMsgs?.();
         }
       } else {
         setChatStatus('closed');
         setLoading(false);
-        unsubscribeRoom?.();
-        unsubscribeMsgs?.();
       }
     }, (err) => {
       console.error("Room sync error:", err);
@@ -296,12 +292,12 @@ export default function ChatRoomPage() {
       {/* Header */}
       <header className={`shrink-0 backdrop-blur-md border-b px-3 sm:px-6 h-16 flex items-center justify-between shadow-2xs z-10 gap-2 ${isDarkMode ? 'bg-neutral-900/95 border-neutral-800' : 'bg-white/95 border-neutral-200/80'}`}>
         <div className="flex items-center gap-2.5 min-w-0 flex-1">
-          <div className={`w-2.5 h-2.5 rounded-full shrink-0 ${isInactive ? 'bg-neutral-400' : 'bg-emerald-500 animate-pulse'}`}></div>
+          <div className={`w-2.5 h-2.5 rounded-full shrink-0 ${chatStatus === 'active' ? 'bg-emerald-500 animate-pulse' : 'bg-neutral-400'}`}></div>
           <div className="min-w-0 flex-1">
             <div className="flex items-center gap-1.5 flex-wrap sm:flex-nowrap">
               <h2 className={`font-mono text-[11px] sm:text-xs font-bold uppercase tracking-wider truncate max-w-[130px] sm:max-w-xs ${isDarkMode ? 'text-white' : 'text-neutral-900'}`}>
                 <span className="hidden sm:inline">Chatting with: </span>
-                <span className={isInactive ? 'text-neutral-500' : 'text-emerald-500'}>{peerNickname}</span>
+                <span className={chatStatus === 'active' ? 'text-emerald-500' : 'text-neutral-500'}>{peerNickname}</span>
               </h2>
               {peerSchool && (
                 <span className={`font-mono text-[9px] sm:text-[10px] px-1.5 py-0.2 border rounded shrink-0 ${isDarkMode ? 'bg-neutral-800 text-neutral-300 border-neutral-700' : 'bg-neutral-100 text-neutral-700 border-neutral-200'}`}>
@@ -309,7 +305,9 @@ export default function ChatRoomPage() {
                 </span>
               )}
             </div>
-            <p className={`font-mono text-[9px] sm:text-[10px] ${isDarkMode ? 'text-neutral-500' : 'text-neutral-400'}`}>Secure Anonymous Room</p>
+            <p className={`font-mono text-[9px] sm:text-[10px] ${isDarkMode ? 'text-neutral-500' : 'text-neutral-400'}`}>
+              {chatStatus === 'closed' ? 'Conversation Ended' : chatStatus === 'blocked' ? 'Terminated & Blocked' : 'Secure Anonymous Room'}
+            </p>
           </div>
         </div>
 
@@ -379,7 +377,7 @@ export default function ChatRoomPage() {
             <span className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full font-mono text-[9px] sm:text-[10px] uppercase tracking-widest border text-center ${
               isDarkMode ? 'bg-neutral-900 text-neutral-400 border-neutral-800' : 'bg-neutral-100 text-neutral-500 border-neutral-200/60'
             }`}>
-              <Icons.Shield /> End-to-end Anonymous Room Active
+              <Icons.Shield /> End-to-end Anonymous Room {chatStatus === 'closed' ? 'Archived' : 'Active'}
             </span>
           </div>
 
@@ -406,7 +404,7 @@ export default function ChatRoomPage() {
               <p className={`font-mono text-xs font-bold py-2.5 px-5 rounded-xl inline-block border ${
                 isDarkMode ? 'bg-neutral-900 text-neutral-400 border-neutral-800' : 'bg-neutral-100 text-neutral-500 border-neutral-200'
               }`}>
-                The conversation has ended.
+                The conversation has ended. You are viewing the chat history.
               </p>
             </div>
           )}
