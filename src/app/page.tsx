@@ -92,7 +92,7 @@ export default function HomePage() {
   // Dark mode state
   const [isDarkMode, setIsDarkMode] = useState<boolean>(false);
 
-  // Load localStorage states on mount
+  // Load localStorage states and restore scroll position on mount
   useEffect(() => {
     try {
       const storedVotes = localStorage.getItem('unsaid_voted_posts');
@@ -108,6 +108,31 @@ export default function HomePage() {
     } catch (e) {
       // Ignore
     }
+  }, []);
+
+  // Restore scroll position once data finishes loading / component renders
+  useEffect(() => {
+    if (!loading) {
+      const savedScrollPos = sessionStorage.getItem('homepage_scroll_pos');
+      if (savedScrollPos) {
+        setTimeout(() => {
+          window.scrollTo({
+            top: parseInt(savedScrollPos, 10),
+            behavior: 'smooth',
+          });
+          sessionStorage.removeItem('homepage_scroll_pos');
+        }, 150);
+      }
+    }
+  }, [loading]);
+
+  // Track scroll position live so it's always up to date
+  useEffect(() => {
+    const handleScroll = () => {
+      sessionStorage.setItem('homepage_scroll_pos', window.scrollY.toString());
+    };
+    window.addEventListener('scroll', handleScroll, { passive: true });
+    return () => window.removeEventListener('scroll', handleScroll);
   }, []);
 
   const toggleDarkMode = () => {
@@ -308,6 +333,11 @@ export default function HomePage() {
     setExpandedPosts(prev => ({ ...prev, [id]: !prev[id] }));
   };
 
+  const handlePostNavigation = (id: string) => {
+    sessionStorage.setItem('homepage_scroll_pos', window.scrollY.toString());
+    router.push(`/post/${id}`);
+  };
+
   return (
     <div className={`min-h-screen font-sans selection:bg-neutral-900 selection:text-white relative ${isDarkMode ? 'bg-neutral-950 text-neutral-100' : 'bg-neutral-50/50 text-neutral-900'}`}>
       <header className={`sticky top-0 z-50 backdrop-blur-md border-b shadow-2xs ${isDarkMode ? 'bg-neutral-900/95 border-neutral-800' : 'bg-white/95 border-neutral-200/80'}`}>
@@ -409,7 +439,7 @@ export default function HomePage() {
               const isLocked = votingLocked[post.id];
               const isReported = reportedPosts[post.id];
               const isDev = post.isDeveloperPost;
-               
+              
               const isLongContent = post.content.length > CHARACTER_LIMIT;
               const isExpanded = expandedPosts[post.id];
               const displayContent = isLongContent && !isExpanded 
@@ -509,13 +539,13 @@ export default function HomePage() {
                         <Icons.Heart filled={hasVoted} />
                         <span>{post.upvotes}</span>
                       </button>
-                      <Link 
-                        href={`/post/${post.id}`}
-                        className={`flex items-center gap-2 ${isDev ? 'text-emerald-600 hover:text-emerald-400' : isDarkMode ? 'text-neutral-400 hover:text-white' : 'text-neutral-500 hover:text-neutral-900'}`}
+                      <button 
+                        onClick={() => handlePostNavigation(post.id)}
+                        className={`flex items-center gap-2 cursor-pointer ${isDev ? 'text-emerald-600 hover:text-emerald-400' : isDarkMode ? 'text-neutral-400 hover:text-white' : 'text-neutral-500 hover:text-neutral-900'}`}
                       >
                         <Icons.Message />
                         <span>{post.replies} Replies</span>
-                      </Link>
+                      </button>
                     </div>
 
                     <div className="flex items-center gap-4">
@@ -623,14 +653,16 @@ export default function HomePage() {
                 <button
                   type="button"
                   onClick={() => setActiveReportPostId(null)}
-                  className={`px-4 py-2.5 rounded-xl font-mono text-xs font-bold uppercase tracking-wider ${isDarkMode ? 'text-neutral-400 hover:text-white' : 'text-neutral-600 hover:text-neutral-900'}`}
+                  className={`px-4 py-2.5 border rounded-xl font-mono text-xs uppercase font-bold tracking-wider ${
+                    isDarkMode ? 'bg-neutral-800 border-neutral-700 text-neutral-300 hover:bg-neutral-700' : 'bg-white border-neutral-200 text-neutral-700 hover:bg-neutral-100'
+                  }`}
                 >
                   Cancel
                 </button>
                 <button
                   type="submit"
                   disabled={isSubmittingReport}
-                  className="px-5 py-2.5 rounded-xl bg-neutral-900 dark:bg-emerald-600 text-white font-mono text-xs font-bold uppercase tracking-wider disabled:opacity-50 shadow-sm"
+                  className="px-5 py-2.5 bg-rose-600 hover:bg-rose-700 text-white rounded-xl font-mono text-xs uppercase font-bold tracking-wider disabled:opacity-50 shadow-sm"
                 >
                   {isSubmittingReport ? 'Submitting...' : 'Submit Report'}
                 </button>

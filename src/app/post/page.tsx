@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { collection, addDoc, serverTimestamp } from 'firebase/firestore';
@@ -24,6 +24,49 @@ const Icons = {
   Sun: () => <svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="4"/><path d="M12 2v2"/><path d="M12 20v2"/><path d="m4.93 4.93 1.41 1.41"/><path d="m17.66 17.66 1.41 1.41"/><path d="M2 12h2"/><path d="M20 12h2"/><path d="m6.34 17.66-1.41 1.41"/><path d="m19.07 4.93-1.41 1.41"/></svg>,
   Moon: () => <svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 3a6 6 0 0 0 9 9 9 9 0 1 1-9-9Z"/></svg>,
 };
+
+// Component to handle third-party ad banner injection safely with a labeled header
+function BannerAd({ isDarkMode }: { isDarkMode: boolean }) {
+  const bannerRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!bannerRef.current) return;
+    
+    // Clear container to avoid duplicate scripts on re-renders
+    bannerRef.current.innerHTML = '';
+
+    // Create configuration script
+    const confScript = document.createElement('script');
+    confScript.text = `
+      atOptions = {
+        'key' : '2c7e18080e4e82b954dd29fff1dc3355',
+        'format' : 'iframe',
+        'height' : 50,
+        'width' : 320,
+        'params' : {}
+      };
+    `;
+
+    // Create invocation script
+    const invokeScript = document.createElement('script');
+    invokeScript.src = 'https://plentyhelium.com/2c7e18080e4e82b954dd29fff1dc3355/invoke.js';
+    invokeScript.async = true;
+
+    bannerRef.current.appendChild(confScript);
+    bannerRef.current.appendChild(invokeScript);
+  }, []);
+
+  return (
+    <div className="my-4 w-full flex flex-col items-center">
+      <div className={`font-mono text-[9px] uppercase tracking-widest mb-1.5 ${isDarkMode ? 'text-neutral-600' : 'text-neutral-400'}`}>
+        Advertisement
+      </div>
+      <div className="overflow-hidden w-full flex justify-center">
+        <div ref={bannerRef} className="min-w-[320px] min-h-[50px] flex items-center justify-center" />
+      </div>
+    </div>
+  );
+}
 
 // Robust Doxxing Detection Utility
 const PHONE_REGEX = /(?:(?:\+|00)?63[\s.-]?|0)?[1-9]\d{1,2}[\s.-]?\d{3}[\s.-]?\d{4}|\b\d{10,11}\b|(\d[^\w\d]*){10,12}/i;
@@ -199,8 +242,11 @@ export default function PostPage() {
         </div>
       </header>
 
-      <main className="max-w-2xl mx-auto px-6 pt-12 pb-24">
-        <div className="mb-8">
+      <main className="max-w-2xl mx-auto px-6 pt-8 pb-24">
+        {/* Labeled Ad Banner
+        <BannerAd isDarkMode={isDarkMode} /> */}
+
+        <div className="mb-8 mt-4">
           <h1 className={`text-3xl font-extrabold tracking-tight mb-3 ${isDarkMode ? 'text-white' : 'text-neutral-900'}`}>
             Publish Anonymously.
           </h1>

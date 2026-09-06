@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { 
@@ -19,11 +19,91 @@ const Icons = {
   Moon: () => <svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 3a6 6 0 0 0 9 9 9 9 0 1 1-9-9Z"/></svg>,
 };
 
+// Helper function to get recent matches and clean up entries older than 24 hours
+function getRecentMatches(): string[] {
+  try {
+    const raw = localStorage.getItem('unsaid_chat_recent_matches');
+    if (!raw) return [];
+    
+    const data: { id: string; timestamp: number }[] = JSON.parse(raw);
+    const now = Date.now();
+    const TWENTY_FOUR_HOURS = 24 * 60 * 60 * 1000;
+
+    // Filter out matches older than 24 hours
+    const validMatches = data.filter(item => (now - item.timestamp) < TWENTY_FOUR_HOURS);
+    
+    // Save back the cleaned list
+    localStorage.setItem('unsaid_chat_recent_matches', JSON.stringify(validMatches));
+    
+    return validMatches.map(item => item.id);
+  } catch (e) {
+    return [];
+  }
+}
+
+// Helper function to add a new match to the 24-hour exclusion list
+function addRecentMatch(peerId: string) {
+  try {
+    const raw = localStorage.getItem('unsaid_chat_recent_matches');
+    const data: { id: string; timestamp: number }[] = raw ? JSON.parse(raw) : [];
+    
+    const now = Date.now();
+    const TWENTY_FOUR_HOURS = 24 * 60 * 60 * 1000;
+
+    // Filter out expired ones and ensure no duplicates
+    const filtered = data.filter(item => (now - item.timestamp) < TWENTY_FOUR_HOURS && item.id !== peerId);
+    
+    filtered.push({ id: peerId, timestamp: now });
+    localStorage.setItem('unsaid_chat_recent_matches', JSON.stringify(filtered));
+  } catch (e) {}
+}
+
+// Component to handle third-party ad banner injection safely with a labeled header
+function BannerAd({ isDarkMode }: { isDarkMode: boolean }) {
+  const bannerRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!bannerRef.current) return;
+    
+    bannerRef.current.innerHTML = '';
+
+    const confScript = document.createElement('script');
+    confScript.text = `
+      atOptions = {
+        'key' : '2c7e18080e4e82b954dd29fff1dc3355',
+        'format' : 'iframe',
+        'height' : 50,
+        'width' : 320,
+        'params' : {}
+      };
+    `;
+
+    const invokeScript = document.createElement('script');
+    invokeScript.src = 'https://plentyhelium.com/2c7e18080e4e82b954dd29fff1dc3355/invoke.js';
+    invokeScript.async = true;
+
+    bannerRef.current.appendChild(confScript);
+    bannerRef.current.appendChild(invokeScript);
+  }, []);
+
+  return (
+    <div className="my-6 w-full flex flex-col items-center">
+      <div className={`font-mono text-[9px] uppercase tracking-widest mb-1.5 ${isDarkMode ? 'text-neutral-600' : 'text-neutral-400'}`}>
+        Advertisement
+      </div>
+      <div className="overflow-hidden w-full flex justify-center">
+        <div ref={bannerRef} className="min-w-[320px] min-h-[50px] flex items-center justify-center" />
+      </div>
+    </div>
+  );
+}
+
 export default function ChatQueuePage() {
   const router = useRouter();
   const [statusText, setStatusText] = useState('Initializing secure matchmaking...');
   const [currentRoomId, setCurrentRoomId] = useState<string | null>(null);
   const [isDarkMode, setIsDarkMode] = useState<boolean>(false);
+  const [retryKey, setRetryKey] = useState<number>(0); // Triggers re-queueing cleanly
 
   useEffect(() => {
     try {
@@ -33,9 +113,7 @@ export default function ChatQueuePage() {
       } else if (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches) {
         setIsDarkMode(true);
       }
-    } catch (e) {
-      // Ignore
-    }
+    } catch (e) {}
   }, []);
 
   const toggleDarkMode = () => {
@@ -50,6 +128,7 @@ export default function ChatQueuePage() {
     let isMounted = true;
     let unsubscribeRoom: (() => void) | null = null;
     let cleanupTimeout: NodeJS.Timeout | null = null;
+    let countdownInterval: NodeJS.Timeout | null = null;
 
     const setupMatchmaking = async () => {
       let userId = localStorage.getItem('unsaid_chat_user_id');
@@ -58,7 +137,6 @@ export default function ChatQueuePage() {
         localStorage.setItem('unsaid_chat_user_id', userId);
       }
 
-      // 1. Check if user is globally banned by an admin
       try {
         const banSnap = await getDoc(doc(db, "bannedUsers", userId));
         if (banSnap.exists()) {
@@ -82,6 +160,7 @@ export default function ChatQueuePage() {
       }
 
       const blockedUsers: string[] = JSON.parse(localStorage.getItem('unsaid_chat_blocked') || '[]');
+      const recentMatches = getRecentMatches();
 
       setStatusText('Scanning for available chatmates...');
 
@@ -91,6 +170,7 @@ export default function ChatQueuePage() {
 
         const snapshot = await getDocs(q);
         let matchedRoomId: string | null = null;
+        let matchedHostId: string | null = null;
 
         const waitingRooms = snapshot.docs.map(docSnap => ({
           id: docSnap.id,
@@ -103,12 +183,11 @@ export default function ChatQueuePage() {
           return timeA - timeB;
         });
 
-        // 2. Find a room to join as a guest (ensuring host isn't blocked)
+        // Skip own rooms, blocked users, and anyone matched within the last 24 hours
         for (const roomData of waitingRooms) {
           const hostId = roomData.hostId;
 
-          // Skip own rooms or blocked hosts
-          if (hostId === userId || blockedUsers.includes(hostId)) {
+          if (hostId === userId || blockedUsers.includes(hostId) || recentMatches.includes(hostId)) {
             continue;
           }
 
@@ -120,12 +199,13 @@ export default function ChatQueuePage() {
           }
 
           matchedRoomId = roomData.id;
+          matchedHostId = hostId;
           break;
         }
 
         if (!isMounted) return;
 
-        if (matchedRoomId) {
+        if (matchedRoomId && matchedHostId) {
           setStatusText('Match found! Connecting to secure room...');
           const roomRef = doc(db, "chatRooms", matchedRoomId);
           
@@ -136,7 +216,9 @@ export default function ChatQueuePage() {
             status: 'active'
           });
 
-          // Increment all-time counter ONLY when a successful match occurs
+          // Add to 24-hour exclusion list
+          addRecentMatch(matchedHostId);
+
           try {
             await setDoc(doc(db, "counters", "system"), {
               totalCreated: increment(1)
@@ -147,7 +229,6 @@ export default function ChatQueuePage() {
 
           router.push(`/chat/${matchedRoomId}`);
         } else {
-          // 3. Create our own waiting room (No increment here so cancels/timeouts don't count)
           setStatusText('No match found instantly. Waiting for someone to join...');
           
           const newRoomRef = await addDoc(collection(db, "chatRooms"), {
@@ -164,24 +245,26 @@ export default function ChatQueuePage() {
           if (!isMounted) return;
           setCurrentRoomId(newRoomRef.id);
 
-          // Real-time listener: Check if a guest joins
           unsubscribeRoom = onSnapshot(newRoomRef, async (docSnap) => {
             if (!isMounted) return;
             if (docSnap.exists()) {
               const data = docSnap.data();
               if (data.status === 'active' && data.guestId) {
-                // STRICT BLOCK CHECK: If a blocked user tries to join your room, delete it entirely
-                if (blockedUsers.includes(data.guestId)) {
-                  setStatusText('Skipped blocked user. Re-queueing...');
+                // Check if guest is blocked or matched within the last 24 hours
+                if (blockedUsers.includes(data.guestId) || recentMatches.includes(data.guestId)) {
+                  setStatusText('Skipped recent match. Re-queueing...');
                   try {
                     await deleteDoc(newRoomRef);
                   } catch (e) {}
                   
                   setTimeout(() => {
-                    if (isMounted) window.location.reload();
+                    if (isMounted) setRetryKey(prev => prev + 1);
                   }, 1000);
                   return;
                 }
+
+                // Add to 24-hour exclusion list
+                addRecentMatch(data.guestId);
 
                 setStatusText('Peer connected! Entering chat...');
                 router.push(`/chat/${newRoomRef.id}`);
@@ -194,15 +277,38 @@ export default function ChatQueuePage() {
               try {
                 await deleteDoc(doc(db, "chatRooms", newRoomRef.id));
               } catch (e) {}
-              setStatusText('Queue timed out. Click below to try again.');
               setCurrentRoomId(null);
+
+                // Start 5-second countdown indication
+                let timeLeft = 5;
+                setStatusText(`Queue timed out. Re-queueing in ${timeLeft}s...`);
+
+                countdownInterval = setInterval(() => {
+                  timeLeft -= 1;
+                  if (timeLeft > 0) {
+                    if (isMounted) setStatusText(`Queue timed out. Re-queueing in ${timeLeft}s...`);
+                  } else {
+                    if (countdownInterval) clearInterval(countdownInterval);
+                    if (isMounted) setRetryKey(prev => prev + 1);
+                  }
+                }, 1000);
             }
           }, 45000);
         }
       } catch (err) {
         console.error("Queue matchmaking error:", err);
         if (isMounted) {
-          setStatusText('Connection error. Please try again.');
+          setStatusText('Connection error. Retrying in 5s...');
+          let timeLeft = 5;
+          countdownInterval = setInterval(() => {
+            timeLeft -= 1;
+            if (timeLeft > 0) {
+              if (isMounted) setStatusText(`Connection error. Retrying in ${timeLeft}s...`);
+            } else {
+              if (countdownInterval) clearInterval(countdownInterval);
+              if (isMounted) setRetryKey(prev => prev + 1);
+            }
+          }, 1000);
         }
       }
     };
@@ -213,8 +319,9 @@ export default function ChatQueuePage() {
       isMounted = false;
       if (unsubscribeRoom) unsubscribeRoom();
       if (cleanupTimeout) clearTimeout(cleanupTimeout);
+      if (countdownInterval) clearInterval(countdownInterval);
     };
-  }, [router]);
+  }, [router, retryKey]);
 
   const handleCancel = async () => {
     if (currentRoomId) {
@@ -253,7 +360,7 @@ export default function ChatQueuePage() {
         </div>
       </header>
 
-      <main className="max-w-md mx-auto px-6 py-20 w-full flex-1 flex flex-col items-center justify-center text-center space-y-8">
+      <main className="max-w-md mx-auto px-6 py-12 w-full flex-1 flex flex-col items-center justify-center text-center space-y-6">
         <div className="relative flex items-center justify-center">
           <div className="absolute w-24 h-24 bg-emerald-500/10 rounded-full animate-ping"></div>
           <div className={`relative w-20 h-20 border rounded-2xl shadow-sm flex items-center justify-center ${
@@ -272,7 +379,7 @@ export default function ChatQueuePage() {
           </p>
         </div>
 
-        <div className="w-full pt-4">
+        <div className="w-full pt-2">
           <button
             onClick={handleCancel}
             className={`w-full py-3.5 font-mono text-xs font-bold uppercase tracking-wider rounded-xl shadow-2xs cursor-pointer active:scale-98 border ${
@@ -284,6 +391,10 @@ export default function ChatQueuePage() {
             Cancel & Return Home
           </button>
         </div>
+
+        {/* Banner Ad Integration 
+        <BannerAd isDarkMode={isDarkMode} /> */}
+
       </main>
     </div>
   );

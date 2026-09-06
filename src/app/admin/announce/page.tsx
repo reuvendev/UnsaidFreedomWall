@@ -6,13 +6,18 @@ import {
   collection, 
   query, 
   orderBy, 
+  limit as firestoreLimit,
+  startAfter,
+  getDocs,
   onSnapshot, 
   addDoc, 
   serverTimestamp, 
   doc, 
   deleteDoc, 
   increment, 
-  updateDoc 
+  updateDoc,
+  DocumentData,
+  QueryDocumentSnapshot
 } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import { PostProps } from '@/app/page'; // Adjust path if needed
@@ -25,6 +30,8 @@ const CATEGORIES = [
   { id: 'life', label: 'City Life' },
   { id: 'others', label: 'Others' },
 ];
+
+const PAGE_SIZE = 10;
 
 const Icons = {
   Code: () => (
@@ -57,6 +64,11 @@ export default function AdminPostPortal() {
   const [authError, setAuthError] = useState<string>("");
   const [posts, setPosts] = useState<PostProps[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
+  
+  // Pagination States
+  const [lastVisible, setLastVisible] = useState<QueryDocumentSnapshot<DocumentData> | null>(null);
+  const [hasMore, setHasMore] = useState<boolean>(true);
+  const [isLoadingMore, setIsLoadingMore] = useState<boolean>(false);
 
   // New Post Form State
   const [content, setContent] = useState<string>('');
@@ -76,7 +88,7 @@ export default function AdminPostPortal() {
       const authed = await checkAdminAuth();
       setIsAuthenticated(authed);
       if (authed) {
-        setupPostsListener();
+        fetchInitialPosts();
       } else {
         setLoading(false);
       }
@@ -93,7 +105,7 @@ export default function AdminPostPortal() {
     if (result.success) {
       setIsAuthenticated(true);
       setLoading(true);
-      setupPostsListener();
+      fetchInitialPosts();
     } else {
       setAuthError(result.error || "Authentication failed");
     }
@@ -104,10 +116,17 @@ export default function AdminPostPortal() {
     setIsAuthenticated(false);
   };
 
-  const setupPostsListener = () => {
-    const q = query(collection(db, 'posts'), orderBy('createdAt', 'desc'));
-    const unsubscribe = onSnapshot(q, (snapshot) => {
+  const fetchInitialPosts = async () => {
+    try {
+      const q = query(
+        collection(db, 'posts'), 
+        orderBy('createdAt', 'desc'),
+        firestoreLimit(PAGE_SIZE)
+      );
+      
+      const snapshot = await getDocs(q);
       const fetched: PostProps[] = [];
+      
       snapshot.forEach((docSnap) => {
         const data = docSnap.data();
         let formattedDate = 'Just now';
@@ -127,11 +146,60 @@ export default function AdminPostPortal() {
           spotifyTrackId: data.spotifyTrackId || null,
         });
       });
-      setPosts(fetched);
-      setLoading(false);
-    });
 
-    return () => unsubscribe();
+      setLastVisible(snapshot.docs[snapshot.docs.length - 1] || null);
+      setHasMore(snapshot.docs.length === PAGE_SIZE);
+      setPosts(fetched);
+    } catch (error) {
+      console.error('Error fetching initial posts:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleLoadMore = async () => {
+    if (!lastVisible || isLoadingMore) return;
+
+    setIsLoadingMore(true);
+    try {
+      const q = query(
+        collection(db, 'posts'),
+        orderBy('createdAt', 'desc'),
+        startAfter(lastVisible),
+        firestoreLimit(PAGE_SIZE)
+      );
+
+      const snapshot = await getDocs(q);
+      const fetched: PostProps[] = [];
+
+      snapshot.forEach((docSnap) => {
+        const data = docSnap.data();
+        let formattedDate = 'Just now';
+        if (data.createdAt) {
+          const dObj = data.createdAt.toDate();
+          formattedDate = dObj.toLocaleDateString([], { month: 'short', day: 'numeric' }) + ' at ' + dObj.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+        }
+
+        fetched.push({
+          id: docSnap.id,
+          authorAlias: data.authorAlias || 'UNSAID #00000',
+          content: data.content || '',
+          category: data.category || 'thoughts',
+          createdAt: formattedDate,
+          upvotes: data.upvotes || 0,
+          replies: data.replies || 0,
+          spotifyTrackId: data.spotifyTrackId || null,
+        });
+      });
+
+      setLastVisible(snapshot.docs[snapshot.docs.length - 1] || null);
+      setHasMore(snapshot.docs.length === PAGE_SIZE);
+      setPosts((prev) => [...prev, ...fetched]);
+    } catch (error) {
+      console.error('Error loading more posts:', error);
+    } finally {
+      setIsLoadingMore(false);
+    }
   };
 
   const handleCreatePost = async (e: React.FormEvent) => {
@@ -161,6 +229,7 @@ export default function AdminPostPortal() {
       setContent('');
       setSpotifyTrackId('');
       alert('Developer post successfully published!');
+      fetchInitialPosts(); // Refresh list to show new broadcast
     } catch (error) {
       console.error('Error creating post:', error);
       alert('Failed to publish post.');
@@ -173,6 +242,7 @@ export default function AdminPostPortal() {
     if (!confirm('Are you sure you want to delete this post?')) return;
     try {
       await deleteDoc(doc(db, 'posts', postId));
+      setPosts((prev) => prev.filter((p) => p.id !== postId));
     } catch (error) {
       console.error('Error deleting post:', error);
       alert('Failed to delete.');
@@ -245,7 +315,7 @@ export default function AdminPostPortal() {
 
             <button
               type="submit"
-              className="w-full py-3 bg-neutral-100 hover:bg-white text-neutral-900 font-mono text-xs font-bold uppercase tracking-wider rounded-lg transition-colors"
+              className="w-full py-3 bg-neutral-100 hover:bg-white text-neutral-900 font-mono text-xs font-bold uppercase tracking-wider rounded-lg transition-colors cursor-pointer"
             >
               Authenticate Session
             </button>
@@ -277,7 +347,7 @@ export default function AdminPostPortal() {
             </Link>
             <button
               onClick={handleLogout}
-              className="text-rose-400 hover:text-rose-300 transition-colors uppercase tracking-wider"
+              className="text-rose-400 hover:text-rose-300 transition-colors uppercase tracking-wider cursor-pointer"
             >
               Destroy Session
             </button>
@@ -318,7 +388,7 @@ export default function AdminPostPortal() {
                 <select
                   value={category}
                   onChange={(e) => setCategory(e.target.value)}
-                  className="w-full p-2.5 bg-neutral-950 border border-neutral-800 rounded text-xs font-mono text-white focus:outline-none focus:border-neutral-600"
+                  className="w-full p-2.5 bg-neutral-950 border border-neutral-800 rounded text-xs font-mono text-white focus:outline-none focus:border-neutral-600 cursor-pointer"
                 >
                   {CATEGORIES.map((cat) => (
                     <option key={cat.id} value={cat.id}>{cat.label}</option>
@@ -357,7 +427,7 @@ export default function AdminPostPortal() {
               <button 
                 type="submit"
                 disabled={isSubmitting || !content.trim()}
-                className="inline-flex items-center gap-2 bg-emerald-500 hover:bg-emerald-400 text-neutral-950 font-mono text-xs font-bold uppercase tracking-wider px-6 py-2.5 rounded transition-all disabled:opacity-50"
+                className="inline-flex items-center gap-2 bg-emerald-500 hover:bg-emerald-400 text-neutral-950 font-mono text-xs font-bold uppercase tracking-wider px-6 py-2.5 rounded transition-all disabled:opacity-50 cursor-pointer"
               >
                 <Icons.Send />
                 <span>{isSubmitting ? 'Publishing...' : 'Publish Official Entry'}</span>
@@ -369,7 +439,7 @@ export default function AdminPostPortal() {
         {/* Live Feed Browser with Quick Management */}
         <div className="mb-6 flex items-center justify-between">
           <h3 className="font-mono text-xs font-bold uppercase tracking-widest text-neutral-400">
-            Browse & Manage All Posts ({posts.length})
+            Browse & Manage Posts
           </h3>
         </div>
 
@@ -410,7 +480,7 @@ export default function AdminPostPortal() {
                     </Link>
                     <button 
                       onClick={() => handleDeletePost(post.id)}
-                      className="p-2 bg-rose-500/10 hover:bg-rose-500/20 text-rose-400 rounded transition-colors"
+                      className="p-2 bg-rose-500/10 hover:bg-rose-500/20 text-rose-400 rounded transition-colors cursor-pointer"
                       title="Delete post"
                     >
                       <Icons.Trash />
@@ -450,7 +520,7 @@ export default function AdminPostPortal() {
                     <button
                       type="submit"
                       disabled={submittingReplyId === post.id || !replyInputs[post.id]?.trim()}
-                      className="px-4 py-1.5 bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-400 border border-emerald-500/20 font-mono text-[11px] font-bold uppercase tracking-wider rounded transition-colors disabled:opacity-40"
+                      className="px-4 py-1.5 bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-400 border border-emerald-500/20 font-mono text-[11px] font-bold uppercase tracking-wider rounded transition-colors disabled:opacity-40 cursor-pointer"
                     >
                       {submittingReplyId === post.id ? 'Sending...' : 'Post Reply'}
                     </button>
@@ -458,6 +528,19 @@ export default function AdminPostPortal() {
                 </form>
               </div>
             ))}
+
+            {/* Load More Button Section */}
+            {hasMore && (
+              <div className="pt-4 text-center">
+                <button
+                  onClick={handleLoadMore}
+                  disabled={isLoadingMore}
+                  className="px-6 py-3 bg-neutral-900 hover:bg-neutral-800 border border-neutral-800 text-neutral-200 font-mono text-xs font-bold uppercase tracking-wider rounded-lg transition-colors disabled:opacity-50 cursor-pointer shadow-sm"
+                >
+                  {isLoadingMore ? 'Loading more entries...' : 'Load More Entries'}
+                </button>
+              </div>
+            )}
           </div>
         )}
       </main>

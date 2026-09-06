@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import Link from 'next/link';
 import { useParams, useRouter } from 'next/navigation';
 import {
@@ -96,6 +96,49 @@ const REPORT_REASONS = [
   'Doxxing / personal info',
   'Other',
 ];
+
+// Component to handle third-party ad banner injection safely with a labeled header
+function BannerAd({ isDarkMode }: { isDarkMode: boolean }) {
+  const bannerRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!bannerRef.current) return;
+    
+    // Clear container to avoid duplicate scripts on re-renders
+    bannerRef.current.innerHTML = '';
+
+    // Create configuration script
+    const confScript = document.createElement('script');
+    confScript.text = `
+      atOptions = {
+        'key' : '2c7e18080e4e82b954dd29fff1dc3355',
+        'format' : 'iframe',
+        'height' : 50,
+        'width' : 320,
+        'params' : {}
+      };
+    `;
+
+    // Create invocation script
+    const invokeScript = document.createElement('script');
+    invokeScript.src = 'https://plentyhelium.com/2c7e18080e4e82b954dd29fff1dc3355/invoke.js';
+    invokeScript.async = true;
+
+    bannerRef.current.appendChild(confScript);
+    bannerRef.current.appendChild(invokeScript);
+  }, []);
+
+  return (
+    <div className="my-6 w-full flex flex-col items-center">
+      <div className={`font-mono text-[9px] uppercase tracking-widest mb-1.5 ${isDarkMode ? 'text-neutral-600' : 'text-neutral-400'}`}>
+        Advertisement
+      </div>
+      <div className="overflow-hidden w-full flex justify-center">
+        <div ref={bannerRef} className="min-w-[320px] min-h-[50px] flex items-center justify-center" />
+      </div>
+    </div>
+  );
+}
 
 export default function PostDetailPage() {
   const params = useParams();
@@ -428,9 +471,12 @@ export default function PostDetailPage() {
         </div>
       </header>
 
-      <main className="max-w-2xl mx-auto px-6 pt-12 pb-24">
+      <main className="max-w-2xl mx-auto px-6 pt-8 pb-24">
+        {/* Labeled Ad Banner 
+        <BannerAd isDarkMode={isDarkMode} /> */}
+
         {/* Main Post Card */}
-        <article className={`p-6 border rounded-lg mb-10 relative ${isDarkMode ? 'bg-neutral-900/50 border-neutral-800' : 'bg-white border-neutral-200'}`}>
+        <article className={`p-6 border rounded-lg mb-10 relative mt-4 ${isDarkMode ? 'bg-neutral-900/50 border-neutral-800' : 'bg-white border-neutral-200'}`}>
           <div className="flex items-center justify-between mb-3">
             <div className="flex items-center gap-2 font-mono text-[11px] uppercase tracking-wider">
               <span className={`font-bold ${isPostAdminOrDev ? 'text-emerald-500' : isDarkMode ? 'text-white' : 'text-neutral-900'}`}>

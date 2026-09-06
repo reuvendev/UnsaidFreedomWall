@@ -4,7 +4,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { 
   collection, doc, updateDoc, onSnapshot, 
-  addDoc, query, orderBy, serverTimestamp 
+  addDoc, query, orderBy, limit, startAfter, getDocs, serverTimestamp, arrayUnion, arrayRemove, DocumentData, QueryDocumentSnapshot
 } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 
@@ -13,6 +13,12 @@ interface Message {
   senderId: string;
   senderNickname: string;
   text: string;
+  replyTo?: {
+    id: string;
+    senderNickname: string;
+    text: string;
+  };
+  reactions?: Record<string, string[]>;
   createdAt: any;
 }
 
@@ -30,6 +36,8 @@ const REPORT_REASONS = [
   { id: 'spam', label: 'Spam or Bot Activity' },
   { id: 'other', label: 'Other' },
 ];
+
+const AVAILABLE_REACTIONS = ['❤️', '👍', '😂', '🔥', '😮', '😢'];
 
 const Icons = {
   Send: () => (
@@ -63,8 +71,23 @@ const Icons = {
       <line x1="6" y1="6" x2="18" y2="18"></line>
     </svg>
   ),
+  Reply: () => (
+    <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <polyline points="9 17 4 12 9 7"></polyline>
+      <path d="M20 18v-2a4 4 0 0 0-4-4H4"></path>
+    </svg>
+  ),
+  Smile: () => (
+    <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <circle cx="12" cy="12" r="10"></circle>
+      <path d="M8 14s1.5 2 4 2 4-2 4-2"></path>
+      <line x1="9" y1="9" x2="9.01" y2="9"></line>
+      <line x1="15" y1="9" x2="15.01" y2="9"></line>
+    </svg>
+  ),
   Sun: () => <svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="4"/><path d="M12 2v2"/><path d="M12 20v2"/><path d="m4.93 4.93 1.41 1.41"/><path d="m17.66 17.66 1.41 1.41"/><path d="M2 12h2"/><path d="M20 12h2"/><path d="m6.34 17.66-1.41 1.41"/><path d="m19.07 4.93-1.41 1.41"/></svg>,
   Moon: () => <svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 3a6 6 0 0 0 9 9 9 9 0 1 1-9-9Z"/></svg>,
+  ChevronUp: () => <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="18 15 12 9 6 15"></polyline></svg>
 };
 
 export default function ChatRoomPage() {
@@ -75,6 +98,8 @@ export default function ChatRoomPage() {
   const [roomData, setRoomData] = useState<any>(null);
   const [messages, setMessages] = useState<Message[]>([]);
   const [newMessage, setNewMessage] = useState('');
+  const [replyingTo, setReplyingTo] = useState<Message | null>(null);
+  const [activeReactionPickerId, setActiveReactionPickerId] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [userId, setUserId] = useState('');
   const [nickname, setNickname] = useState('');
@@ -82,6 +107,11 @@ export default function ChatRoomPage() {
   const [chatStatus, setChatStatus] = useState<'active' | 'closed' | 'blocked'>('active');
   const [blockedByMe, setBlockedByMe] = useState(false);
   const [isDarkMode, setIsDarkMode] = useState<boolean>(false);
+  
+  // Pagination State
+  const [lastVisibleDoc, setLastVisibleDoc] = useState<QueryDocumentSnapshot<DocumentData> | null>(null);
+  const [hasMoreMessages, setHasMoreMessages] = useState(false); // Default to false until we verify chunk size
+  const [isLoadingMore, setIsLoadingMore] = useState(false);
   
   // Report Modal States
   const [isReportModalOpen, setIsReportModalOpen] = useState(false);
@@ -91,8 +121,9 @@ export default function ChatRoomPage() {
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const typingTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const lastTypingUpdateRef = useRef<number>(0);
+  const initialScrollDone = useRef(false);
 
-  // Initialize Dark Mode state from localStorage
+  // Initialize Dark Mode state
   useEffect(() => {
     try {
       const storedTheme = localStorage.getItem('unsaid_dark_mode');
@@ -101,9 +132,7 @@ export default function ChatRoomPage() {
       } else if (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches) {
         setIsDarkMode(true);
       }
-    } catch (e) {
-      // Ignore
-    }
+    } catch (e) {}
   }, []);
 
   const toggleDarkMode = () => {
@@ -129,16 +158,18 @@ export default function ChatRoomPage() {
     }
   }, [roomId, router]);
 
-  // Connect to Room and Messages Listeners
+  // Connect to Room and Initial Messages Snapshot (limit 50)
   useEffect(() => {
     if (!roomId || !userId) return;
 
     let isMounted = true;
     const roomRef = doc(db, "chatRooms", roomId);
     
+    const PAGE_LIMIT = 10;
     const msgsQuery = query(
       collection(db, "chatRooms", roomId, "messages"), 
-      orderBy("createdAt", "desc")
+      orderBy("createdAt", "desc"),
+      limit(PAGE_LIMIT)
     );
 
     let unsubscribeRoom: (() => void) | undefined;
@@ -174,13 +205,25 @@ export default function ChatRoomPage() {
 
     unsubscribeMsgs = onSnapshot(msgsQuery, (snapshot) => {
       if (!isMounted) return;
-      const msgs: Message[] = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Message));
       
+      const docs = snapshot.docs;
+      if (docs.length > 0) {
+        setLastVisibleDoc(docs[docs.length - 1]);
+        // If we fetched the full limit amount, assume there are more records older in Firestore
+        setHasMoreMessages(docs.length >= PAGE_LIMIT);
+      } else {
+        setHasMoreMessages(false);
+      }
+
+      const msgs: Message[] = docs.map(doc => ({ id: doc.id, ...doc.data() } as Message));
       setMessages(msgs.reverse());
       
-      setTimeout(() => {
-        messagesEndRef.current?.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
-      }, 60);
+      if (!initialScrollDone.current) {
+        initialScrollDone.current = true;
+        setTimeout(() => {
+          messagesEndRef.current?.scrollIntoView({ behavior: 'auto', block: 'nearest' });
+        }, 50);
+      }
     });
 
     return () => {
@@ -190,7 +233,40 @@ export default function ChatRoomPage() {
     };
   }, [roomId, userId]);
 
-  // Optimized Input Change Handler with Throttled Typing Writes
+  // Load Earlier Messages (Pagination Handler)
+  const handleLoadMore = async () => {
+    if (!lastVisibleDoc || isLoadingMore || !hasMoreMessages) return;
+
+    setIsLoadingMore(true);
+    try {
+      const olderQuery = query(
+        collection(db, "chatRooms", roomId, "messages"),
+        orderBy("createdAt", "desc"),
+        startAfter(lastVisibleDoc),
+        limit(30)
+      );
+
+      const snapshot = await getDocs(olderQuery);
+      const docs = snapshot.docs;
+
+      if (docs.length > 0) {
+        setLastVisibleDoc(docs[docs.length - 1]);
+        if (docs.length < 30) {
+          setHasMoreMessages(false);
+        }
+
+        const olderMsgs: Message[] = docs.map(doc => ({ id: doc.id, ...doc.data() } as Message));
+        setMessages(prev => [...olderMsgs.reverse(), ...prev]);
+      } else {
+        setHasMoreMessages(false);
+      }
+    } catch (err) {
+      console.error("Failed to load older messages:", err);
+    } finally {
+      setIsLoadingMore(false);
+    }
+  };
+
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const val = e.target.value;
     setNewMessage(val);
@@ -198,7 +274,6 @@ export default function ChatRoomPage() {
     if (!userId || chatStatus !== 'active') return;
 
     const now = Date.now();
-    // Throttle Firestore writes: only update server if > 2 seconds passed since last typing write
     if (now - lastTypingUpdateRef.current > 2000) {
       lastTypingUpdateRef.current = now;
       updateDoc(doc(db, "chatRooms", roomId), {
@@ -206,10 +281,8 @@ export default function ChatRoomPage() {
       }).catch(() => {});
     }
 
-    // Clear previous stop timeout
     if (typingTimeoutRef.current) clearTimeout(typingTimeoutRef.current);
     
-    // Set typing to false after 2 seconds of inactivity
     typingTimeoutRef.current = setTimeout(() => {
       lastTypingUpdateRef.current = 0;
       updateDoc(doc(db, "chatRooms", roomId), {
@@ -228,9 +301,15 @@ export default function ChatRoomPage() {
       return;
     }
 
-    setNewMessage('');
+    const currentReply = replyingTo ? {
+      id: replyingTo.id,
+      senderNickname: replyingTo.senderId === userId ? 'You' : replyingTo.senderNickname,
+      text: replyingTo.text,
+    } : null;
 
-    // Immediately clear typing status on send
+    setNewMessage('');
+    setReplyingTo(null);
+
     if (typingTimeoutRef.current) clearTimeout(typingTimeoutRef.current);
     lastTypingUpdateRef.current = 0;
     await updateDoc(doc(db, "chatRooms", roomId), {
@@ -243,6 +322,7 @@ export default function ChatRoomPage() {
       senderId: userId,
       senderNickname: nickname,
       text: textToSend,
+      replyTo: currentReply || undefined,
       createdAt: new Date(),
     };
 
@@ -252,17 +332,64 @@ export default function ChatRoomPage() {
     }, 50);
 
     try {
-      await addDoc(collection(db, "chatRooms", roomId, "messages"), {
+      const messagePayload: any = {
         senderId: userId,
         senderNickname: nickname,
         text: textToSend,
         createdAt: serverTimestamp()
-      });
+      };
+      if (currentReply) {
+        messagePayload.replyTo = currentReply;
+      }
+
+      await addDoc(collection(db, "chatRooms", roomId, "messages"), messagePayload);
     } catch (error) {
       console.error("Failed to send message:", error);
       setMessages((prev) => prev.filter((m) => m.id !== tempId));
       setNewMessage(textToSend);
       alert("Failed to send message. Please check your connection.");
+    }
+  };
+
+  const handleToggleReaction = async (messageId: string, emoji: string) => {
+    if (chatStatus !== 'active') return;
+    setActiveReactionPickerId(null);
+
+    const msg = messages.find(m => m.id === messageId);
+    if (!msg || msg.id.startsWith('temp_')) return;
+
+    const msgRef = doc(db, "chatRooms", roomId, "messages", messageId);
+    const existingReactions = msg.reactions || {};
+    const usersWhoReacted = existingReactions[emoji] || [];
+    const hasReacted = usersWhoReacted.includes(userId);
+
+    setMessages(prev => prev.map(m => {
+      if (m.id !== messageId) return m;
+      const updatedReactions = { ...(m.reactions || {}) };
+      const currentList = [...(updatedReactions[emoji] || [])];
+      if (hasReacted) {
+        const filtered = currentList.filter(id => id !== userId);
+        if (filtered.length === 0) delete updatedReactions[emoji];
+        else updatedReactions[emoji] = filtered;
+      } else {
+        currentList.push(userId);
+        updatedReactions[emoji] = currentList;
+      }
+      return { ...m, reactions: updatedReactions };
+    }));
+
+    try {
+      if (hasReacted) {
+        await updateDoc(msgRef, {
+          [`reactions.${emoji}`]: arrayRemove(userId)
+        });
+      } else {
+        await updateDoc(msgRef, {
+          [`reactions.${emoji}`]: arrayUnion(userId)
+        });
+      }
+    } catch (err) {
+      console.error("Failed to update reaction:", err);
     }
   };
 
@@ -327,8 +454,6 @@ export default function ChatRoomPage() {
   const peerSchoolRaw = isHost ? roomData?.guestSchool : roomData?.hostSchool;
   const peerSchool = peerSchoolRaw ? (SLU_SCHOOL_LABELS[peerSchoolRaw] || peerSchoolRaw.toUpperCase()) : '';
   const isInactive = chatStatus !== 'active';
-
-  // Check peer typing flag inline without extra listeners
   const isPeerTyping = peerUserId ? Boolean(roomData?.[`typing_${peerUserId}`]) : false;
 
   return (
@@ -345,7 +470,7 @@ export default function ChatRoomPage() {
                 <span className={isInactive ? 'text-neutral-500' : 'text-emerald-500'}>{peerNickname}</span>
               </h2>
               {peerSchool && (
-                <span className={`font-mono text-[9px] sm:text-[10px] px-1.5 py-0.2 border rounded shrink-0 ${isDarkMode ? 'bg-neutral-800 text-neutral-300 border-neutral-700' : 'bg-neutral-100 text-neutral-700 border-neutral-200'}`}>
+                <span className={`font-mono text-[9px] sm:text-[10px] px-1.5 py-0.5 border rounded shrink-0 ${isDarkMode ? 'bg-neutral-800 text-neutral-300 border-neutral-700' : 'bg-neutral-100 text-neutral-700 border-neutral-200'}`}>
                   {peerSchool}
                 </span>
               )}
@@ -368,7 +493,6 @@ export default function ChatRoomPage() {
             </button>
           )}
 
-          {/* More Dropdown */}
           <div className="relative">
             <button 
               aria-label="More options"
@@ -416,6 +540,25 @@ export default function ChatRoomPage() {
       {/* Message Feed */}
       <main className="flex-1 overflow-y-auto px-3 sm:px-4 py-4 sm:py-6">
         <div className="max-w-2xl w-full mx-auto space-y-4">
+          
+          {/* Load More Messages Button */}
+          {hasMoreMessages && (
+            <div className="text-center my-3">
+              <button
+                onClick={handleLoadMore}
+                disabled={isLoadingMore}
+                className={`inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-full font-mono text-[10px] uppercase tracking-wider border shadow-2xs cursor-pointer active:scale-95 transition-all ${
+                  isDarkMode 
+                    ? 'bg-neutral-900 hover:bg-neutral-800 text-neutral-300 border-neutral-800' 
+                    : 'bg-white hover:bg-neutral-100 text-neutral-600 border-neutral-200'
+                }`}
+              >
+                <Icons.ChevronUp />
+                <span>{isLoadingMore ? 'Loading older messages...' : 'Load earlier messages'}</span>
+              </button>
+            </div>
+          )}
+
           <div className="text-center my-2">
             <span className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full font-mono text-[9px] sm:text-[10px] uppercase tracking-widest border text-center ${
               isDarkMode ? 'bg-neutral-900 text-neutral-400 border-neutral-800' : 'bg-neutral-100 text-neutral-500 border-neutral-200/60'
@@ -426,23 +569,136 @@ export default function ChatRoomPage() {
 
           {messages.map((msg) => {
             const isMe = msg.senderId === userId;
+            const isPickerOpen = activeReactionPickerId === msg.id;
+
+            let touchStartX = 0;
+            let currentTranslateX = 0;
+
+            const handleTouchStart = (e: React.TouchEvent) => {
+              touchStartX = e.touches[0].clientX;
+            };
+
+            const handleTouchMove = (e: React.TouchEvent) => {
+              const currentX = e.touches[0].clientX;
+              const diff = currentX - touchStartX;
+              if (diff > 0 && diff < 80) {
+                currentTranslateX = diff;
+                (e.currentTarget as HTMLElement).style.transform = `translateX(${diff}px)`;
+              }
+            };
+
+            const handleTouchEnd = (e: React.TouchEvent) => {
+              const el = e.currentTarget as HTMLElement;
+              el.style.transform = 'translateX(0px)';
+              if (currentTranslateX > 40) {
+                setReplyingTo(msg);
+              }
+              currentTranslateX = 0;
+            };
+
             return (
-              <div key={msg.id} className={`flex flex-col ${isMe ? 'items-end' : 'items-start'}`}>
+              <div key={msg.id} className={`flex flex-col relative ${isMe ? 'items-end' : 'items-start'}`}>
                 <span className={`font-mono text-[10px] mb-1 px-1 ${isDarkMode ? 'text-neutral-500' : 'text-neutral-400'}`}>
                   {isMe ? 'You' : msg.senderNickname}
                 </span>
-                <div className={`max-w-[88%] sm:max-w-[80%] px-3.5 py-2.5 sm:px-4 sm:py-3 rounded-2xl text-sm font-sans break-words ${
-                  isMe 
-                    ? isDarkMode ? 'bg-neutral-600 text-white rounded-br-xs' : 'bg-neutral-900 text-white rounded-br-xs' 
-                    : isDarkMode ? 'bg-neutral-900 text-neutral-100 border border-neutral-800 rounded-bl-xs' : 'bg-white text-neutral-900 border border-neutral-200/80 rounded-bl-xs shadow-2xs'
-                }`}>
-                  {msg.text}
+                
+                <div className="relative group max-w-[88%] sm:max-w-[80%]">
+                  <div
+                    onTouchStart={handleTouchStart}
+                    onTouchMove={handleTouchMove}
+                    onTouchEnd={handleTouchEnd}
+                    onDoubleClick={() => setReplyingTo(msg)}
+                    className={`px-3.5 py-2.5 sm:px-4 sm:py-3 rounded-2xl text-sm font-sans break-words cursor-pointer select-none transition-transform duration-150 ${
+                      isMe 
+                        ? isDarkMode ? 'bg-neutral-600 text-white rounded-br-xs' : 'bg-neutral-900 text-white rounded-br-xs' 
+                        : isDarkMode ? 'bg-neutral-900 text-neutral-100 border border-neutral-800 rounded-bl-xs' : 'bg-white text-neutral-900 border border-neutral-200/80 rounded-bl-xs shadow-2xs'
+                    }`}
+                    title="Swipe right or double tap to reply"
+                  >
+                    {msg.replyTo && (
+                      <div className={`mb-2 px-2.5 py-1.5 rounded-lg border-l-2 text-xs opacity-90 ${
+                        isMe 
+                          ? 'bg-black/20 border-white/70 text-white/90' 
+                          : isDarkMode ? 'bg-neutral-950/50 border-emerald-500 text-neutral-300' : 'bg-neutral-50 border-emerald-600 text-neutral-600'
+                      }`}>
+                        <p className="font-mono text-[10px] font-bold">{msg.replyTo.senderNickname}</p>
+                        <p className="truncate">{msg.replyTo.text}</p>
+                      </div>
+                    )}
+
+                    <p>{msg.text}</p>
+                  </div>
+
+                  {msg.reactions && Object.keys(msg.reactions).length > 0 && (
+                    <div className={`flex flex-wrap gap-1 mt-1.5 ${isMe ? 'justify-end' : 'justify-start'}`}>
+                      {Object.entries(msg.reactions).map(([emoji, userList]) => {
+                        const hasReactedHere = userList.includes(userId);
+                        return (
+                          <button
+                            key={emoji}
+                            onClick={() => handleToggleReaction(msg.id, emoji)}
+                            className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full font-mono text-[11px] border cursor-pointer transition-transform active:scale-95 ${
+                              hasReactedHere 
+                                ? isDarkMode ? 'bg-emerald-950/60 border-emerald-800/80 text-emerald-300' : 'bg-emerald-50 border-emerald-300 text-emerald-800'
+                                : isDarkMode ? 'bg-neutral-900 border-neutral-800 text-neutral-400 hover:border-neutral-700' : 'bg-white border-neutral-200 text-neutral-600 shadow-2xs hover:bg-neutral-50'
+                            }`}
+                          >
+                            <span>{emoji}</span>
+                            <span className="font-bold">{userList.length}</span>
+                          </button>
+                        );
+                      })}
+                    </div>
+                  )}
+
+                  <div className={`absolute top-0 -translate-y-1/2 opacity-0 group-hover:opacity-100 transition-opacity flex items-center gap-1 z-20 ${
+                    isMe ? 'right-0' : 'left-0'
+                  }`}>
+                    <div className="relative">
+                      <button
+                        onClick={() => setActiveReactionPickerId(isPickerOpen ? null : msg.id)}
+                        className={`p-1.5 rounded-full border shadow-sm cursor-pointer ${
+                          isDarkMode ? 'bg-neutral-900 border-neutral-700 text-neutral-300 hover:bg-neutral-800' : 'bg-white border-neutral-200 text-neutral-700 hover:bg-neutral-100'
+                        }`}
+                        title="React with emoji"
+                      >
+                        <Icons.Smile />
+                      </button>
+
+                      {isPickerOpen && (
+                        <div className={`absolute bottom-full mb-2 ${isMe ? 'right-0' : 'left-0'} p-1.5 rounded-2xl border shadow-xl flex items-center gap-1 z-30 animate-in fade-in zoom-in-95 ${
+                          isDarkMode ? 'bg-neutral-900 border-neutral-800' : 'bg-white border-neutral-200'
+                        }`}>
+                          {AVAILABLE_REACTIONS.map((emoji) => (
+                            <button
+                              key={emoji}
+                              onClick={() => handleToggleReaction(msg.id, emoji)}
+                              className={`w-8 h-8 rounded-xl flex items-center justify-center text-sm hover:scale-125 transition-transform cursor-pointer ${
+                                isDarkMode ? 'hover:bg-neutral-800' : 'hover:bg-neutral-100'
+                              }`}
+                            >
+                              {emoji}
+                            </button>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+
+                    <button
+                      onClick={() => setReplyingTo(msg)}
+                      className={`p-1.5 rounded-full border shadow-sm cursor-pointer ${
+                        isDarkMode ? 'bg-neutral-900 border-neutral-700 text-emerald-400 hover:bg-neutral-800' : 'bg-white border-neutral-200 text-emerald-600 hover:bg-neutral-100'
+                      }`}
+                      title="Reply to message"
+                    >
+                      <Icons.Reply />
+                    </button>
+                  </div>
                 </div>
               </div>
             );
           })}
 
-          {/* Typing Indicator Bubble */}
           {isPeerTyping && (
             <div className="flex flex-col items-start">
               <span className={`font-mono text-[10px] mb-1 px-1 ${isDarkMode ? 'text-neutral-500' : 'text-neutral-400'}`}>
@@ -486,9 +742,32 @@ export default function ChatRoomPage() {
       </main>
 
       {/* Footer / Input Area */}
-      <footer className={`shrink-0 border-t p-3 sm:px-6 sm:py-4 z-10 ${isDarkMode ? 'bg-neutral-900 border-neutral-800' : 'bg-white border-neutral-200/80'}`}>
+      <footer className={`shrink-0 border-t p-3 sm:px-6 sm:py-4 z-10 flex flex-col gap-2 ${isDarkMode ? 'bg-neutral-900 border-neutral-800' : 'bg-white border-neutral-200/80'}`}>
+        {replyingTo && (
+          <div className={`max-w-2xl mx-auto w-full px-3 py-2 rounded-xl border flex items-center justify-between text-xs animate-in fade-in slide-in-from-bottom-2 ${
+            isDarkMode ? 'bg-neutral-950 border-neutral-800 text-neutral-300' : 'bg-neutral-100 border-neutral-200 text-neutral-700'
+          }`}>
+            <div className="flex items-center gap-2 overflow-hidden border-l-2 border-emerald-500 pl-2">
+              <Icons.Reply />
+              <div className="truncate">
+                <span className="font-mono font-bold text-[10px] text-emerald-500 mr-1.5">
+                  Replying to {replyingTo.senderId === userId ? 'You' : replyingTo.senderNickname}
+                </span>
+                <span className="truncate opacity-80">{replyingTo.text}</span>
+              </div>
+            </div>
+            <button 
+              onClick={() => setReplyingTo(null)}
+              className={`p-1 rounded-lg cursor-pointer ${isDarkMode ? 'hover:bg-neutral-800 text-neutral-400' : 'hover:bg-neutral-200 text-neutral-500'}`}
+              title="Cancel reply"
+            >
+              <Icons.X />
+            </button>
+          </div>
+        )}
+
         {isInactive ? (
-          <div className="max-w-2xl mx-auto flex items-center gap-3">
+          <div className="max-w-2xl mx-auto flex items-center gap-3 w-full">
             <button
               onClick={() => router.push('/')}
               className={`flex-1 py-3 border font-mono text-xs font-bold uppercase tracking-wider rounded-xl cursor-pointer active:scale-98 ${
@@ -507,12 +786,12 @@ export default function ChatRoomPage() {
             </button>
           </div>
         ) : (
-          <form onSubmit={handleSendMessage} className="max-w-2xl mx-auto flex items-center gap-2">
+          <form onSubmit={handleSendMessage} className="max-w-2xl mx-auto w-full flex items-center gap-2">
             <input
               type="text"
               value={newMessage}
               onChange={handleInputChange}
-              placeholder="Type your message..."
+              placeholder={replyingTo ? "Type your reply..." : "Type your message..."}
               className={`flex-1 px-3.5 sm:px-4 py-2.5 sm:py-3 border rounded-xl text-base sm:text-sm font-mono focus:outline-none shadow-2xs ${
                 isDarkMode 
                   ? 'bg-neutral-950 border-neutral-800 text-white placeholder:text-neutral-600 focus:border-emerald-500' 
