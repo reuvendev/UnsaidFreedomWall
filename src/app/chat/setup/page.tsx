@@ -37,48 +37,48 @@ const SLU_SCHOOLS = [
   },
 ];
 
-// Comprehensive bad word / racist term list (English & Tagalog, roots & common variations)
+// Comprehensive bad word / racist term list (English & Tagalog)
 const BANNED_WORDS = [
   // English Profanity & Slurs
   'nigger', 'nigga', 'dick', 'cock', 'pussy', 'asshole', 'motherfucker',
   
   // Tagalog / Filipino Profanity & Slurs
-  'gago', 'g@g0', 'g4g0', 'putangina', 'tangina', 'puta', 'pota', 'putang', 'tanga', 't@ng@', 
-  'bobo', 'b0b0', 'ulol', 'olul', 'hayop', 'inutil', 'puki', 'pekpek', 'titi', 'tite', 'burat', 'etits', 
+  'gago', 'putangina', 'tangina', 'puta', 'pota', 'putang', 'tanga', 
+  'bobo', 'ulol', 'olul', 'hayop', 'inutil', 'puki', 'pekpek', 'titi', 'tite', 'burat', 'etits', 
   'kantot', 'jakol'
 ];
 
 /**
- * Normalizes input text to catch bypass attempts:
- * - Converts to lowercase
- * - Replaces common leetspeak substitutions (@ -> a, 3 -> e, 1 -> i/l, 0 -> o, $ -> s, etc.)
- * - Removes repeating consecutive characters (e.g., "gwaaaago" -> "gwago")
- * - Removes spaces, symbols, and punctuation
+ * Normalizes input text to catch leetspeak bypass attempts while 
+ * preserving word boundaries to prevent false positives on harmless phrases.
  */
 function sanitizeAndCheckProfanity(text: string): boolean {
   if (!text) return false;
 
-  let cleaned = text.toLowerCase()
-    // Leetspeak / symbol replacements
-    .replace(/[@4]/g, 'a')
-    .replace(/[3]/g, 'e')
-    .replace(/[1!|]/g, 'i')
-    .replace(/[0]/g, 'o')
-    .replace(/[$5]/g, 's')
-    .replace(/[7]/g, 't')
-    // Remove all non-alphanumeric characters and spaces
-    .replace(/[^a-z]/g, '');
+  // Split input into individual words to check them independently
+  const words = text.toLowerCase().split(/\s+/);
 
-  // Collapse repeated characters to catch bypasses like "bOOObO" or "g-a-g-o"
-  cleaned = cleaned.replace(/(.)\1+/g, '$1');
+  for (const rawWord of words) {
+    // Normalize individual word (leetspeak & symbol replacements)
+    let cleaned = rawWord
+      .replace(/[@4]/g, 'a')
+      .replace(/[3]/g, 'e')
+      .replace(/[1!|]/g, 'i')
+      .replace(/[0]/g, 'o')
+      .replace(/[$5]/g, 's')
+      .replace(/[7]/g, 't')
+      .replace(/[^a-z]/g, ''); // Remove symbols & punctuation
 
-  // Check against direct matches or substrings
-  for (const word of BANNED_WORDS) {
-    // Normalized check of the banned word itself
-    const normWord = word.toLowerCase().replace(/[^a-z]/g, '').replace(/(.)\1+/g, '$1');
-    
-    if (cleaned.includes(normWord)) {
-      return true; // Contains restricted word
+    if (!cleaned) continue;
+
+    // Check against the banned list
+    for (const banned of BANNED_WORDS) {
+      const normBanned = banned.toLowerCase().replace(/[^a-z]/g, '');
+
+      // Direct match or if the token heavily mirrors the banned root word
+      if (cleaned === normBanned || cleaned.includes(normBanned)) {
+        return true; // Contains restricted word
+      }
     }
   }
 
