@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { collection, addDoc, serverTimestamp } from 'firebase/firestore';
@@ -20,7 +20,9 @@ const Icons = {
   Send: () => <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>,
   Music: () => <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M9 18V5l12-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="18" cy="16" r="3"/></svg>,
   X: () => <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>,
-  Trash: () => <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
+  Trash: () => <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>,
+  Sun: () => <svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="4"/><path d="M12 2v2"/><path d="M12 20v2"/><path d="m4.93 4.93 1.41 1.41"/><path d="m17.66 17.66 1.41 1.41"/><path d="M2 12h2"/><path d="M20 12h2"/><path d="m6.34 17.66-1.41 1.41"/><path d="m19.07 4.93-1.41 1.41"/></svg>,
+  Moon: () => <svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 3a6 6 0 0 0 9 9 9 9 0 1 1-9-9Z"/></svg>,
 };
 
 // Robust Doxxing Detection Utility
@@ -59,11 +61,36 @@ export default function PostPage() {
   const [error, setError] = useState('');
   const [successMessage, setSuccessMessage] = useState(false);
 
+  // Dark Mode state
+  const [isDarkMode, setIsDarkMode] = useState<boolean>(false);
+
   // Spotify integration state
   const [spotifyUrl, setSpotifyUrl] = useState('');
   const [spotifyTrackId, setSpotifyTrackId] = useState('');
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [modalInputError, setModalInputError] = useState('');
+
+  // Initialize Dark Mode state from localStorage
+  useEffect(() => {
+    try {
+      const storedTheme = localStorage.getItem('unsaid_dark_mode');
+      if (storedTheme) {
+        setIsDarkMode(JSON.parse(storedTheme));
+      } else if (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches) {
+        setIsDarkMode(true);
+      }
+    } catch (e) {
+      // Ignore
+    }
+  }, []);
+
+  const toggleDarkMode = () => {
+    const nextMode = !isDarkMode;
+    setIsDarkMode(nextMode);
+    try {
+      localStorage.setItem('unsaid_dark_mode', JSON.stringify(nextMode));
+    } catch (e) {}
+  };
 
   const generateAlias = () => {
     const randomNum = Math.floor(10000 + Math.random() * 90000);
@@ -147,42 +174,56 @@ export default function PostPage() {
   };
 
   return (
-    <div className="min-h-screen bg-white text-neutral-900 font-sans selection:bg-neutral-900 selection:text-white relative">
-      <header className="sticky top-0 z-50 bg-white/85 backdrop-blur-md border-b border-neutral-200">
+    <div className={`min-h-screen font-sans selection:bg-neutral-900 selection:text-white relative ${isDarkMode ? 'bg-neutral-950 text-neutral-100' : 'bg-white text-neutral-900'}`}>
+      <header className={`sticky top-0 z-50 backdrop-blur-md border-b ${isDarkMode ? 'bg-neutral-900/85 border-neutral-800' : 'bg-white/85 border-neutral-200'}`}>
         <div className="max-w-2xl mx-auto px-6 h-16 flex items-center justify-between">
-          <Link href="/" className="inline-flex items-center gap-2 font-mono text-xs font-bold text-neutral-600 hover:text-neutral-900 transition-colors uppercase tracking-wider">
+          <Link href="/" className={`inline-flex items-center gap-2 font-mono text-xs font-bold transition-colors uppercase tracking-wider ${isDarkMode ? 'text-neutral-400 hover:text-white' : 'text-neutral-600 hover:text-neutral-900'}`}>
             <Icons.ArrowLeft />
             <span>Back to Feed</span>
           </Link>
-          <span className="font-mono text-xs font-bold text-neutral-400 uppercase tracking-widest">New Entry</span>
+          
+          <div className="flex items-center gap-3">
+            <span className={`font-mono text-xs font-bold uppercase tracking-widest ${isDarkMode ? 'text-neutral-500' : 'text-neutral-400'}`}>New Entry</span>
+            <button
+              onClick={toggleDarkMode}
+              aria-label="Toggle Dark Mode"
+              className={`p-2 rounded-xl border cursor-pointer ${
+                isDarkMode 
+                  ? 'bg-neutral-800 border-neutral-700 text-amber-400 hover:bg-neutral-700' 
+                  : 'bg-neutral-100 border-neutral-200 text-neutral-700 hover:bg-neutral-200'
+              }`}
+            >
+              {isDarkMode ? <Icons.Sun /> : <Icons.Moon />}
+            </button>
+          </div>
         </div>
       </header>
 
       <main className="max-w-2xl mx-auto px-6 pt-12 pb-24">
         <div className="mb-8">
-          <h1 className="text-3xl font-extrabold tracking-tight mb-3 text-neutral-900">
+          <h1 className={`text-3xl font-extrabold tracking-tight mb-3 ${isDarkMode ? 'text-white' : 'text-neutral-900'}`}>
             Publish Anonymously.
           </h1>
-          <p className="text-sm text-neutral-600 leading-relaxed">
+          <p className={`text-sm leading-relaxed ${isDarkMode ? 'text-neutral-400' : 'text-neutral-600'}`}>
             Your identity is completely protected. All entries are manually reviewed by moderators before being published to the feed.
           </p>
         </div>
 
         {error && (
-          <div className="mb-6 p-4 bg-rose-50 border border-rose-200 rounded-lg text-xs font-mono text-rose-600">
+          <div className={`mb-6 p-4 border rounded-lg text-xs font-mono ${isDarkMode ? 'bg-rose-950/40 border-rose-900/50 text-rose-400' : 'bg-rose-50 border-rose-200 text-rose-600'}`}>
             {error}
           </div>
         )}
 
         {successMessage && (
-          <div className="mb-6 p-4 bg-emerald-50 border border-emerald-200 rounded-lg text-xs font-mono text-emerald-700">
+          <div className={`mb-6 p-4 border rounded-lg text-xs font-mono ${isDarkMode ? 'bg-emerald-950/40 border-emerald-900/50 text-emerald-400' : 'bg-emerald-50 border-emerald-200 text-emerald-700'}`}>
             Entry submitted successfully! It is now pending manual review and will appear on the feed once approved. Redirecting...
           </div>
         )}
 
         <form onSubmit={handleSubmit} className="space-y-8">
           <div>
-            <label className="block font-mono text-xs font-bold text-neutral-500 uppercase tracking-wider mb-3">
+            <label className={`block font-mono text-xs font-bold uppercase tracking-wider mb-3 ${isDarkMode ? 'text-neutral-400' : 'text-neutral-500'}`}>
               Select Category
             </label>
             <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
@@ -191,10 +232,14 @@ export default function PostPage() {
                   type="button"
                   key={cat.id}
                   onClick={() => setCategory(cat.id)}
-                  className={`px-4 py-3 text-xs font-mono font-semibold uppercase tracking-wider rounded border text-left transition-all ${
+                  className={`px-4 py-3 text-xs font-mono font-semibold uppercase tracking-wider rounded border text-left transition-all cursor-pointer ${
                     category === cat.id
-                      ? "bg-neutral-900 text-white border-neutral-900 shadow-xs"
-                      : "bg-neutral-50 text-neutral-600 border-neutral-200 hover:border-neutral-300 hover:bg-neutral-100"
+                      ? isDarkMode 
+                        ? "bg-neutral-100 text-neutral-950 border-neutral-100 shadow-xs" 
+                        : "bg-neutral-900 text-white border-neutral-900 shadow-xs"
+                      : isDarkMode 
+                        ? "bg-neutral-900 text-neutral-400 border-neutral-800 hover:border-neutral-700 hover:bg-neutral-800/60" 
+                        : "bg-neutral-50 text-neutral-600 border-neutral-200 hover:border-neutral-300 hover:bg-neutral-100"
                   }`}
                 >
                   {cat.label}
@@ -204,7 +249,7 @@ export default function PostPage() {
           </div>
 
           <div>
-            <label htmlFor="content" className="block font-mono text-xs font-bold text-neutral-500 uppercase tracking-wider mb-3">
+            <label htmlFor="content" className={`block font-mono text-xs font-bold uppercase tracking-wider mb-3 ${isDarkMode ? 'text-neutral-400' : 'text-neutral-500'}`}>
               Your Message or Story
             </label>
             <textarea
@@ -213,15 +258,19 @@ export default function PostPage() {
               value={content}
               onChange={(e) => setContent(e.target.value)}
               placeholder="What's on your mind? Share your thoughts, rants, or stories..."
-              className="w-full p-4 bg-neutral-50 border border-neutral-200 rounded-lg text-base text-neutral-900 placeholder:text-neutral-400 focus:outline-none focus:border-neutral-900 focus:bg-white transition-all resize-none font-sans leading-relaxed"
+              className={`w-full p-4 border rounded-lg text-base transition-all resize-none font-sans leading-relaxed focus:outline-none ${
+                isDarkMode 
+                  ? 'bg-neutral-900 border-neutral-800 text-white placeholder:text-neutral-600 focus:border-neutral-100 focus:bg-neutral-950' 
+                  : 'bg-neutral-50 border-neutral-200 text-neutral-900 placeholder:text-neutral-400 focus:border-neutral-900 focus:bg-white'
+              }`}
             />
           </div>
 
           {/* Optional Music Attachment Section */}
           <div>
             <div className="flex items-center justify-between mb-2">
-              <label className="block font-mono text-xs font-bold text-neutral-500 uppercase tracking-wider">
-                Soundtrack <span className="text-neutral-300 font-normal">(Optional)</span>
+              <label className={`block font-mono text-xs font-bold uppercase tracking-wider ${isDarkMode ? 'text-neutral-400' : 'text-neutral-500'}`}>
+                Soundtrack <span className={`font-normal ${isDarkMode ? 'text-neutral-600' : 'text-neutral-300'}`}>(Optional)</span>
               </label>
             </div>
 
@@ -229,26 +278,30 @@ export default function PostPage() {
               <button
                 type="button"
                 onClick={() => setIsModalOpen(true)}
-                className="inline-flex items-center gap-2 px-4 py-2.5 bg-neutral-50 hover:bg-neutral-100 border border-neutral-200 rounded-lg font-mono text-xs font-semibold text-neutral-700 transition-colors"
+                className={`inline-flex items-center gap-2 px-4 py-2.5 border rounded-lg font-mono text-xs font-semibold transition-colors cursor-pointer ${
+                  isDarkMode 
+                    ? 'bg-neutral-900 hover:bg-neutral-800 border-neutral-800 text-neutral-300' 
+                    : 'bg-neutral-50 hover:bg-neutral-100 border-neutral-200 text-neutral-700'
+                }`}
               >
                 <Icons.Music />
                 <span>Add Spotify Track</span>
               </button>
             ) : (
-              <div className="p-3 bg-neutral-50 border border-neutral-200 rounded-lg space-y-3">
+              <div className={`p-3 border rounded-lg space-y-3 ${isDarkMode ? 'bg-neutral-900 border-neutral-800' : 'bg-neutral-50 border-neutral-200'}`}>
                 <div className="flex items-center justify-between">
-                  <span className="font-mono text-[10px] uppercase tracking-wider text-neutral-400">Attached Spotify Player Preview</span>
+                  <span className={`font-mono text-[10px] uppercase tracking-wider ${isDarkMode ? 'text-neutral-500' : 'text-neutral-400'}`}>Attached Spotify Player Preview</span>
                   <button
                     type="button"
                     onClick={handleRemoveSpotifyTrack}
-                    className="inline-flex items-center gap-1 text-xs font-mono text-rose-500 hover:text-rose-700 transition-colors"
+                    className={`inline-flex items-center gap-1 text-xs font-mono transition-colors cursor-pointer ${isDarkMode ? 'text-rose-400 hover:text-rose-300' : 'text-rose-500 hover:text-rose-700'}`}
                   >
                     <Icons.Trash />
                     <span>Remove</span>
                   </button>
                 </div>
                 <iframe
-                  src={`https://open.spotify.com/embed/track/${spotifyTrackId}?utm_source=generator&theme=0`}
+                  src={`https://open.spotify.com/embed/track/${spotifyTrackId}?utm_source=generator&theme=${isDarkMode ? '1' : '0'}`}
                   width="100%"
                   height="80"
                   frameBorder="0"
@@ -259,10 +312,10 @@ export default function PostPage() {
             )}
           </div>
 
-          <div className="pt-4 border-t border-neutral-200 space-y-4">
-            <p className="text-[11px] text-neutral-400 leading-relaxed">
+          <div className={`pt-4 border-t space-y-4 ${isDarkMode ? 'border-neutral-800' : 'border-neutral-200'}`}>
+            <p className={`text-[11px] leading-relaxed ${isDarkMode ? 'text-neutral-500' : 'text-neutral-400'}`}>
               By submitting an entry, you agree to our{' '}
-              <Link href="/guidelines" className="underline hover:text-neutral-900 transition-colors font-medium">
+              <Link href="/guidelines" className={`underline transition-colors font-medium ${isDarkMode ? 'hover:text-white' : 'hover:text-neutral-900'}`}>
                 Community Guidelines
               </Link>{' '}
               and safety standards. All entries undergo manual review before publication.
@@ -271,14 +324,18 @@ export default function PostPage() {
             <div className="flex items-center justify-end gap-4">
               <Link
                 href="/"
-                className="px-6 py-3 font-mono text-xs font-bold uppercase tracking-wider text-neutral-500 hover:text-neutral-900 transition-colors"
+                className={`px-6 py-3 font-mono text-xs font-bold uppercase tracking-wider transition-colors ${isDarkMode ? 'text-neutral-500 hover:text-white' : 'text-neutral-500 hover:text-neutral-900'}`}
               >
                 Cancel
               </Link>
               <button
                 type="submit"
                 disabled={loading || successMessage}
-                className={`inline-flex items-center gap-2 bg-neutral-900 text-white font-mono text-xs font-bold uppercase tracking-wider px-6 py-3.5 rounded hover:bg-neutral-800 transition-all active:scale-95 shadow-sm ${
+                className={`inline-flex items-center gap-2 font-mono text-xs font-bold uppercase tracking-wider px-6 py-3.5 rounded transition-all active:scale-95 shadow-sm cursor-pointer ${
+                  isDarkMode 
+                    ? 'bg-neutral-100 text-neutral-950 hover:bg-white' 
+                    : 'bg-neutral-900 text-white hover:bg-neutral-800'
+                } ${
                   (loading || successMessage) ? "opacity-50 cursor-not-allowed" : ""
                 }`}
               >
@@ -292,24 +349,24 @@ export default function PostPage() {
 
       {/* Spotify URL Modal Popup */}
       {isModalOpen && (
-        <div className="fixed inset-0 z-50 bg-neutral-900/40 backdrop-blur-xs flex items-center justify-center p-4">
-          <div className="bg-white border border-neutral-200 rounded-xl max-w-md w-full p-6 shadow-xl animate-fadeIn">
+        <div className="fixed inset-0 z-50 bg-neutral-900/60 backdrop-blur-xs flex items-center justify-center p-4">
+          <div className={`border rounded-xl max-w-md w-full p-6 shadow-xl animate-fadeIn ${isDarkMode ? 'bg-neutral-900 border-neutral-800 text-white' : 'bg-white border-neutral-200 text-neutral-900'}`}>
             <div className="flex items-center justify-between mb-4">
-              <div className="flex items-center gap-2 font-mono text-xs font-bold text-neutral-900 uppercase tracking-wider">
+              <div className={`flex items-center gap-2 font-mono text-xs font-bold uppercase tracking-wider ${isDarkMode ? 'text-white' : 'text-neutral-900'}`}>
                 <Icons.Music />
                 <span>Attach Spotify Song</span>
               </div>
               <button
                 type="button"
                 onClick={() => setIsModalOpen(false)}
-                className="text-neutral-400 hover:text-neutral-900 transition-colors"
+                className={`transition-colors cursor-pointer ${isDarkMode ? 'text-neutral-400 hover:text-white' : 'text-neutral-400 hover:text-neutral-900'}`}
               >
                 <Icons.X />
               </button>
             </div>
 
-            <p className="text-xs text-neutral-500 mb-4 leading-relaxed">
-              Open Spotify, go to the track you want, click <strong className="text-neutral-800">Share</strong>, and choose <strong className="text-neutral-800">Copy Song Link</strong>. Paste it below.
+            <p className={`text-xs mb-4 leading-relaxed ${isDarkMode ? 'text-neutral-400' : 'text-neutral-500'}`}>
+              Open Spotify, go to the track you want, click <strong className={isDarkMode ? 'text-white' : 'text-neutral-800'}>Share</strong>, and choose <strong className={isDarkMode ? 'text-white' : 'text-neutral-800'}>Copy Song Link</strong>. Paste it below.
             </p>
 
             <form onSubmit={handleSaveSpotifyTrack} className="space-y-4">
@@ -322,11 +379,15 @@ export default function PostPage() {
                     if (modalInputError) setModalInputError('');
                   }}
                   placeholder="https://open.spotify.com/track/..."
-                  className="w-full p-3 bg-neutral-50 border border-neutral-200 rounded-lg text-xs font-mono text-neutral-900 placeholder:text-neutral-400 focus:outline-none focus:border-neutral-900 focus:bg-white transition-all"
+                  className={`w-full p-3 border rounded-lg text-xs font-mono transition-all focus:outline-none ${
+                    isDarkMode 
+                      ? 'bg-neutral-950 border-neutral-800 text-white placeholder:text-neutral-600 focus:border-neutral-100' 
+                      : 'bg-neutral-50 border-neutral-200 text-neutral-900 placeholder:text-neutral-400 focus:border-neutral-900 focus:bg-white'
+                  }`}
                   autoFocus
                 />
                 {modalInputError && (
-                  <p className="mt-2 text-[11px] font-mono text-rose-600">{modalInputError}</p>
+                  <p className={`mt-2 text-[11px] font-mono ${isDarkMode ? 'text-rose-400' : 'text-rose-600'}`}>{modalInputError}</p>
                 )}
               </div>
 
@@ -334,13 +395,15 @@ export default function PostPage() {
                 <button
                   type="button"
                   onClick={() => setIsModalOpen(false)}
-                  className="px-4 py-2 font-mono text-xs font-semibold text-neutral-500 hover:text-neutral-900 transition-colors"
+                  className={`px-4 py-2 font-mono text-xs font-semibold transition-colors cursor-pointer ${isDarkMode ? 'text-neutral-400 hover:text-white' : 'text-neutral-500 hover:text-neutral-900'}`}
                 >
                   Cancel
                 </button>
                 <button
                   type="submit"
-                  className="px-4 py-2 bg-neutral-900 text-white font-mono text-xs font-bold uppercase tracking-wider rounded hover:bg-neutral-800 transition-all shadow-sm"
+                  className={`px-4 py-2 font-mono text-xs font-bold uppercase tracking-wider rounded transition-all shadow-sm cursor-pointer ${
+                    isDarkMode ? 'bg-neutral-100 text-neutral-950 hover:bg-white' : 'bg-neutral-900 text-white hover:bg-neutral-800'
+                  }`}
                 >
                   Attach Track
                 </button>
