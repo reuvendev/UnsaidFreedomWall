@@ -46,7 +46,6 @@ export default function AdminCleanupPage() {
     setLogs(prev => [{ id: Math.random().toString(), time, text, type }, ...prev.slice(0, 19)]);
   };
 
-  // Verify server-side authentication status on mount
   useEffect(() => {
     async function verify() {
       const authed = await checkAdminAuth();
@@ -90,7 +89,7 @@ export default function AdminCleanupPage() {
         const data = docSnap.data();
         if (data.status === 'waiting') waiting++;
         if (data.status === 'active') active++;
-        if (data.createdAt && data.createdAt < twentyFourHoursAgo && data.status !== 'closed') {
+        if (data.createdAt && data.createdAt < twentyFourHoursAgo) {
           expired++;
         }
       });
@@ -110,10 +109,10 @@ export default function AdminCleanupPage() {
     }
   };
 
-  const handleAction = async (actionType: 'purge_stale' | 'close_expired' | 'full_sweep') => {
+  const handleAction = async (actionType: 'purge_stale' | 'delete_expired' | 'full_sweep') => {
     const confirmationText = 
       actionType === 'purge_stale' ? "Purge all stuck waiting rooms older than 2 minutes?" :
-      actionType === 'close_expired' ? "Close all active rooms older than 24 hours?" :
+      actionType === 'delete_expired' ? "Permanently delete all chat rooms older than 24 hours?" :
       "Execute full database housekeeping sweep?";
 
     if (!confirm(confirmationText)) return;
@@ -136,20 +135,22 @@ export default function AdminCleanupPage() {
         const createdAt = data.createdAt;
         if (!createdAt) return;
 
+        // Purge stuck waiting rooms (> 2 mins)
         if ((actionType === 'purge_stale' || actionType === 'full_sweep') && data.status === 'waiting' && createdAt < staleWaitingLimit) {
           batch.delete(docSnap.ref);
           count++;
         } 
         
-        if ((actionType === 'close_expired' || actionType === 'full_sweep') && createdAt < twentyFourHoursAgo && data.status !== 'closed') {
-          batch.update(docSnap.ref, { status: 'closed' });
+        // Permanently delete rooms older than 24 hours
+        if ((actionType === 'delete_expired' || actionType === 'full_sweep') && createdAt < twentyFourHoursAgo) {
+          batch.delete(docSnap.ref);
           count++;
         }
       });
 
       if (count > 0) {
         await batch.commit();
-        addLog(`Successfully processed ${count} database documents.`, "success");
+        addLog(`Successfully processed and deleted ${count} database documents.`, "success");
       } else {
         addLog("Target collections are already clean. No modifications needed.", "info");
       }
@@ -163,7 +164,6 @@ export default function AdminCleanupPage() {
     }
   };
 
-  // Loading state while checking auth cookie
   if (isAuthenticated === null) {
     return (
       <div className="min-h-screen bg-neutral-950 text-neutral-100 flex items-center justify-center font-mono text-sm">
@@ -172,7 +172,6 @@ export default function AdminCleanupPage() {
     );
   }
 
-  // 1. Gatekeeper Login View (Using your requested style)
   if (!isAuthenticated) {
     return (
       <div className="min-h-screen bg-neutral-950 text-neutral-100 font-sans flex items-center justify-center p-6">
@@ -216,10 +215,8 @@ export default function AdminCleanupPage() {
     );
   }
 
-  // 2. Protected Full-Screen Dashboard View
   return (
     <div className="min-h-screen bg-neutral-950 font-sans text-neutral-100 flex flex-col selection:bg-emerald-500 selection:text-white">
-      {/* Top Header Navigation */}
       <header className="sticky top-0 z-50 border-b border-neutral-800 bg-neutral-900/90 backdrop-blur-md">
         <div className="max-w-7xl mx-auto px-6 h-16 flex items-center justify-between">
           <div className="flex items-center gap-4">
@@ -245,10 +242,7 @@ export default function AdminCleanupPage() {
         </div>
       </header>
 
-      {/* Main Workspace */}
       <main className="max-w-7xl mx-auto px-6 py-10 w-full flex-1 space-y-8">
-        
-        {/* Welcome Section */}
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-neutral-800/80 pb-6">
           <div>
             <h1 className="text-2xl font-black tracking-tight text-white">System Infrastructure Control</h1>
@@ -264,7 +258,6 @@ export default function AdminCleanupPage() {
           </button>
         </div>
 
-        {/* 4-Column Metric Grid */}
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
           <div className="bg-neutral-900/60 border border-neutral-800/80 p-6 rounded-2xl backdrop-blur-sm flex flex-col justify-between">
             <span className="text-xs font-mono uppercase tracking-widest text-neutral-500 font-bold">Total Rooms</span>
@@ -287,14 +280,11 @@ export default function AdminCleanupPage() {
           <div className="bg-neutral-900/60 border border-neutral-800/80 p-6 rounded-2xl backdrop-blur-sm flex flex-col justify-between">
             <span className="text-xs font-mono uppercase tracking-widest text-emerald-400 font-bold">Expired (24h+)</span>
             <div className="text-4xl font-black text-emerald-400 mt-4 font-mono">{stats.expiredRooms}</div>
-            <span className="text-[11px] text-neutral-500 font-mono mt-2">Eligible for closure</span>
+            <span className="text-[11px] text-neutral-500 font-mono mt-2">Eligible for deletion</span>
           </div>
         </div>
 
-        {/* Action Panel & Real-time Logs Split Grid */}
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 items-start">
-          
-          {/* Housekeeping Operations Controls */}
           <div className="lg:col-span-1 bg-neutral-900/80 border border-neutral-800 rounded-2xl p-6 space-y-6">
             <div className="flex items-center gap-3 border-b border-neutral-800 pb-4">
               <div className="p-2.5 rounded-xl bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
@@ -317,12 +307,12 @@ export default function AdminCleanupPage() {
               </button>
 
               <button
-                onClick={() => handleAction('close_expired')}
+                onClick={() => handleAction('delete_expired')}
                 disabled={loading !== null}
                 className="w-full py-3.5 px-4 bg-neutral-800/70 hover:bg-neutral-800 border border-neutral-700/60 active:scale-[0.98] text-neutral-200 font-mono text-xs font-bold uppercase tracking-wider rounded-xl transition flex items-center justify-between cursor-pointer disabled:opacity-50"
               >
-                <span>Close Expired Chats</span>
-                {loading === 'close_expired' ? <Icons.Loader /> : <Icons.Zap />}
+                <span>Delete Expired Chats (24h+)</span>
+                {loading === 'delete_expired' ? <Icons.Loader /> : <Icons.Zap />}
               </button>
 
               <div className="pt-2">
@@ -347,7 +337,6 @@ export default function AdminCleanupPage() {
             </div>
           </div>
 
-          {/* Real-time System Audit Logs */}
           <div className="lg:col-span-2 bg-neutral-900/80 border border-neutral-800 rounded-2xl p-6 space-y-4">
             <div className="flex items-center justify-between border-b border-neutral-800 pb-4">
               <div className="flex items-center gap-3">
@@ -387,7 +376,6 @@ export default function AdminCleanupPage() {
               )}
             </div>
           </div>
-
         </div>
       </main>
     </div>
