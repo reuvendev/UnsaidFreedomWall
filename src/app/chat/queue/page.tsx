@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { 
   collection, doc, addDoc, updateDoc, deleteDoc, 
-  getDocs, getDoc, query, where, onSnapshot, serverTimestamp 
+  getDocs, getDoc, query, where, onSnapshot, serverTimestamp, setDoc, increment 
 } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 
@@ -136,9 +136,18 @@ export default function ChatQueuePage() {
             status: 'active'
           });
 
+          // Increment all-time counter ONLY when a successful match occurs
+          try {
+            await setDoc(doc(db, "counters", "system"), {
+              totalCreated: increment(1)
+            }, { merge: true });
+          } catch (e) {
+            console.error("Error updating system counter:", e);
+          }
+
           router.push(`/chat/${matchedRoomId}`);
         } else {
-          // 3. Create our own waiting room
+          // 3. Create our own waiting room (No increment here so cancels/timeouts don't count)
           setStatusText('No match found instantly. Waiting for someone to join...');
           
           const newRoomRef = await addDoc(collection(db, "chatRooms"), {

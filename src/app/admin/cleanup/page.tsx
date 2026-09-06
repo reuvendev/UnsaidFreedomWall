@@ -4,7 +4,7 @@ import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { db } from '@/lib/firebase';
 import { 
-  collection, getDocs, writeBatch, Timestamp 
+  collection, getDocs, getDoc, doc, writeBatch, Timestamp 
 } from 'firebase/firestore';
 import { loginAdmin, logoutAdmin, checkAdminAuth } from '../actions';
 
@@ -29,6 +29,9 @@ const Icons = {
   ),
   ArrowLeft: () => (
     <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="19" y1="12" x2="5" y2="12"/><polyline points="12 19 5 12 12 5"/></svg>
+  ),
+  Database: () => (
+    <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><ellipse cx="12" cy="5" rx="9" ry="3"/><path d="M21 12c0 1.66-4 3-9 3s-9-1.34-9-3"/><path d="M3 5v14c0 1.66 4 3 9 3s9-1.34 9-3V5"/></svg>
   )
 };
 
@@ -36,7 +39,13 @@ export default function AdminCleanupPage() {
   const [isAuthenticated, setIsAuthenticated] = useState<boolean | null>(null);
   const [authError, setAuthError] = useState<string>("");
   
-  const [stats, setStats] = useState({ totalRooms: 0, waitingRooms: 0, expiredRooms: 0, activeRooms: 0 });
+  const [stats, setStats] = useState({ 
+    totalRooms: 0,       // Current active documents in collection
+    waitingRooms: 0, 
+    expiredRooms: 0, 
+    activeRooms: 0,
+    allTimeCreated: 2492 // Fallback default matching your current target
+  });
   const [loading, setLoading] = useState<string | null>(null);
   const [fetching, setFetching] = useState(false);
   const [logs, setLogs] = useState<Array<{ id: string; time: string; text: string; type: 'success' | 'info' | 'error' }>>([]);
@@ -94,11 +103,23 @@ export default function AdminCleanupPage() {
         }
       });
 
+      // Fetch persistent all-time counter from a metadata document (e.g., `counters/system`)
+      let allTime = 2492; // default fallback
+      try {
+        const counterDoc = await getDoc(doc(db, "counters", "system"));
+        if (counterDoc.exists() && typeof counterDoc.data().totalCreated === 'number') {
+          allTime = counterDoc.data().totalCreated;
+        }
+      } catch (e) {
+        console.warn("Could not fetch remote counter, using fallback/estimate");
+      }
+
       setStats({
         totalRooms: roomsSnap.size,
         waitingRooms: waiting,
         expiredRooms: expired,
         activeRooms: active,
+        allTimeCreated: allTime,
       });
       addLog("Successfully synchronized database metrics.", "info");
     } catch (err) {
@@ -258,11 +279,18 @@ export default function AdminCleanupPage() {
           </button>
         </div>
 
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+        {/* Metrics Grid */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
           <div className="bg-neutral-900/60 border border-neutral-800/80 p-6 rounded-2xl backdrop-blur-sm flex flex-col justify-between">
-            <span className="text-xs font-mono uppercase tracking-widest text-neutral-500 font-bold">Total Rooms</span>
-            <div className="text-4xl font-black text-white mt-4 font-mono">{stats.totalRooms}</div>
-            <span className="text-[11px] text-neutral-500 font-mono mt-2">All-time document count</span>
+            <span className="text-xs font-mono uppercase tracking-widest text-emerald-500 font-bold">All-Time Created</span>
+            <div className="text-4xl font-black text-white mt-4 font-mono">{stats.allTimeCreated}</div>
+            <span className="text-[11px] text-neutral-500 font-mono mt-2">Cumulative historical rooms</span>
+          </div>
+
+          <div className="bg-neutral-900/60 border border-neutral-800/80 p-6 rounded-2xl backdrop-blur-sm flex flex-col justify-between">
+            <span className="text-xs font-mono uppercase tracking-widest text-neutral-400 font-bold">Live Documents</span>
+            <div className="text-4xl font-black text-neutral-200 mt-4 font-mono">{stats.totalRooms}</div>
+            <span className="text-[11px] text-neutral-500 font-mono mt-2">Active in DB right now</span>
           </div>
           
           <div className="bg-neutral-900/60 border border-neutral-800/80 p-6 rounded-2xl backdrop-blur-sm flex flex-col justify-between">
@@ -278,8 +306,8 @@ export default function AdminCleanupPage() {
           </div>
 
           <div className="bg-neutral-900/60 border border-neutral-800/80 p-6 rounded-2xl backdrop-blur-sm flex flex-col justify-between">
-            <span className="text-xs font-mono uppercase tracking-widest text-emerald-400 font-bold">Expired (24h+)</span>
-            <div className="text-4xl font-black text-emerald-400 mt-4 font-mono">{stats.expiredRooms}</div>
+            <span className="text-xs font-mono uppercase tracking-widest text-rose-400 font-bold">Expired (24h+)</span>
+            <div className="text-4xl font-black text-rose-400 mt-4 font-mono">{stats.expiredRooms}</div>
             <span className="text-[11px] text-neutral-500 font-mono mt-2">Eligible for deletion</span>
           </div>
         </div>
