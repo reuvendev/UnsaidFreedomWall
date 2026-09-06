@@ -89,6 +89,8 @@ export default function ChatRoomPage() {
   const [isSubmittingReport, setIsSubmittingReport] = useState(false);
   
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const typingTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const lastTypingUpdateRef = useRef<number>(0);
 
   // Initialize Dark Mode state from localStorage
   useEffect(() => {
@@ -150,16 +152,20 @@ export default function ChatRoomPage() {
         setLoading(false);
 
         if (data.status === 'blocked') {
-          // Keep security blocks active, but allow message stream to stay readable
           setChatStatus('blocked');
           if (data.blockedBy === userId) setBlockedByMe(true);
+          unsubscribeRoom?.();
+          unsubscribeMsgs?.();
         } else if (data.status === 'closed' || data.status === 'ended') {
-          // Set to closed so input disables, but do NOT unsubscribe messages so history stays viewable
           setChatStatus('closed');
+          unsubscribeRoom?.();
+          unsubscribeMsgs?.();
         }
       } else {
         setChatStatus('closed');
         setLoading(false);
+        unsubscribeRoom?.();
+        unsubscribeMsgs?.();
       }
     }, (err) => {
       console.error("Room sync error:", err);
@@ -184,6 +190,34 @@ export default function ChatRoomPage() {
     };
   }, [roomId, userId]);
 
+  // Optimized Input Change Handler with Throttled Typing Writes
+  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const val = e.target.value;
+    setNewMessage(val);
+
+    if (!userId || chatStatus !== 'active') return;
+
+    const now = Date.now();
+    // Throttle Firestore writes: only update server if > 2 seconds passed since last typing write
+    if (now - lastTypingUpdateRef.current > 2000) {
+      lastTypingUpdateRef.current = now;
+      updateDoc(doc(db, "chatRooms", roomId), {
+        [`typing_${userId}`]: true
+      }).catch(() => {});
+    }
+
+    // Clear previous stop timeout
+    if (typingTimeoutRef.current) clearTimeout(typingTimeoutRef.current);
+    
+    // Set typing to false after 2 seconds of inactivity
+    typingTimeoutRef.current = setTimeout(() => {
+      lastTypingUpdateRef.current = 0;
+      updateDoc(doc(db, "chatRooms", roomId), {
+        [`typing_${userId}`]: false
+      }).catch(() => {});
+    }, 2000);
+  };
+
   const handleSendMessage = async (e: React.FormEvent) => {
     e.preventDefault();
     const textToSend = newMessage.trim();
@@ -195,6 +229,13 @@ export default function ChatRoomPage() {
     }
 
     setNewMessage('');
+
+    // Immediately clear typing status on send
+    if (typingTimeoutRef.current) clearTimeout(typingTimeoutRef.current);
+    lastTypingUpdateRef.current = 0;
+    await updateDoc(doc(db, "chatRooms", roomId), {
+      [`typing_${userId}`]: false
+    }).catch(() => {});
 
     const tempId = 'temp_' + Date.now();
     const optimisticMessage: Message = {
@@ -281,10 +322,14 @@ export default function ChatRoomPage() {
   }
 
   const isHost = roomData?.hostId === userId;
+  const peerUserId = isHost ? roomData?.guestId : roomData?.hostId;
   const peerNickname = isHost ? (roomData?.guestNickname || 'Waiting...') : roomData?.hostNickname;
   const peerSchoolRaw = isHost ? roomData?.guestSchool : roomData?.hostSchool;
   const peerSchool = peerSchoolRaw ? (SLU_SCHOOL_LABELS[peerSchoolRaw] || peerSchoolRaw.toUpperCase()) : '';
   const isInactive = chatStatus !== 'active';
+
+  // Check peer typing flag inline without extra listeners
+  const isPeerTyping = peerUserId ? Boolean(roomData?.[`typing_${peerUserId}`]) : false;
 
   return (
     <div className={`h-[100dvh] w-full font-sans flex flex-col justify-between selection:bg-neutral-900 selection:text-white overflow-hidden relative ${isDarkMode ? 'bg-neutral-950 text-neutral-100' : 'bg-neutral-50 text-neutral-900'}`}>
@@ -292,12 +337,12 @@ export default function ChatRoomPage() {
       {/* Header */}
       <header className={`shrink-0 backdrop-blur-md border-b px-3 sm:px-6 h-16 flex items-center justify-between shadow-2xs z-10 gap-2 ${isDarkMode ? 'bg-neutral-900/95 border-neutral-800' : 'bg-white/95 border-neutral-200/80'}`}>
         <div className="flex items-center gap-2.5 min-w-0 flex-1">
-          <div className={`w-2.5 h-2.5 rounded-full shrink-0 ${chatStatus === 'active' ? 'bg-emerald-500 animate-pulse' : 'bg-neutral-400'}`}></div>
+          <div className={`w-2.5 h-2.5 rounded-full shrink-0 ${isInactive ? 'bg-neutral-400' : 'bg-emerald-500 animate-pulse'}`}></div>
           <div className="min-w-0 flex-1">
             <div className="flex items-center gap-1.5 flex-wrap sm:flex-nowrap">
               <h2 className={`font-mono text-[11px] sm:text-xs font-bold uppercase tracking-wider truncate max-w-[130px] sm:max-w-xs ${isDarkMode ? 'text-white' : 'text-neutral-900'}`}>
                 <span className="hidden sm:inline">Chatting with: </span>
-                <span className={chatStatus === 'active' ? 'text-emerald-500' : 'text-neutral-500'}>{peerNickname}</span>
+                <span className={isInactive ? 'text-neutral-500' : 'text-emerald-500'}>{peerNickname}</span>
               </h2>
               {peerSchool && (
                 <span className={`font-mono text-[9px] sm:text-[10px] px-1.5 py-0.2 border rounded shrink-0 ${isDarkMode ? 'bg-neutral-800 text-neutral-300 border-neutral-700' : 'bg-neutral-100 text-neutral-700 border-neutral-200'}`}>
@@ -305,9 +350,7 @@ export default function ChatRoomPage() {
                 </span>
               )}
             </div>
-            <p className={`font-mono text-[9px] sm:text-[10px] ${isDarkMode ? 'text-neutral-500' : 'text-neutral-400'}`}>
-              {chatStatus === 'closed' ? 'Conversation Ended' : chatStatus === 'blocked' ? 'Terminated & Blocked' : 'Secure Anonymous Room'}
-            </p>
+            <p className={`font-mono text-[9px] sm:text-[10px] ${isDarkMode ? 'text-neutral-500' : 'text-neutral-400'}`}>Secure Anonymous Room</p>
           </div>
         </div>
 
@@ -377,7 +420,7 @@ export default function ChatRoomPage() {
             <span className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full font-mono text-[9px] sm:text-[10px] uppercase tracking-widest border text-center ${
               isDarkMode ? 'bg-neutral-900 text-neutral-400 border-neutral-800' : 'bg-neutral-100 text-neutral-500 border-neutral-200/60'
             }`}>
-              <Icons.Shield /> End-to-end Anonymous Room {chatStatus === 'closed' ? 'Archived' : 'Active'}
+              <Icons.Shield /> End-to-end Anonymous Room Active
             </span>
           </div>
 
@@ -399,12 +442,28 @@ export default function ChatRoomPage() {
             );
           })}
 
+          {/* Typing Indicator Bubble */}
+          {isPeerTyping && (
+            <div className="flex flex-col items-start">
+              <span className={`font-mono text-[10px] mb-1 px-1 ${isDarkMode ? 'text-neutral-500' : 'text-neutral-400'}`}>
+                {peerNickname}
+              </span>
+              <div className={`px-4 py-3 rounded-2xl rounded-bl-xs flex items-center space-x-1.5 ${
+                isDarkMode ? 'bg-neutral-900 border border-neutral-800 text-neutral-400' : 'bg-white border border-neutral-200/80 text-neutral-500 shadow-2xs'
+              }`}>
+                <span className="w-1.5 h-1.5 bg-current rounded-full animate-bounce [animation-delay:-0.3s]"></span>
+                <span className="w-1.5 h-1.5 bg-current rounded-full animate-bounce [animation-delay:-0.15s]"></span>
+                <span className="w-1.5 h-1.5 bg-current rounded-full animate-bounce"></span>
+              </div>
+            </div>
+          )}
+
           {chatStatus === 'closed' && (
             <div className="text-center py-6">
               <p className={`font-mono text-xs font-bold py-2.5 px-5 rounded-xl inline-block border ${
                 isDarkMode ? 'bg-neutral-900 text-neutral-400 border-neutral-800' : 'bg-neutral-100 text-neutral-500 border-neutral-200'
               }`}>
-                The conversation has ended. You are viewing the chat history.
+                The conversation has ended.
               </p>
             </div>
           )}
@@ -452,7 +511,7 @@ export default function ChatRoomPage() {
             <input
               type="text"
               value={newMessage}
-              onChange={(e) => setNewMessage(e.target.value)}
+              onChange={handleInputChange}
               placeholder="Type your message..."
               className={`flex-1 px-3.5 sm:px-4 py-2.5 sm:py-3 border rounded-xl text-base sm:text-sm font-mono focus:outline-none shadow-2xs ${
                 isDarkMode 
