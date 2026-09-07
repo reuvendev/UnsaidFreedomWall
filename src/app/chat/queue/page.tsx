@@ -410,13 +410,13 @@ export default function ChatQueuePage() {
       </header>
 
       <main className="max-w-md mx-auto px-6 py-12 w-full flex-1 flex flex-col items-center justify-center text-center space-y-6">
-        {/* High-visibility online counter badge directly above the spinner */}
+        {/* High-visibility online counter badge directly above the spinner 
         <div className={`inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full font-mono text-xs uppercase tracking-wider border ${
           isDarkMode ? 'bg-neutral-900 border-neutral-800 text-neutral-200' : 'bg-white border-neutral-200 text-neutral-800 shadow-sm'
         }`}>
           <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse"></span>
           <span><strong className={isDarkMode ? 'text-white' : 'text-neutral-900'}>{activeCount}</strong> online</span>
-        </div>
+        </div> */}
 
         <div className="relative flex items-center justify-center">
           <div className="absolute w-24 h-24 bg-emerald-500/10 rounded-full animate-ping"></div>
