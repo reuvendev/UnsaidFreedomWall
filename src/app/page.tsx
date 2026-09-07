@@ -539,13 +539,15 @@ export default function HomePage() {
                         <Icons.Heart filled={hasVoted} />
                         <span>{post.upvotes}</span>
                       </button>
-                      <button 
-                        onClick={() => handlePostNavigation(post.id)}
-                        className={`flex items-center gap-2 cursor-pointer ${isDev ? 'text-emerald-600 hover:text-emerald-400' : isDarkMode ? 'text-neutral-400 hover:text-white' : 'text-neutral-500 hover:text-neutral-900'}`}
-                      >
-                        <Icons.Message />
-                        <span>{post.replies} Replies</span>
-                      </button>
+                     <Link 
+  href={`/post/${post.id}`}
+  target="_blank"
+  rel="noopener noreferrer"
+  className={`flex items-center gap-2 cursor-pointer ${isDev ? 'text-emerald-600 hover:text-emerald-400' : isDarkMode ? 'text-neutral-400 hover:text-white' : 'text-neutral-500 hover:text-neutral-900'}`}
+>
+  <Icons.Message />
+  <span>{post.replies} Replies</span>
+</Link>
                     </div>
 
                     <div className="flex items-center gap-4">
