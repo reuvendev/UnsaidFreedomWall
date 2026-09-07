@@ -4,7 +4,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { 
   collection, doc, updateDoc, onSnapshot, 
-  addDoc, query, orderBy, limit, startAfter, getDocs, serverTimestamp, arrayUnion, arrayRemove, DocumentData, QueryDocumentSnapshot
+  addDoc, query, orderBy, limit, startAfter, getDocs, serverTimestamp, arrayUnion, arrayRemove, DocumentData, QueryDocumentSnapshot, setDoc, deleteDoc, increment
 } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 
@@ -107,10 +107,11 @@ export default function ChatRoomPage() {
   const [chatStatus, setChatStatus] = useState<'active' | 'closed' | 'blocked'>('active');
   const [blockedByMe, setBlockedByMe] = useState(false);
   const [isDarkMode, setIsDarkMode] = useState<boolean>(false);
+  const [activeCount, setActiveCount] = useState<number>(1); // Real-time active users count
   
   // Pagination State
   const [lastVisibleDoc, setLastVisibleDoc] = useState<QueryDocumentSnapshot<DocumentData> | null>(null);
-  const [hasMoreMessages, setHasMoreMessages] = useState(false); // Default to false until we verify chunk size
+  const [hasMoreMessages, setHasMoreMessages] = useState(false);
   const [isLoadingMore, setIsLoadingMore] = useState(false);
   
   // Report Modal States
@@ -158,7 +159,56 @@ export default function ChatRoomPage() {
     }
   }, [roomId, router]);
 
-  // Connect to Room and Initial Messages Snapshot (limit 50)
+  // Real-time Presence Tracker Effect (Active Users Counter inside Room)
+  useEffect(() => {
+    if (!userId) return;
+
+    const sessionId = 'session_' + userId + '_' + roomId;
+    const presenceRef = doc(db, 'activePresence', sessionId);
+
+    const updatePresence = async () => {
+      try {
+        await setDoc(presenceRef, {
+          lastSeen: serverTimestamp(),
+        }, { merge: true });
+      } catch (err) {}
+    };
+
+    updatePresence();
+    const heartbeatInterval = setInterval(updatePresence, 30000);
+
+    const handleUnload = () => {
+      deleteDoc(presenceRef).catch(() => {});
+    };
+    window.addEventListener('beforeunload', handleUnload);
+
+    const presenceQuery = query(collection(db, 'activePresence'));
+    const unsubscribePresence = onSnapshot(presenceQuery, (snapshot) => {
+      const now = Date.now();
+      let count = 0;
+      
+      snapshot.forEach((docSnap) => {
+        const data = docSnap.data();
+        if (data.lastSeen) {
+          const lastSeenTime = data.lastSeen.toMillis ? data.lastSeen.toMillis() : new Date(data.lastSeen).getTime();
+          if (now - lastSeenTime < 60000) {
+            count++;
+          }
+        }
+      });
+
+      setActiveCount(Math.max(1, count));
+    });
+
+    return () => {
+      clearInterval(heartbeatInterval);
+      window.removeEventListener('beforeunload', handleUnload);
+      deleteDoc(presenceRef).catch(() => {});
+      unsubscribePresence();
+    };
+  }, [userId, roomId]);
+
+  // Connect to Room and Initial Messages Snapshot
   useEffect(() => {
     if (!roomId || !userId) return;
 
@@ -209,7 +259,6 @@ export default function ChatRoomPage() {
       const docs = snapshot.docs;
       if (docs.length > 0) {
         setLastVisibleDoc(docs[docs.length - 1]);
-        // If we fetched the full limit amount, assume there are more records older in Firestore
         setHasMoreMessages(docs.length >= PAGE_LIMIT);
       } else {
         setHasMoreMessages(false);
@@ -480,6 +529,12 @@ export default function ChatRoomPage() {
         </div>
 
         <div className="flex items-center gap-2 shrink-0">
+          {/* Real-time Online Counter Badge */}
+          <div className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full font-mono text-[10px] uppercase tracking-wider border ${
+            isDarkMode ? 'bg-neutral-950 border-neutral-800 text-neutral-300' : 'bg-white border-neutral-200 text-neutral-700 shadow-2xs'
+          }`}>
+          </div>
+
           {!isInactive && (
             <button
               onClick={handleEndChat}
@@ -541,7 +596,6 @@ export default function ChatRoomPage() {
       <main className="flex-1 overflow-y-auto px-3 sm:px-4 py-4 sm:py-6">
         <div className="max-w-2xl w-full mx-auto space-y-4">
           
-          {/* Load More Messages Button */}
           {hasMoreMessages && (
             <div className="text-center my-3">
               <button
@@ -745,150 +799,117 @@ export default function ChatRoomPage() {
       <footer className={`shrink-0 border-t p-3 sm:px-6 sm:py-4 z-10 flex flex-col gap-2 ${isDarkMode ? 'bg-neutral-900 border-neutral-800' : 'bg-white border-neutral-200/80'}`}>
         {replyingTo && (
           <div className={`max-w-2xl mx-auto w-full px-3 py-2 rounded-xl border flex items-center justify-between text-xs animate-in fade-in slide-in-from-bottom-2 ${
-            isDarkMode ? 'bg-neutral-950 border-neutral-800 text-neutral-300' : 'bg-neutral-100 border-neutral-200 text-neutral-700'
+            isDarkMode ? 'bg-neutral-950 border-neutral-800 text-neutral-300' : 'bg-neutral-50 border-neutral-200 text-neutral-700'
           }`}>
-            <div className="flex items-center gap-2 overflow-hidden border-l-2 border-emerald-500 pl-2">
-              <Icons.Reply />
-              <div className="truncate">
-                <span className="font-mono font-bold text-[10px] text-emerald-500 mr-1.5">
-                  Replying to {replyingTo.senderId === userId ? 'You' : replyingTo.senderNickname}
-                </span>
-                <span className="truncate opacity-80">{replyingTo.text}</span>
-              </div>
+            <div className="flex items-center gap-2 truncate">
+              <span className="font-mono font-bold text-emerald-600">Replying to {replyingTo.senderId === userId ? 'yourself' : replyingTo.senderNickname}:</span>
+              <span className="truncate opacity-80">{replyingTo.text}</span>
             </div>
             <button 
               onClick={() => setReplyingTo(null)}
-              className={`p-1 rounded-lg cursor-pointer ${isDarkMode ? 'hover:bg-neutral-800 text-neutral-400' : 'hover:bg-neutral-200 text-neutral-500'}`}
-              title="Cancel reply"
+              className="p-1 rounded-lg hover:bg-neutral-500/10 cursor-pointer"
             >
               <Icons.X />
             </button>
           </div>
         )}
 
-        {isInactive ? (
-          <div className="max-w-2xl mx-auto flex items-center gap-3 w-full">
-            <button
-              onClick={() => router.push('/')}
-              className={`flex-1 py-3 border font-mono text-xs font-bold uppercase tracking-wider rounded-xl cursor-pointer active:scale-98 ${
-                isDarkMode ? 'bg-neutral-800 hover:bg-neutral-700 text-neutral-200 border-neutral-700' : 'bg-neutral-100 hover:bg-neutral-200 text-neutral-700 border-neutral-200'
-              }`}
-            >
-              Exit (Home)
-            </button>
-            <button
-              onClick={() => router.push('/chat/queue')}
-              className={`flex-1 py-3 font-mono text-xs font-bold uppercase tracking-wider rounded-xl shadow-sm active:scale-98 cursor-pointer ${
-                isDarkMode ? 'bg-emerald-600 hover:bg-emerald-500 text-white' : 'bg-neutral-900 hover:bg-neutral-800 text-white'
-              }`}
-            >
-              Find New Match
-            </button>
-          </div>
-        ) : (
-          <form onSubmit={handleSendMessage} className="max-w-2xl mx-auto w-full flex items-center gap-2">
-            <input
-              type="text"
-              value={newMessage}
-              onChange={handleInputChange}
-              placeholder={replyingTo ? "Type your reply..." : "Type your message..."}
-              className={`flex-1 px-3.5 sm:px-4 py-2.5 sm:py-3 border rounded-xl text-base sm:text-sm font-mono focus:outline-none shadow-2xs ${
-                isDarkMode 
-                  ? 'bg-neutral-950 border-neutral-800 text-white placeholder:text-neutral-600 focus:border-emerald-500' 
-                  : 'bg-neutral-50 border-neutral-200 text-neutral-900 placeholder:text-neutral-400 focus:border-neutral-900'
-              }`}
-            />
-            <button
-              type="submit"
-              disabled={!newMessage.trim()}
-              className={`px-3.5 sm:px-5 py-2.5 sm:py-3 font-mono text-xs font-bold uppercase tracking-wider rounded-xl shadow-sm disabled:opacity-40 flex items-center gap-1.5 sm:gap-2 cursor-pointer active:scale-95 shrink-0 ${
-                isDarkMode ? 'bg-emerald-600 hover:bg-emerald-500 text-white' : 'bg-neutral-900 hover:bg-neutral-800 text-white'
-              }`}
-            >
-              <span className="hidden sm:inline">Send</span>
-              <Icons.Send />
-            </button>
-          </form>
-        )}
+        <form onSubmit={handleSendMessage} className="max-w-2xl mx-auto w-full flex items-center gap-2">
+          <input
+            type="text"
+            value={newMessage}
+            onChange={handleInputChange}
+            disabled={isInactive}
+            placeholder={isInactive ? "Chat has ended..." : "Type a secure message..."}
+            className={`flex-1 px-4 py-3 rounded-xl border font-sans text-sm focus:outline-hidden transition-all ${
+              isInactive 
+                ? 'opacity-50 cursor-not-allowed bg-neutral-100 dark:bg-neutral-900 border-neutral-300 dark:border-neutral-800' 
+                : isDarkMode 
+                  ? 'bg-neutral-950 border-neutral-800 text-white focus:border-emerald-500' 
+                  : 'bg-neutral-100 border-neutral-200 text-neutral-900 focus:border-emerald-600'
+            }`}
+          />
+          <button
+            type="submit"
+            disabled={isInactive || !newMessage.trim()}
+            className={`px-4 sm:px-5 py-3 rounded-xl font-mono text-xs font-bold uppercase tracking-wider flex items-center gap-2 transition-all cursor-pointer ${
+              isInactive || !newMessage.trim()
+                ? 'opacity-40 cursor-not-allowed bg-neutral-300 dark:bg-neutral-800 text-neutral-500'
+                : 'bg-emerald-600 hover:bg-emerald-500 text-white active:scale-95 shadow-sm'
+            }`}
+          >
+            <span className="hidden sm:inline">Send</span>
+            <Icons.Send />
+          </button>
+        </form>
       </footer>
 
       {/* Report Modal */}
       {isReportModalOpen && (
-        <div className="fixed inset-0 bg-neutral-900/60 backdrop-blur-xs flex items-center justify-center z-50 p-4">
-          <div className={`border rounded-3xl max-w-md w-full p-6 shadow-2xl space-y-5 animate-in fade-in zoom-in-95 ${
-            isDarkMode ? 'bg-neutral-900 border-neutral-800 text-white' : 'bg-white border-neutral-200 text-neutral-900'
-          }`}>
+        <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-xs flex items-center justify-center p-4 animate-in fade-in">
+          <div className={`max-w-md w-full border rounded-2xl p-6 space-y-6 shadow-2xl ${isDarkMode ? 'bg-neutral-900 border-neutral-800 text-white' : 'bg-white border-neutral-200 text-neutral-900'}`}>
             <div className="flex items-center justify-between">
-              <div className={`flex items-center gap-2.5 ${isDarkMode ? 'text-rose-400' : 'text-rose-600'}`}>
-                <div className={`p-2 rounded-xl ${isDarkMode ? 'bg-rose-950/60' : 'bg-rose-50'}`}>
-                  <Icons.ShieldAlert />
-                </div>
-                <h3 className="font-mono text-sm font-bold uppercase tracking-wider">
-                  Block & Report User
-                </h3>
-              </div>
+              <h3 className="font-mono text-sm font-bold uppercase tracking-wider flex items-center gap-2 text-rose-500">
+                <Icons.ShieldAlert /> Block & Report User
+              </h3>
               <button 
                 onClick={() => setIsReportModalOpen(false)}
-                className={`p-1.5 rounded-xl cursor-pointer ${isDarkMode ? 'hover:bg-neutral-800 text-neutral-400' : 'hover:bg-neutral-100 text-neutral-500'}`}
+                className="p-1.5 rounded-lg hover:bg-neutral-500/10 cursor-pointer"
               >
                 <Icons.X />
               </button>
             </div>
 
-            <p className={`text-xs font-sans leading-relaxed ${isDarkMode ? 'text-neutral-400' : 'text-neutral-600'}`}>
-              This will immediately terminate the chat, block this peer from future matching, and send a moderation report. Please select a reason:
+            <p className={`font-mono text-xs leading-relaxed ${isDarkMode ? 'text-neutral-400' : 'text-neutral-600'}`}>
+              Reporting this user will immediately terminate the conversation, block them from matching with you again, and log a report for safety moderation.
             </p>
 
             <div className="space-y-2">
-              {REPORT_REASONS.map((reason) => (
-                <label 
-                  key={reason.id} 
-                  className={`flex items-center gap-3 p-3 rounded-xl border text-xs font-mono font-medium cursor-pointer ${
-                    selectedReason === reason.id 
-                      ? isDarkMode 
-                        ? 'border-emerald-500 bg-neutral-950 text-white ring-1 ring-emerald-500/20' 
-                        : 'border-neutral-900 bg-neutral-50 text-neutral-900 shadow-2xs' 
-                      : isDarkMode 
-                        ? 'border-neutral-800 bg-neutral-950/40 text-neutral-400 hover:border-neutral-700' 
-                        : 'border-neutral-200 text-neutral-600 hover:border-neutral-300'
-                  }`}
-                >
-                  <input 
-                    type="radio" 
-                    name="reportReason" 
-                    value={reason.id}
-                    checked={selectedReason === reason.id}
-                    onChange={(e) => setSelectedReason(e.target.value)}
-                    className="accent-emerald-500"
-                  />
-                  <span>{reason.label}</span>
-                </label>
-              ))}
+              <label className="font-mono text-[11px] font-bold uppercase tracking-wider opacity-80">Reason for report</label>
+              <div className="space-y-2">
+                {REPORT_REASONS.map((reason) => (
+                  <label 
+                    key={reason.id} 
+                    className={`flex items-center gap-3 p-3 rounded-xl border cursor-pointer transition-all ${
+                      selectedReason === reason.id 
+                        ? isDarkMode ? 'bg-neutral-800 border-rose-500/50 text-white' : 'bg-rose-50/50 border-rose-300 text-neutral-900'
+                        : isDarkMode ? 'bg-neutral-950 border-neutral-800 text-neutral-400' : 'bg-neutral-50 border-neutral-200 text-neutral-700'
+                    }`}
+                  >
+                    <input 
+                      type="radio" 
+                      name="reportReason" 
+                      value={reason.id} 
+                      checked={selectedReason === reason.id}
+                      onChange={(e) => setSelectedReason(e.target.value)}
+                      className="accent-rose-500"
+                    />
+                    <span className="font-sans text-xs font-semibold">{reason.label}</span>
+                  </label>
+                ))}
+              </div>
             </div>
 
             <div className="flex items-center gap-3 pt-2">
               <button
-                type="button"
                 onClick={() => setIsReportModalOpen(false)}
-                className={`flex-1 py-3 border font-mono text-xs font-bold uppercase tracking-wider rounded-xl cursor-pointer ${
-                  isDarkMode ? 'bg-neutral-800 hover:bg-neutral-700 text-neutral-300 border-neutral-700' : 'bg-neutral-100 hover:bg-neutral-200 text-neutral-700 border-neutral-200'
+                className={`flex-1 py-3 font-mono text-xs font-bold uppercase tracking-wider rounded-xl border cursor-pointer ${
+                  isDarkMode ? 'bg-neutral-800 border-neutral-700 text-neutral-300 hover:bg-neutral-700' : 'bg-white border-neutral-200 text-neutral-700 hover:bg-neutral-100'
                 }`}
               >
                 Cancel
               </button>
               <button
-                type="button"
-                disabled={isSubmittingReport}
                 onClick={handleSubmitReport}
-                className="flex-1 py-3 bg-rose-600 hover:bg-rose-700 text-white font-mono text-xs font-bold uppercase tracking-wider rounded-xl shadow-sm disabled:opacity-50 cursor-pointer flex items-center justify-center gap-2"
+                disabled={isSubmittingReport}
+                className="flex-1 py-3 font-mono text-xs font-bold uppercase tracking-wider rounded-xl bg-rose-600 hover:bg-rose-500 text-white active:scale-95 cursor-pointer shadow-sm transition-all"
               >
-                {isSubmittingReport ? 'Submitting...' : 'Confirm Block'}
+                {isSubmittingReport ? 'Submitting...' : 'Confirm Report'}
               </button>
             </div>
           </div>
         </div>
       )}
-
     </div>
   );
 }

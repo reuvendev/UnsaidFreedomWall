@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { 
   collection, doc, addDoc, updateDoc, deleteDoc, 
-  getDocs, getDoc, query, where, onSnapshot, serverTimestamp, setDoc, increment 
+  getDocs, getDoc, query, where, onSnapshot, serverTimestamp, setDoc, increment, setLogLevel
 } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 
@@ -104,7 +104,9 @@ export default function ChatQueuePage() {
   const [currentRoomId, setCurrentRoomId] = useState<string | null>(null);
   const [isDarkMode, setIsDarkMode] = useState<boolean>(false);
   const [retryKey, setRetryKey] = useState<number>(0); // Triggers re-queueing cleanly
+  const [activeCount, setActiveCount] = useState<number>(1); // Real-time active users count
 
+  // Initialize Dark Mode state
   useEffect(() => {
     try {
       const storedTheme = localStorage.getItem('unsaid_dark_mode');
@@ -124,6 +126,56 @@ export default function ChatQueuePage() {
     } catch (e) {}
   };
 
+  // Real-time Presence Tracker Effect
+  useEffect(() => {
+    const sessionId = 'session_' + Math.random().toString(36).substring(2, 15);
+    const presenceRef = doc(db, 'activePresence', sessionId);
+
+    const updatePresence = async () => {
+      try {
+        await setDoc(presenceRef, {
+          lastSeen: serverTimestamp(),
+        }, { merge: true });
+      } catch (err) {}
+    };
+
+    updatePresence();
+    const heartbeatInterval = setInterval(updatePresence, 30000);
+
+    const handleUnload = () => {
+      deleteDoc(presenceRef).catch(() => {});
+    };
+    window.addEventListener('beforeunload', handleUnload);
+
+    const presenceQuery = query(collection(db, 'activePresence'));
+    const unsubscribePresence = onSnapshot(presenceQuery, (snapshot) => {
+      const now = Date.now();
+      let count = 0;
+      
+      snapshot.forEach((docSnap) => {
+        const data = docSnap.data();
+        if (data.lastSeen) {
+          const lastSeenTime = data.lastSeen.toMillis ? data.lastSeen.toMillis() : new Date(data.lastSeen).getTime();
+          // Count active if pinged within the last 60 seconds
+          if (now - lastSeenTime < 60000) {
+            count++;
+          }
+        }
+      });
+
+      // Ensures the counter never goes below 1
+      setActiveCount(Math.max(1, count));
+    });
+
+    return () => {
+      clearInterval(heartbeatInterval);
+      window.removeEventListener('beforeunload', handleUnload);
+      deleteDoc(presenceRef).catch(() => {});
+      unsubscribePresence();
+    };
+  }, []);
+
+  // Matchmaking Effect
   useEffect(() => {
     let isMounted = true;
     let unsubscribeRoom: (() => void) | null = null;
@@ -279,19 +331,19 @@ export default function ChatQueuePage() {
               } catch (e) {}
               setCurrentRoomId(null);
 
-                // Start 5-second countdown indication
-                let timeLeft = 5;
-                setStatusText(`Queue timed out. Re-queueing in ${timeLeft}s...`);
+              // Start 5-second countdown indication
+              let timeLeft = 5;
+              setStatusText(`Queue timed out. Re-queueing in ${timeLeft}s...`);
 
-                countdownInterval = setInterval(() => {
-                  timeLeft -= 1;
-                  if (timeLeft > 0) {
-                    if (isMounted) setStatusText(`Queue timed out. Re-queueing in ${timeLeft}s...`);
-                  } else {
-                    if (countdownInterval) clearInterval(countdownInterval);
-                    if (isMounted) setRetryKey(prev => prev + 1);
-                  }
-                }, 1000);
+              countdownInterval = setInterval(() => {
+                timeLeft -= 1;
+                if (timeLeft > 0) {
+                  if (isMounted) setStatusText(`Queue timed out. Re-queueing in ${timeLeft}s...`);
+                } else {
+                  if (countdownInterval) clearInterval(countdownInterval);
+                  if (isMounted) setRetryKey(prev => prev + 1);
+                }
+              }, 1000);
             }
           }, 45000);
         }
@@ -341,10 +393,7 @@ export default function ChatQueuePage() {
           <Link href="/" className="font-mono text-xl font-black tracking-tighter hover:opacity-70">
             TAMBAYAN<span className="text-emerald-600">.</span>
           </Link>
-          <div className="flex items-center gap-4">
-            <span className="font-mono text-[11px] font-bold text-neutral-400 uppercase tracking-widest">
-              Matchmaking Queue
-            </span>
+          <div className="flex items-center gap-3">
             <button
               onClick={toggleDarkMode}
               aria-label="Toggle Dark Mode"
@@ -361,6 +410,14 @@ export default function ChatQueuePage() {
       </header>
 
       <main className="max-w-md mx-auto px-6 py-12 w-full flex-1 flex flex-col items-center justify-center text-center space-y-6">
+        {/* High-visibility online counter badge directly above the spinner */}
+        <div className={`inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full font-mono text-xs uppercase tracking-wider border ${
+          isDarkMode ? 'bg-neutral-900 border-neutral-800 text-neutral-200' : 'bg-white border-neutral-200 text-neutral-800 shadow-sm'
+        }`}>
+          <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse"></span>
+          <span><strong className={isDarkMode ? 'text-white' : 'text-neutral-900'}>{activeCount}</strong> online</span>
+        </div>
+
         <div className="relative flex items-center justify-center">
           <div className="absolute w-24 h-24 bg-emerald-500/10 rounded-full animate-ping"></div>
           <div className={`relative w-20 h-20 border rounded-2xl shadow-sm flex items-center justify-center ${
