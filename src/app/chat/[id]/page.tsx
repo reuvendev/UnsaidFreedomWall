@@ -4,7 +4,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { 
   collection, doc, updateDoc, onSnapshot, 
-  addDoc, query, orderBy, limit, startAfter, getDocs, serverTimestamp, arrayUnion, arrayRemove, DocumentData, QueryDocumentSnapshot, deleteDoc
+  addDoc, query, orderBy, limit, startAfter, getDocs, serverTimestamp, arrayUnion, arrayRemove, DocumentData, QueryDocumentSnapshot 
 } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 
@@ -232,7 +232,6 @@ export default function ChatRoomPage() {
     };
   }, [roomId, userId]);
 
-  // Load Earlier Messages (Pagination Handler)
   const handleLoadMore = async () => {
     if (!lastVisibleDoc || isLoadingMore || !hasMoreMessages) return;
 
@@ -474,7 +473,7 @@ export default function ChatRoomPage() {
                 </span>
               )}
             </div>
-            <p className={`font-mono text-[9px] sm:text-[10px] ${isDarkMode ? 'text-neutral-500' : 'text-neutral-400'}`}>Secure Anonymous Room</p>
+            <p className={`font-mono text-[9px] sm:text-[10px] ${isDarkMode ? 'text-neutral-500' : 'text-neutral-400'}`}>Tambayanslu.com</p>
           </div>
         </div>
 
@@ -739,117 +738,115 @@ export default function ChatRoomPage() {
                 value={newMessage}
                 onChange={handleInputChange}
                 placeholder="Type your anonymous message..."
-                className={`flex-1 px-4 py-3 rounded-xl border text-sm outline-none transition-all ${
+                // FIXED: text-base (16px) prevents iOS Safari auto-zoom bug on focus
+                className={`flex-1 px-4 py-3 rounded-xl border text-base sm:text-sm outline-none transition-all ${
                   isDarkMode 
                     ? 'bg-neutral-950 border-neutral-800 text-white focus:border-emerald-500' 
-                    : 'bg-neutral-50 border-neutral-200 text-neutral-900 focus:border-emerald-600'
+                    : 'bg-neutral-900/0 border-neutral-200 text-neutral-900 focus:border-emerald-600'
                 }`}
               />
               <button
                 type="submit"
                 disabled={!newMessage.trim()}
-                className={`p-3 rounded-xl flex items-center justify-center font-bold cursor-pointer transition-transform active:scale-95 disabled:opacity-40 disabled:cursor-not-allowed ${
-                  isDarkMode ? 'bg-emerald-600 text-white hover:bg-emerald-500' : 'bg-neutral-900 text-white hover:bg-neutral-800'
+                className={`p-3 rounded-xl flex items-center justify-center font-medium transition-all cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed ${
+                  isDarkMode 
+                    ? 'bg-emerald-600 hover:bg-emerald-500 text-white' 
+                    : 'bg-neutral-900 hover:bg-neutral-800 text-white'
                 }`}
               >
                 <Icons.Send />
               </button>
             </form>
           ) : (
-            <div className="flex flex-col items-center justify-center py-2 gap-2.5">
-              <div className="font-mono text-xs text-neutral-500 uppercase tracking-wider">
-                {chatStatus === 'blocked' ? 'Chat ended / Blocked' : 'This conversation has ended.'}
-              </div>
-              <div className="flex items-center gap-2.5 w-full max-w-sm">
-              <button
+            /* --- ENDED / BLOCKED CHAT FOOTER ACTIONS --- */
+            <div className={`p-3 sm:p-4 rounded-2xl border flex flex-col sm:flex-row items-center justify-between gap-3 ${
+              isDarkMode ? 'bg-neutral-950 border-neutral-800' : 'bg-neutral-50 border-neutral-200'
+            }`}>
+              <p className="font-mono text-xs text-neutral-500 text-center sm:text-left">
+                {chatStatus === 'blocked' ? 'Chat ended due to report/block.' : 'This conversation has ended.'}
+              </p>
+
+              <div className="flex items-center gap-2 w-full sm:w-auto">
+                {/* Exit Button */}
+                <button
+                  type="button"
                   onClick={() => router.push('/')}
-                  className={`flex-1 px-4 py-2.5 rounded-xl border font-mono text-xs font-bold uppercase tracking-wider cursor-pointer transition-all active:scale-95 ${
+                  className={`flex-1 sm:flex-none px-4 py-2.5 rounded-xl font-mono text-xs font-bold uppercase tracking-wider transition-all cursor-pointer border ${
                     isDarkMode 
-                      ? 'bg-neutral-900 hover:bg-neutral-800 text-neutral-300 border-neutral-700' 
-                      : 'bg-white hover:bg-neutral-100 text-neutral-700 border-neutral-200'
+                      ? 'bg-neutral-900 border-neutral-800 text-neutral-300 hover:bg-neutral-800 hover:border-neutral-700' 
+                      : 'bg-white border-neutral-300 text-neutral-700 hover:bg-neutral-100'
                   }`}
                 >
                   Exit
                 </button>
+
+                {/* New Chat / Requeue Button */}
                 <button
+                  type="button"
                   onClick={() => router.push('/chat/queue')}
-                  className={`flex-1 px-4 py-2.5 rounded-xl border font-mono text-xs font-bold uppercase tracking-wider cursor-pointer transition-all active:scale-95 ${
-                    isDarkMode 
-                      ? 'bg-neutral-800 hover:bg-neutral-700 text-emerald-400 border-neutral-700' 
-                      : 'bg-neutral-900 hover:bg-neutral-800 text-white border-neutral-900'
+                  className={`flex-1 sm:flex-none px-4 py-2.5 rounded-xl font-mono text-xs font-bold uppercase tracking-wider transition-all cursor-pointer text-white shadow-xs ${
+                    isDarkMode
+                      ? 'bg-emerald-600 hover:bg-emerald-500'
+                      : 'bg-neutral-900 hover:bg-neutral-800'
                   }`}
                 >
-                  Find New Match
+                  New Chat
                 </button>
               </div>
             </div>
           )}
-        </div>
-      </footer>
+      </div>
+    </footer>
 
-      {/* Report Modal */}
-      {isReportModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs animate-in fade-in">
-          <div className={`max-w-md w-full p-6 rounded-3xl border shadow-2xl space-y-4 ${
-            isDarkMode ? 'bg-neutral-900 border-neutral-800 text-white' : 'bg-white border-neutral-200 text-neutral-900'
-          }`}>
-            <div className="flex items-center justify-between">
-              <h3 className="font-mono text-sm font-bold uppercase tracking-wider text-rose-500 flex items-center gap-2">
-                <Icons.ShieldAlert /> Block & Report User
-              </h3>
-              <button onClick={() => setIsReportModalOpen(false)} className="p-1 rounded-lg hover:opacity-70 cursor-pointer">
-                <Icons.X />
-              </button>
-            </div>
+    {/* Report Modal */}
+    {isReportModalOpen && (
+      <div className="fixed inset-0 bg-black/60 backdrop-blur-xs z-50 flex items-center justify-center p-4">
+        <div className={`w-full max-w-sm rounded-2xl border p-5 shadow-2xl ${isDarkMode ? 'bg-neutral-900 border-neutral-800 text-white' : 'bg-white border-neutral-200 text-neutral-900'}`}>
+          <h3 className="font-mono text-sm font-bold uppercase tracking-wider mb-2">Block & Report User</h3>
+          <p className={`text-xs mb-4 ${isDarkMode ? 'text-neutral-400' : 'text-neutral-500'}`}>
+            Please select a reason for reporting. This will immediately close and block the chat session.
+          </p>
 
-            <p className={`text-xs leading-relaxed ${isDarkMode ? 'text-neutral-400' : 'text-neutral-600'}`}>
-              Reporting this user will immediately terminate the chat, block them from matching with you again for 24 hours, and flag their account for moderator review.
-            </p>
+          <div className="space-y-2 mb-4">
+            {REPORT_REASONS.map((r) => (
+              <label key={r.id} className={`flex items-center gap-2.5 p-3 rounded-xl border cursor-pointer text-xs font-medium transition-all ${
+                selectedReason === r.id 
+                  ? isDarkMode ? 'border-emerald-500 bg-emerald-950/30' : 'border-emerald-600 bg-emerald-50/50'
+                  : isDarkMode ? 'border-neutral-800 bg-neutral-950' : 'border-neutral-200 bg-neutral-50'
+              }`}>
+                <input 
+                  type="radio" 
+                  name="reportReason" 
+                  value={r.id} 
+                  checked={selectedReason === r.id}
+                  onChange={(e) => setSelectedReason(e.target.value)}
+                  className="accent-emerald-500"
+                />
+                <span>{r.label}</span>
+              </label>
+            ))}
+          </div>
 
-            <div className="space-y-2">
-              <label className="font-mono text-[10px] uppercase tracking-wider opacity-70">Select Reason</label>
-              <div className="space-y-1.5">
-                {REPORT_REASONS.map((r) => (
-                  <label key={r.id} className={`flex items-center gap-3 p-3 rounded-xl border cursor-pointer text-xs font-medium transition-colors ${
-                    selectedReason === r.id 
-                      ? isDarkMode ? 'bg-neutral-800 border-emerald-500 text-white' : 'bg-neutral-50 border-emerald-600 text-neutral-900'
-                      : isDarkMode ? 'bg-neutral-950 border-neutral-800 text-neutral-400' : 'bg-white border-neutral-200 text-neutral-700'
-                  }`}>
-                    <input
-                      type="radio"
-                      name="reportReason"
-                      value={r.id}
-                      checked={selectedReason === r.id}
-                      onChange={(e) => setSelectedReason(e.target.value)}
-                      className="accent-emerald-500"
-                    />
-                    <span>{r.label}</span>
-                  </label>
-                ))}
-              </div>
-            </div>
-
-            <div className="pt-2 flex items-center gap-3">
-              <button
-                onClick={() => setIsReportModalOpen(false)}
-                className={`flex-1 py-3 rounded-xl border font-mono text-xs font-bold uppercase tracking-wider cursor-pointer ${
-                  isDarkMode ? 'bg-neutral-800 border-neutral-700 text-neutral-300' : 'bg-neutral-100 border-neutral-200 text-neutral-700'
-                }`}
-              >
-                Cancel
-              </button>
-              <button
-                onClick={handleSubmitReport}
-                disabled={isSubmittingReport}
-                className="flex-1 py-3 rounded-xl bg-rose-600 hover:bg-rose-500 text-white font-mono text-xs font-bold uppercase tracking-wider cursor-pointer disabled:opacity-50"
-              >
-                {isSubmittingReport ? 'Submitting...' : 'Confirm Block'}
-              </button>
-            </div>
+          <div className="flex items-center gap-2">
+            <button
+              type="button"
+              onClick={() => setIsReportModalOpen(false)}
+              className={`flex-1 py-2.5 rounded-xl border font-mono text-xs font-bold cursor-pointer ${isDarkMode ? 'bg-neutral-800 border-neutral-700 text-neutral-300' : 'bg-neutral-100 border-neutral-200 text-neutral-700'}`}
+            >
+              Cancel
+            </button>
+            <button
+              type="button"
+              onClick={handleSubmitReport}
+              disabled={isSubmittingReport}
+              className="flex-1 py-2.5 rounded-xl bg-rose-600 hover:bg-rose-500 text-white font-mono text-xs font-bold cursor-pointer disabled:opacity-50"
+            >
+              {isSubmittingReport ? 'Submitting...' : 'Confirm'}
+            </button>
           </div>
         </div>
-      )}
-
-    </div>
+      </div>
+    )}
+  </div>
   );
 }
