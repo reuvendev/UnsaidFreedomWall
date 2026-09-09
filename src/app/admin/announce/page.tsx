@@ -2,26 +2,29 @@
 
 import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
-import { 
-  collection, 
-  query, 
-  orderBy, 
+import {
+  collection,
+  query,
+  orderBy,
   limit as firestoreLimit,
   startAfter,
   getDocs,
-  onSnapshot, 
-  addDoc, 
-  serverTimestamp, 
-  doc, 
-  deleteDoc, 
-  increment, 
+  addDoc,
+  serverTimestamp,
+  doc,
+  deleteDoc,
+  increment,
   updateDoc,
   DocumentData,
-  QueryDocumentSnapshot
+  QueryDocumentSnapshot,
 } from 'firebase/firestore';
+
 import { db } from '@/lib/firebase';
-import { PostProps } from '@/app/page'; // Adjust path if needed
+import { PostProps } from '@/app/page';
 import { loginAdmin, logoutAdmin, checkAdminAuth } from '../actions';
+
+import imageCompression from 'browser-image-compression';
+import { getPresignedUploadUrl } from '@/app/actions/r2-upload';
 
 const CATEGORIES = [
   { id: 'thoughts', label: 'Thoughts' },
@@ -35,132 +38,255 @@ const PAGE_SIZE = 10;
 
 const Icons = {
   Code: () => (
-    <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-      <polyline points="16 18 22 12 16 6"></polyline>
-      <polyline points="8 6 2 12 8 18"></polyline>
+    <svg
+      xmlns="http://www.w3.org/2000/svg"
+      width="18"
+      height="18"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    >
+      <polyline points="16 18 22 12 16 6" />
+      <polyline points="8 6 2 12 8 18" />
     </svg>
   ),
+
   Trash: () => (
-    <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-      <polyline points="3 6 5 6 21 6"></polyline>
-      <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
+    <svg
+      xmlns="http://www.w3.org/2000/svg"
+      width="16"
+      height="16"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    >
+      <polyline points="3 6 5 6 21 6" />
+      <path d="M19 6l-1 14H6L5 6" />
+      <path d="M10 11v6" />
+      <path d="M14 11v6" />
+      <path d="M9 6V4h6v2" />
     </svg>
   ),
+
   Send: () => (
-    <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-      <line x1="22" y1="2" x2="11" y2="13"></line>
-      <polygon points="22 2 15 22 11 13 2 9 22 2"></polygon>
+    <svg
+      xmlns="http://www.w3.org/2000/svg"
+      width="16"
+      height="16"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    >
+      <line x1="22" y1="2" x2="11" y2="13" />
+      <polygon points="22 2 15 22 11 13 2 9 22 2" />
     </svg>
   ),
+
   MessageSquare: () => (
-    <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-      <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path>
+    <svg
+      xmlns="http://www.w3.org/2000/svg"
+      width="16"
+      height="16"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    >
+      <path d="M21 15a4 4 0 0 1-4 4H8l-5 3V7a4 4 0 0 1 4-4h10a4 4 0 0 1 4 4z" />
     </svg>
-  )
+  ),
 };
 
 export default function AdminPostPortal() {
-  const [isAuthenticated, setIsAuthenticated] = useState<boolean | null>(null);
-  const [authError, setAuthError] = useState<string>("");
+  const [isAuthenticated, setIsAuthenticated] = useState<boolean | null>(
+    null
+  );
+
+  const [authError, setAuthError] = useState<string>('');
   const [posts, setPosts] = useState<PostProps[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
-  
-  // Pagination States
-  const [lastVisible, setLastVisible] = useState<QueryDocumentSnapshot<DocumentData> | null>(null);
+
+  // Pagination
+  const [lastVisible, setLastVisible] =
+    useState<QueryDocumentSnapshot<DocumentData> | null>(null);
+
   const [hasMore, setHasMore] = useState<boolean>(true);
   const [isLoadingMore, setIsLoadingMore] = useState<boolean>(false);
 
-  // New Post Form State
+  // Create post
   const [content, setContent] = useState<string>('');
   const [category, setCategory] = useState<string>('thoughts');
   const [spotifyTrackId, setSpotifyTrackId] = useState<string>('');
   const [isSubmitting, setIsSubmitting] = useState<boolean>(false);
-  const [authorAlias, setAuthorAlias] = useState<string>('Lead Developer');
+  const [authorAlias, setAuthorAlias] =
+    useState<string>('Lead Developer');
 
-  // Quick Reply States (keyed by postId)
-  const [replyInputs, setReplyInputs] = useState<{ [postId: string]: string }>({});
-  const [replyAliases, setReplyAliases] = useState<{ [postId: string]: string }>({});
-  const [submittingReplyId, setSubmittingReplyId] = useState<string | null>(null);
+  // Image
+  const [imageFile, setImageFile] = useState<File | null>(null);
+  const [imagePreview, setImagePreview] = useState<string>('');
 
-  // Verify server-side authentication status on mount
+  // Replies
+  const [replyInputs, setReplyInputs] = useState<{
+    [postId: string]: string;
+  }>({});
+
+  const [replyAliases, setReplyAliases] = useState<{
+    [postId: string]: string;
+  }>({});
+
+  const [submittingReplyId, setSubmittingReplyId] =
+    useState<string | null>(null);
+
+  // =========================
+  // AUTH CHECK
+  // =========================
+
   useEffect(() => {
     async function verify() {
       const authed = await checkAdminAuth();
+
       setIsAuthenticated(authed);
+
       if (authed) {
         fetchInitialPosts();
       } else {
         setLoading(false);
       }
     }
+
     verify();
   }, []);
 
-  const handleLoginSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
+  // =========================
+  // LOGIN
+  // =========================
+
+  const handleLoginSubmit = async (
+    e: React.FormEvent<HTMLFormElement>
+  ) => {
     e.preventDefault();
-    setAuthError("");
+
+    setAuthError('');
+
     const formData = new FormData(e.currentTarget);
-    
+
     const result = await loginAdmin(formData);
+
     if (result.success) {
       setIsAuthenticated(true);
       setLoading(true);
+
       fetchInitialPosts();
     } else {
-      setAuthError(result.error || "Authentication failed");
+      setAuthError(result.error || 'Authentication failed');
     }
   };
+
+  // =========================
+  // LOGOUT
+  // =========================
 
   const handleLogout = async () => {
     await logoutAdmin();
     setIsAuthenticated(false);
   };
 
+  // =========================
+  // FORMAT POST
+  // =========================
+
+  const formatPost = (
+    docSnap: QueryDocumentSnapshot<DocumentData>
+  ): PostProps => {
+    const data = docSnap.data();
+
+    let formattedDate = 'Just now';
+
+    if (data.createdAt) {
+      const dObj = data.createdAt.toDate();
+
+      formattedDate =
+        dObj.toLocaleDateString([], {
+          month: 'short',
+          day: 'numeric',
+        }) +
+        ' at ' +
+        dObj.toLocaleTimeString([], {
+          hour: '2-digit',
+          minute: '2-digit',
+        });
+    }
+
+    return {
+      id: docSnap.id,
+      authorAlias: data.authorAlias || 'UNSAID #00000',
+      content: data.content || '',
+      category: data.category || 'thoughts',
+      createdAt: formattedDate,
+      upvotes: data.upvotes || 0,
+      replies: data.replies || 0,
+      spotifyTrackId: data.spotifyTrackId || undefined,
+      imageUrl: data.imageUrl || undefined,
+    };
+  };
+
+  // =========================
+  // FETCH INITIAL POSTS
+  // =========================
+
   const fetchInitialPosts = async () => {
     try {
       const q = query(
-        collection(db, 'posts'), 
+        collection(db, 'posts'),
         orderBy('createdAt', 'desc'),
         firestoreLimit(PAGE_SIZE)
       );
-      
-      const snapshot = await getDocs(q);
-      const fetched: PostProps[] = [];
-      
-      snapshot.forEach((docSnap) => {
-        const data = docSnap.data();
-        let formattedDate = 'Just now';
-        if (data.createdAt) {
-          const dObj = data.createdAt.toDate();
-          formattedDate = dObj.toLocaleDateString([], { month: 'short', day: 'numeric' }) + ' at ' + dObj.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-        }
 
-        fetched.push({
-          id: docSnap.id,
-          authorAlias: data.authorAlias || 'UNSAID #00000',
-          content: data.content || '',
-          category: data.category || 'thoughts',
-          createdAt: formattedDate,
-          upvotes: data.upvotes || 0,
-          replies: data.replies || 0,
-          spotifyTrackId: data.spotifyTrackId || null,
-        });
+      const snapshot = await getDocs(q);
+
+      const fetched: PostProps[] = [];
+
+      snapshot.forEach((docSnap) => {
+        fetched.push(formatPost(docSnap));
       });
 
-      setLastVisible(snapshot.docs[snapshot.docs.length - 1] || null);
+      setLastVisible(
+        snapshot.docs[snapshot.docs.length - 1] || null
+      );
+
       setHasMore(snapshot.docs.length === PAGE_SIZE);
+
       setPosts(fetched);
     } catch (error) {
-      console.error('Error fetching initial posts:', error);
+      console.error(
+        'Error fetching initial posts:',
+        error
+      );
     } finally {
       setLoading(false);
     }
   };
 
+  // =========================
+  // LOAD MORE
+  // =========================
+
   const handleLoadMore = async () => {
     if (!lastVisible || isLoadingMore) return;
 
     setIsLoadingMore(true);
+
     try {
       const q = query(
         collection(db, 'posts'),
@@ -170,380 +296,832 @@ export default function AdminPostPortal() {
       );
 
       const snapshot = await getDocs(q);
+
       const fetched: PostProps[] = [];
 
       snapshot.forEach((docSnap) => {
-        const data = docSnap.data();
-        let formattedDate = 'Just now';
-        if (data.createdAt) {
-          const dObj = data.createdAt.toDate();
-          formattedDate = dObj.toLocaleDateString([], { month: 'short', day: 'numeric' }) + ' at ' + dObj.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-        }
-
-        fetched.push({
-          id: docSnap.id,
-          authorAlias: data.authorAlias || 'UNSAID #00000',
-          content: data.content || '',
-          category: data.category || 'thoughts',
-          createdAt: formattedDate,
-          upvotes: data.upvotes || 0,
-          replies: data.replies || 0,
-          spotifyTrackId: data.spotifyTrackId || null,
-        });
+        fetched.push(formatPost(docSnap));
       });
 
-      setLastVisible(snapshot.docs[snapshot.docs.length - 1] || null);
+      setLastVisible(
+        snapshot.docs[snapshot.docs.length - 1] || null
+      );
+
       setHasMore(snapshot.docs.length === PAGE_SIZE);
+
       setPosts((prev) => [...prev, ...fetched]);
     } catch (error) {
-      console.error('Error loading more posts:', error);
+      console.error(
+        'Error loading more posts:',
+        error
+      );
     } finally {
       setIsLoadingMore(false);
     }
   };
 
-  const handleCreatePost = async (e: React.FormEvent) => {
+  // =========================
+  // IMAGE SELECT
+  // =========================
+
+  const handleImageChange = (
+    e: React.ChangeEvent<HTMLInputElement>
+  ) => {
+    const file = e.target.files?.[0] || null;
+
+    setImageFile(file);
+
+    if (file) {
+      setImagePreview(URL.createObjectURL(file));
+    } else {
+      setImagePreview('');
+    }
+  };
+
+  // =========================
+  // REMOVE IMAGE
+  // =========================
+
+  const handleRemoveImage = () => {
+    setImageFile(null);
+    setImagePreview('');
+  };
+
+  // =========================
+  // CREATE DEVELOPER POST
+  // =========================
+
+  const handleCreatePost = async (
+    e: React.FormEvent
+  ) => {
     e.preventDefault();
+
     if (!content.trim() || isSubmitting) return;
 
     setIsSubmitting(true);
+
     try {
+      // =========================
+      // CLEAN SPOTIFY ID
+      // =========================
+
       let trackIdClean = spotifyTrackId.trim();
+
       if (trackIdClean.includes('spotify.com/track/')) {
         const parts = trackIdClean.split('track/');
+
         trackIdClean = parts[1].split('?')[0];
       }
 
+      // =========================
+      // IMAGE UPLOAD
+      // =========================
+
+      let imageUrl: string | null = null;
+
+      if (imageFile) {
+        const compressionOptions = {
+          maxSizeMB: 1,
+          maxWidthOrHeight: 1920,
+          useWebWorker: true,
+          fileType: 'image/webp',
+        };
+
+        // Compress image
+        const compressedBlob = await imageCompression(
+          imageFile,
+          compressionOptions
+        );
+
+        // Convert to WebP file
+        const compressedFile = new File(
+          [compressedBlob],
+          imageFile.name.replace(/\.[^/.]+$/, '') + '.webp',
+          {
+            type: compressedBlob.type,
+          }
+        );
+
+        // Get R2 presigned URL
+        const urlRes = await getPresignedUploadUrl(
+          compressedFile.name,
+          compressedFile.type
+        );
+
+        if (
+          !urlRes.success ||
+          !urlRes.signedUrl ||
+          !urlRes.publicUrl
+        ) {
+          throw new Error(
+            urlRes.error ||
+              'Failed to authorize image upload.'
+          );
+        }
+
+        // Upload to Cloudflare R2
+        const uploadRes = await fetch(
+          urlRes.signedUrl,
+          {
+            method: 'PUT',
+            headers: {
+              'Content-Type': compressedFile.type,
+            },
+            body: compressedFile,
+          }
+        );
+
+        if (!uploadRes.ok) {
+          throw new Error(
+            'Failed to upload image to Cloudflare R2.'
+          );
+        }
+
+        imageUrl = urlRes.publicUrl;
+      }
+
+      // =========================
+      // CREATE FIRESTORE POST
+      // =========================
+
       await addDoc(collection(db, 'posts'), {
-        authorAlias: authorAlias.trim() || 'Lead Developer',
+        authorAlias:
+          authorAlias.trim() || 'Lead Developer',
+
         content: content.trim(),
+
         category,
-        spotifyTrackId: trackIdClean || null,
+
+        spotifyTrackId:
+          trackIdClean || null,
+
+        imageUrl,
+
         upvotes: 0,
+
         replies: 0,
+
         isDeveloperPost: true,
+
         status: 'approved',
+
         createdAt: serverTimestamp(),
       });
 
+      // =========================
+      // RESET FORM
+      // =========================
+
       setContent('');
       setSpotifyTrackId('');
-      alert('Developer post successfully published!');
-      fetchInitialPosts(); // Refresh list to show new broadcast
+      setImageFile(null);
+      setImagePreview('');
+
+      alert(
+        'Developer post successfully published!'
+      );
+
+      fetchInitialPosts();
     } catch (error) {
-      console.error('Error creating post:', error);
-      alert('Failed to publish post.');
+      console.error(
+        'Error creating post:',
+        error
+      );
+
+      alert(
+        error instanceof Error
+          ? error.message
+          : 'Failed to publish post.'
+      );
     } finally {
       setIsSubmitting(false);
     }
   };
 
-  const handleDeletePost = async (postId: string) => {
-    if (!confirm('Are you sure you want to delete this post?')) return;
+  // =========================
+  // DELETE POST
+  // =========================
+
+  const handleDeletePost = async (
+    postId: string
+  ) => {
+    if (
+      !confirm(
+        'Are you sure you want to delete this post?'
+      )
+    ) {
+      return;
+    }
+
     try {
-      await deleteDoc(doc(db, 'posts', postId));
-      setPosts((prev) => prev.filter((p) => p.id !== postId));
+      await deleteDoc(
+        doc(db, 'posts', postId)
+      );
+
+      setPosts((prev) =>
+        prev.filter(
+          (p) => p.id !== postId
+        )
+      );
     } catch (error) {
-      console.error('Error deleting post:', error);
+      console.error(
+        'Error deleting post:',
+        error
+      );
+
       alert('Failed to delete.');
     }
   };
 
-  const handleQuickReplySubmit = async (postId: string, e: React.FormEvent) => {
+  // =========================
+  // QUICK REPLY
+  // =========================
+
+  const handleQuickReplySubmit = async (
+    postId: string,
+    e: React.FormEvent
+  ) => {
     e.preventDefault();
+
     const replyText = replyInputs[postId];
-    if (!replyText || !replyText.trim() || submittingReplyId === postId) return;
+
+    if (
+      !replyText ||
+      !replyText.trim() ||
+      submittingReplyId === postId
+    ) {
+      return;
+    }
 
     setSubmittingReplyId(postId);
+
     try {
-      const alias = replyAliases[postId]?.trim() || 'Lead Developer [ADMIN]';
+      const alias =
+        replyAliases[postId]?.trim() ||
+        'Lead Developer [ADMIN]';
 
-      await addDoc(collection(db, 'posts', postId, 'replies'), {
-        content: replyText.trim(),
-        authorAlias: alias,
-        createdAt: serverTimestamp(),
-      });
+      await addDoc(
+        collection(
+          db,
+          'posts',
+          postId,
+          'replies'
+        ),
+        {
+          content: replyText.trim(),
+          authorAlias: alias,
+          createdAt: serverTimestamp(),
+        }
+      );
 
-      const postRef = doc(db, 'posts', postId);
+      const postRef = doc(
+        db,
+        'posts',
+        postId
+      );
+
       await updateDoc(postRef, {
         replies: increment(1),
       });
 
-      setReplyInputs((prev) => ({ ...prev, [postId]: '' }));
+      setReplyInputs((prev) => ({
+        ...prev,
+        [postId]: '',
+      }));
+
+      // Update local reply count
+      setPosts((prev) =>
+        prev.map((post) =>
+          post.id === postId
+            ? {
+                ...post,
+                replies:
+                  (post.replies || 0) + 1,
+              }
+            : post
+        )
+      );
     } catch (error) {
-      console.error('Error adding admin reply:', error);
+      console.error(
+        'Error adding admin reply:',
+        error
+      );
+
       alert('Failed to submit reply.');
     } finally {
       setSubmittingReplyId(null);
     }
   };
 
-  // Loading state while checking auth cookie
-  if (isAuthenticated === null) {
-    return (
-      <div className="min-h-screen bg-neutral-900 text-neutral-100 flex items-center justify-center font-mono text-sm">
-        Verifying security clearance...
-      </div>
-    );
-  }
+  // =========================
+  // LOGIN UI
+  // =========================
 
-  // 1. Gatekeeper Login View
-  if (!isAuthenticated) {
+  if (isAuthenticated === false) {
     return (
-      <div className="min-h-screen bg-neutral-900 text-neutral-100 font-sans flex items-center justify-center p-6">
-        <div className="w-full max-w-md p-8 bg-neutral-950 border border-neutral-800 rounded-xl shadow-2xl space-y-6">
-          <div className="text-center space-y-2">
-            <span className="font-mono text-xs text-rose-500 uppercase tracking-widest font-bold">Encrypted Gateway</span>
-            <h1 className="text-2xl font-black tracking-tight text-white">Admin Login</h1>
-            <p className="text-xs font-mono text-neutral-400">Environment-secured authentication required.</p>
-          </div>
+      <main className="min-h-screen bg-neutral-950 text-white flex items-center justify-center px-4">
+        <div className="w-full max-w-md">
+          <div className="border border-neutral-800 bg-neutral-900 rounded-xl p-6">
+            <div className="flex items-center gap-3 mb-6">
+              <div className="w-10 h-10 rounded-lg bg-neutral-800 flex items-center justify-center">
+                <Icons.Code />
+              </div>
 
-          <form onSubmit={handleLoginSubmit} className="space-y-4">
-            <div>
-              <input
-                type="password"
-                name="password"
-                placeholder="Enter admin password..."
-                className="w-full p-3 bg-neutral-900 border border-neutral-800 rounded-lg text-sm text-white placeholder:text-neutral-600 font-mono focus:outline-none focus:border-rose-500 transition-all"
-                autoFocus
-                required
-              />
-              {authError && (
-                <p className="font-mono text-xs text-rose-500 mt-2">{authError}</p>
-              )}
+              <div>
+                <h1 className="text-lg font-semibold">
+                  Admin Portal
+                </h1>
+
+                <p className="text-xs text-neutral-500 font-mono">
+                  Tambayan SLU
+                </p>
+              </div>
             </div>
 
-            <button
-              type="submit"
-              className="w-full py-3 bg-neutral-100 hover:bg-white text-neutral-900 font-mono text-xs font-bold uppercase tracking-wider rounded-lg transition-colors cursor-pointer"
+            <form
+              onSubmit={handleLoginSubmit}
+              className="space-y-4"
             >
-              Authenticate Session
-            </button>
-          </form>
+              <div>
+                <label className="block text-xs font-mono text-neutral-400 mb-2">
+                  Password
+                </label>
 
-          <div className="text-center pt-2">
-            <Link href="/" className="font-mono text-xs text-neutral-500 hover:text-neutral-300 transition-colors uppercase tracking-wider">
-              ← Return to Main App
+                <input
+                  type="password"
+                  name="password"
+                  required
+                  autoFocus
+                  className="w-full bg-neutral-950 border border-neutral-800 rounded-lg px-3 py-3 text-sm text-white outline-none focus:border-neutral-600"
+                  placeholder="Enter admin password"
+                />
+              </div>
+
+              {authError && (
+                <div className="text-xs text-red-400 bg-red-950/30 border border-red-900/50 rounded-lg p-3">
+                  {authError}
+                </div>
+              )}
+
+              <button
+                type="submit"
+                className="w-full bg-white text-black rounded-lg py-3 text-sm font-semibold hover:bg-neutral-200 transition"
+              >
+                Login
+              </button>
+            </form>
+
+            <Link
+              href="/"
+              className="block text-center text-xs text-neutral-500 hover:text-white mt-5"
+            >
+              ← Back to website
             </Link>
           </div>
         </div>
-      </div>
+      </main>
     );
   }
 
-  // 2. Protected Publishing Dashboard View
+  // =========================
+  // LOADING
+  // =========================
+
+  if (
+    isAuthenticated === null ||
+    loading
+  ) {
+    return (
+      <main className="min-h-screen bg-neutral-950 text-white flex items-center justify-center">
+        <div className="text-sm text-neutral-500 font-mono">
+          Loading admin portal...
+        </div>
+      </main>
+    );
+  }
+
+  // =========================
+  // DASHBOARD
+  // =========================
+
   return (
-    <div className="min-h-screen bg-neutral-950 text-neutral-100 font-sans selection:bg-neutral-100 selection:text-neutral-950">
-      {/* Navbar */}
-      <header className="sticky top-0 z-50 bg-neutral-950/85 backdrop-blur-md border-b border-neutral-800">
-        <div className="max-w-3xl mx-auto px-6 h-16 flex items-center justify-between">
-          <div className="flex items-center gap-2 font-mono text-xs font-bold uppercase tracking-wider text-emerald-400">
-            <Icons.Code />
-            <span>Developer Publishing Portal</span>
+    <main className="min-h-screen bg-neutral-950 text-white">
+      {/* HEADER */}
+      <header className="border-b border-neutral-800 sticky top-0 z-30 bg-neutral-950/95 backdrop-blur">
+        <div className="max-w-6xl mx-auto px-4 py-4 flex items-center justify-between gap-4">
+          <div className="flex items-center gap-3">
+            <div className="w-9 h-9 rounded-lg bg-white text-black flex items-center justify-center">
+              <Icons.Code />
+            </div>
+
+            <div>
+              <h1 className="font-semibold text-sm">
+                Admin Portal
+              </h1>
+
+              <p className="text-[10px] text-neutral-500 font-mono">
+                TAMBAYAN SLU
+              </p>
+            </div>
           </div>
-          <div className="flex items-center gap-4 font-mono text-xs">
-            <Link href="/admin" className="text-neutral-400 hover:text-white transition-colors">
-              Moderation Queue
+
+          <div className="flex items-center gap-3">
+            <Link
+              href="/"
+              className="text-xs text-neutral-400 hover:text-white transition"
+            >
+              View Site
             </Link>
+
             <button
               onClick={handleLogout}
-              className="text-rose-400 hover:text-rose-300 transition-colors uppercase tracking-wider cursor-pointer"
+              className="text-xs px-3 py-2 rounded-lg border border-neutral-800 text-neutral-400 hover:text-white hover:border-neutral-600 transition"
             >
-              Destroy Session
+              Logout
             </button>
-            <Link href="/" className="text-neutral-400 hover:text-white transition-colors">
-              Exit →
-            </Link>
           </div>
         </div>
       </header>
 
-      <main className="max-w-3xl mx-auto px-6 pt-10 pb-24">
-        {/* Create Post Card */}
-        <div className="mb-12 p-6 bg-neutral-900 border border-neutral-800 rounded-xl shadow-lg">
-          <h2 className="font-mono text-xs font-bold uppercase tracking-widest text-neutral-400 mb-4 flex items-center gap-2">
-            <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
-            Broadcast as Admin / Developer
-          </h2>
+      <div className="max-w-6xl mx-auto px-4 py-8">
+        {/* CREATE POST */}
+        <section className="mb-10">
+          <div className="mb-4">
+            <h2 className="text-lg font-semibold">
+              Create Developer Post
+            </h2>
 
-          <form onSubmit={handleCreatePost} className="space-y-4">
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <div>
-                <label className="block font-mono text-[11px] font-semibold text-neutral-400 uppercase tracking-wider mb-1.5">
-                  Admin/Dev Alias
-                </label>
-                <input 
-                  type="text"
-                  value={authorAlias}
-                  onChange={(e) => setAuthorAlias(e.target.value)}
-                  placeholder="e.g. Lead Developer"
-                  className="w-full p-2.5 bg-neutral-950 border border-neutral-800 rounded text-xs font-mono text-white placeholder:text-neutral-600 focus:outline-none focus:border-neutral-600"
-                />
-              </div>
+            <p className="text-xs text-neutral-500 mt-1">
+              Posts created here are automatically approved.
+            </p>
+          </div>
 
-              <div>
-                <label className="block font-mono text-[11px] font-semibold text-neutral-400 uppercase tracking-wider mb-1.5">
-                  Category
-                </label>
-                <select
-                  value={category}
-                  onChange={(e) => setCategory(e.target.value)}
-                  className="w-full p-2.5 bg-neutral-950 border border-neutral-800 rounded text-xs font-mono text-white focus:outline-none focus:border-neutral-600 cursor-pointer"
-                >
-                  {CATEGORIES.map((cat) => (
-                    <option key={cat.id} value={cat.id}>{cat.label}</option>
-                  ))}
-                </select>
-              </div>
-            </div>
-
+          <form
+            onSubmit={handleCreatePost}
+            className="border border-neutral-800 bg-neutral-900 rounded-xl p-5 space-y-5"
+          >
+            {/* AUTHOR */}
             <div>
               <label className="block font-mono text-[11px] font-semibold text-neutral-400 uppercase tracking-wider mb-1.5">
-                Content / Announcement
+                Author Alias
               </label>
-              <textarea 
-                rows={4}
-                value={content}
-                onChange={(e) => setContent(e.target.value)}
-                placeholder="Write system updates, official notes, or developer thoughts..."
-                className="w-full p-3 bg-neutral-950 border border-neutral-800 rounded text-sm font-mono text-white placeholder:text-neutral-600 focus:outline-none focus:border-neutral-600 resize-none"
+
+              <input
+                type="text"
+                value={authorAlias}
+                onChange={(e) =>
+                  setAuthorAlias(e.target.value)
+                }
+                className="w-full p-3 bg-neutral-950 border border-neutral-800 rounded-lg text-sm text-white outline-none focus:border-neutral-600"
+                placeholder="Lead Developer"
               />
             </div>
 
+            {/* CATEGORY */}
             <div>
               <label className="block font-mono text-[11px] font-semibold text-neutral-400 uppercase tracking-wider mb-1.5">
-                Spotify Track ID or URL (Optional)
+                Category
               </label>
-              <input 
+
+              <select
+                value={category}
+                onChange={(e) =>
+                  setCategory(e.target.value)
+                }
+                className="w-full p-3 bg-neutral-950 border border-neutral-800 rounded-lg text-sm text-white outline-none focus:border-neutral-600"
+              >
+                {CATEGORIES.map((item) => (
+                  <option
+                    key={item.id}
+                    value={item.id}
+                  >
+                    {item.label}
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            {/* CONTENT */}
+            <div>
+              <label className="block font-mono text-[11px] font-semibold text-neutral-400 uppercase tracking-wider mb-1.5">
+                Content
+              </label>
+
+              <textarea
+                value={content}
+                onChange={(e) =>
+                  setContent(e.target.value)
+                }
+                required
+                rows={6}
+                className="w-full p-3 bg-neutral-950 border border-neutral-800 rounded-lg text-sm text-white outline-none focus:border-neutral-600 resize-y"
+                placeholder="Write your developer post..."
+              />
+            </div>
+
+            {/* IMAGE */}
+            <div>
+              <label className="block font-mono text-[11px] font-semibold text-neutral-400 uppercase tracking-wider mb-1.5">
+                Image
+                <span className="text-neutral-600 ml-1">
+                  (Optional)
+                </span>
+              </label>
+
+              <input
+                type="file"
+                accept="image/*"
+                onChange={handleImageChange}
+                className="w-full p-2.5 bg-neutral-950 border border-neutral-800 rounded-lg text-xs font-mono text-white file:mr-3 file:px-3 file:py-1.5 file:border-0 file:rounded file:bg-neutral-800 file:text-neutral-200 file:font-mono file:text-xs file:cursor-pointer"
+              />
+
+              {imagePreview && (
+                <div className="mt-3 relative overflow-hidden rounded-lg border border-neutral-800 bg-neutral-950">
+                  <img
+                    src={imagePreview}
+                    alt="Image preview"
+                    className="w-full max-h-[400px] object-contain"
+                  />
+
+                  <button
+                    type="button"
+                    onClick={handleRemoveImage}
+                    className="absolute top-2 right-2 px-3 py-1.5 rounded-lg bg-black/80 border border-neutral-700 text-xs text-white hover:bg-black transition"
+                  >
+                    Remove
+                  </button>
+                </div>
+              )}
+
+              <p className="text-[10px] text-neutral-600 mt-2 font-mono">
+                Images are automatically compressed and converted to WebP before uploading.
+              </p>
+            </div>
+
+            {/* SPOTIFY */}
+            <div>
+              <label className="block font-mono text-[11px] font-semibold text-neutral-400 uppercase tracking-wider mb-1.5">
+                Spotify Track
+                <span className="text-neutral-600 ml-1">
+                  (Optional)
+                </span>
+              </label>
+
+              <input
                 type="text"
                 value={spotifyTrackId}
-                onChange={(e) => setSpotifyTrackId(e.target.value)}
-                placeholder="e.g. 4cOdK2wGLETKBW3PvgPWqT"
-                className="w-full p-2.5 bg-neutral-950 border border-neutral-800 rounded text-xs font-mono text-white placeholder:text-neutral-600 focus:outline-none focus:border-neutral-600"
+                onChange={(e) =>
+                  setSpotifyTrackId(e.target.value)
+                }
+                className="w-full p-3 bg-neutral-950 border border-neutral-800 rounded-lg text-sm text-white outline-none focus:border-neutral-600"
+                placeholder="Spotify track ID or URL"
               />
             </div>
 
-            <div className="flex justify-end pt-2">
-              <button 
-                type="submit"
-                disabled={isSubmitting || !content.trim()}
-                className="inline-flex items-center gap-2 bg-emerald-500 hover:bg-emerald-400 text-neutral-950 font-mono text-xs font-bold uppercase tracking-wider px-6 py-2.5 rounded transition-all disabled:opacity-50 cursor-pointer"
-              >
-                <Icons.Send />
-                <span>{isSubmitting ? 'Publishing...' : 'Publish Official Entry'}</span>
-              </button>
-            </div>
+            {/* SUBMIT */}
+            <button
+              type="submit"
+              disabled={
+                isSubmitting ||
+                !content.trim()
+              }
+              className="w-full flex items-center justify-center gap-2 bg-white text-black rounded-lg py-3 text-sm font-semibold hover:bg-neutral-200 disabled:opacity-40 disabled:cursor-not-allowed transition"
+            >
+              <Icons.Send />
+
+              {isSubmitting
+                ? imageFile
+                  ? 'Uploading & Publishing...'
+                  : 'Publishing...'
+                : 'Publish Developer Post'}
+            </button>
           </form>
-        </div>
+        </section>
 
-        {/* Live Feed Browser with Quick Management */}
-        <div className="mb-6 flex items-center justify-between">
-          <h3 className="font-mono text-xs font-bold uppercase tracking-widest text-neutral-400">
-            Browse & Manage Posts
-          </h3>
-        </div>
+        {/* POSTS */}
+        <section>
+          <div className="flex items-center justify-between mb-4">
+            <div>
+              <h2 className="text-lg font-semibold">
+                Posts
+              </h2>
 
-        {loading ? (
-          <div className="py-12 text-center font-mono text-xs text-neutral-500 animate-pulse">
-            Loading feed entries...
+              <p className="text-xs text-neutral-500 mt-1">
+                Manage recent posts and replies.
+              </p>
+            </div>
+
+            <span className="text-xs font-mono text-neutral-600">
+              {posts.length} loaded
+            </span>
           </div>
-        ) : posts.length === 0 ? (
-          <div className="py-12 text-center font-mono text-xs text-neutral-500 border border-dashed border-neutral-800 rounded-xl">
-            No entries found.
-          </div>
-        ) : (
-          <div className="space-y-6">
-            {posts.map((post) => (
-              <div key={post.id} className="p-5 bg-neutral-900 border border-neutral-800 rounded-lg space-y-4">
-                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-                  <div className="space-y-1.5 flex-1">
-                    <div className="flex items-center gap-2 font-mono text-[11px] uppercase tracking-wider text-neutral-400">
-                      <span className="text-white font-bold">{post.authorAlias}</span>
-                      <span>•</span>
-                      <span>{post.createdAt}</span>
-                      <span className="bg-neutral-800 px-2 py-0.5 rounded text-[10px] text-neutral-300">
-                        {post.category}
-                      </span>
+
+          {posts.length === 0 ? (
+            <div className="border border-neutral-800 rounded-xl p-10 text-center text-sm text-neutral-500">
+              No posts found.
+            </div>
+          ) : (
+            <div className="space-y-4">
+              {posts.map((post) => (
+                <article
+                  key={post.id}
+                  className="border border-neutral-800 bg-neutral-900 rounded-xl p-5"
+                >
+                  {/* POST HEADER */}
+                  <div className="flex items-start justify-between gap-4">
+                    <div>
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <span className="text-sm font-semibold text-white">
+                          {post.authorAlias}
+                        </span>
+
+                        {post.authorAlias
+                          .includes('Lead Developer') && (
+                          <span className="text-[9px] font-mono uppercase tracking-wider px-2 py-0.5 rounded bg-white text-black">
+                            Developer
+                          </span>
+                        )}
+                      </div>
+
+                      <div className="flex items-center gap-2 mt-1 text-[10px] text-neutral-600 font-mono">
+                        <span>
+                          {post.createdAt}
+                        </span>
+
+                        <span>•</span>
+
+                        <span>
+                          {post.category}
+                        </span>
+                      </div>
                     </div>
-                    <p className="text-sm font-medium text-neutral-200 line-clamp-2">
-                      {post.content}
-                    </p>
-                  </div>
 
-                  <div className="flex items-center gap-3 shrink-0">
-                    <Link 
-                      href={`/post/${post.id}`}
-                      target="_blank"
-                      className="px-3 py-1.5 bg-neutral-800 hover:bg-neutral-700 text-neutral-200 font-mono text-[11px] uppercase tracking-wider rounded transition-colors"
-                    >
-                      View Page ↗
-                    </Link>
-                    <button 
-                      onClick={() => handleDeletePost(post.id)}
-                      className="p-2 bg-rose-500/10 hover:bg-rose-500/20 text-rose-400 rounded transition-colors cursor-pointer"
+                    <button
+                      onClick={() =>
+                        handleDeletePost(post.id)
+                      }
+                      className="p-2 text-neutral-600 hover:text-red-400 transition"
                       title="Delete post"
                     >
                       <Icons.Trash />
                     </button>
                   </div>
-                </div>
 
-                {/* Inline Admin/Dev Reply Form per post */}
-                <form 
-                  onSubmit={(e) => handleQuickReplySubmit(post.id, e)}
-                  className="pt-3 border-t border-neutral-800/60 space-y-2.5"
-                >
-                  <div className="flex items-center gap-2 font-mono text-[10px] uppercase tracking-wider text-neutral-400">
-                    <Icons.MessageSquare />
-                    <span>Quick Admin Reply</span>
+                  {/* CONTENT */}
+                  <div className="mt-4">
+                    <p className="text-sm text-neutral-300 whitespace-pre-wrap leading-relaxed">
+                      {post.content}
+                    </p>
                   </div>
 
-                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
-                    <input
-                      type="text"
-                      placeholder="Alias (e.g. Lead Dev [ADMIN])"
-                      value={replyAliases[post.id] || ''}
-                      onChange={(e) => setReplyAliases({ ...replyAliases, [post.id]: e.target.value })}
-                      className="p-2 bg-neutral-950 border border-neutral-800 rounded text-xs font-mono text-white placeholder:text-neutral-600 focus:outline-none focus:border-neutral-600"
-                    />
+                  {/* IMAGE */}
+                  {post.imageUrl && (
+                    <div className="mt-4 overflow-hidden rounded-lg border border-neutral-800 bg-neutral-950">
+                      <img
+                        src={post.imageUrl}
+                        alt="Post attachment"
+                        loading="lazy"
+                        className="w-full max-h-[500px] object-contain"
+                      />
+                    </div>
+                  )}
 
-                    <input
-                      type="text"
-                      placeholder="Write administrative reply..."
-                      value={replyInputs[post.id] || ''}
-                      onChange={(e) => setReplyInputs({ ...replyInputs, [post.id]: e.target.value })}
-                      className="sm:col-span-2 p-2 bg-neutral-950 border border-neutral-800 rounded text-xs font-mono text-white placeholder:text-neutral-600 focus:outline-none focus:border-neutral-600"
-                    />
+                  {/* SPOTIFY */}
+                  {post.spotifyTrackId && (
+                    <div className="mt-4 rounded-lg border border-neutral-800 bg-neutral-950 p-3">
+                      <div className="text-[10px] font-mono text-neutral-500 uppercase mb-1">
+                        Spotify Track
+                      </div>
+
+                      <div className="text-xs text-neutral-300 font-mono break-all">
+                        {post.spotifyTrackId}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* STATS */}
+                  <div className="flex items-center gap-4 mt-4 text-[10px] font-mono text-neutral-600">
+                    <span>
+                      {post.upvotes || 0} upvotes
+                    </span>
+
+                    <span>
+                      {post.replies || 0} replies
+                    </span>
+
+                    <span>
+                      ID: {post.id}
+                    </span>
                   </div>
 
-                  <div className="flex justify-end">
-                    <button
-                      type="submit"
-                      disabled={submittingReplyId === post.id || !replyInputs[post.id]?.trim()}
-                      className="px-4 py-1.5 bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-400 border border-emerald-500/20 font-mono text-[11px] font-bold uppercase tracking-wider rounded transition-colors disabled:opacity-40 cursor-pointer"
+                  {/* QUICK REPLY */}
+                  <div className="mt-5 pt-5 border-t border-neutral-800">
+                    <div className="flex items-center gap-2 mb-3">
+                      <Icons.MessageSquare />
+
+                      <span className="text-xs font-semibold text-neutral-300">
+                        Quick Reply
+                      </span>
+                    </div>
+
+                    <form
+                      onSubmit={(e) =>
+                        handleQuickReplySubmit(
+                          post.id,
+                          e
+                        )
+                      }
+                      className="space-y-3"
                     >
-                      {submittingReplyId === post.id ? 'Sending...' : 'Post Reply'}
-                    </button>
-                  </div>
-                </form>
-              </div>
-            ))}
+                      <input
+                        type="text"
+                        value={
+                          replyAliases[
+                            post.id
+                          ] || ''
+                        }
+                        onChange={(e) =>
+                          setReplyAliases(
+                            (prev) => ({
+                              ...prev,
+                              [post.id]:
+                                e.target.value,
+                            })
+                          )
+                        }
+                        className="w-full p-2.5 bg-neutral-950 border border-neutral-800 rounded-lg text-xs text-white outline-none focus:border-neutral-600"
+                        placeholder="Reply alias (default: Lead Developer [ADMIN])"
+                      />
 
-            {/* Load More Button Section */}
-            {hasMore && (
-              <div className="pt-4 text-center">
-                <button
-                  onClick={handleLoadMore}
-                  disabled={isLoadingMore}
-                  className="px-6 py-3 bg-neutral-900 hover:bg-neutral-800 border border-neutral-800 text-neutral-200 font-mono text-xs font-bold uppercase tracking-wider rounded-lg transition-colors disabled:opacity-50 cursor-pointer shadow-sm"
-                >
-                  {isLoadingMore ? 'Loading more entries...' : 'Load More Entries'}
-                </button>
-              </div>
-            )}
-          </div>
-        )}
-      </main>
-    </div>
+                      <div className="flex gap-2">
+                        <input
+                          type="text"
+                          value={
+                            replyInputs[
+                              post.id
+                            ] || ''
+                          }
+                          onChange={(e) =>
+                            setReplyInputs(
+                              (prev) => ({
+                                ...prev,
+                                [post.id]:
+                                  e.target.value,
+                              })
+                            )
+                          }
+                          className="flex-1 p-2.5 bg-neutral-950 border border-neutral-800 rounded-lg text-xs text-white outline-none focus:border-neutral-600"
+                          placeholder="Write a reply..."
+                        />
+
+                        <button
+                          type="submit"
+                          disabled={
+                            submittingReplyId ===
+                              post.id ||
+                            !(
+                              replyInputs[
+                                post.id
+                              ] || ''
+                            ).trim()
+                          }
+                          className="px-4 py-2.5 bg-white text-black rounded-lg text-xs font-semibold hover:bg-neutral-200 disabled:opacity-40 disabled:cursor-not-allowed transition"
+                        >
+                          {submittingReplyId ===
+                          post.id
+                            ? '...'
+                            : 'Reply'}
+                        </button>
+                      </div>
+                    </form>
+                  </div>
+                </article>
+              ))}
+            </div>
+          )}
+
+          {/* LOAD MORE */}
+          {hasMore && posts.length > 0 && (
+            <div className="flex justify-center mt-8">
+              <button
+                onClick={handleLoadMore}
+                disabled={isLoadingMore}
+                className="px-5 py-2.5 rounded-lg border border-neutral-800 text-xs font-mono text-neutral-400 hover:text-white hover:border-neutral-600 disabled:opacity-40 transition"
+              >
+                {isLoadingMore
+                  ? 'Loading...'
+                  : 'Load More'}
+              </button>
+            </div>
+          )}
+
+          {!hasMore && posts.length > 0 && (
+            <p className="text-center text-[10px] text-neutral-700 font-mono mt-8">
+              No more posts.
+            </p>
+          )}
+        </section>
+      </div>
+    </main>
   );
 }

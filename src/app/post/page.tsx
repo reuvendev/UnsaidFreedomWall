@@ -4,8 +4,10 @@ import React, { useState, useEffect, useRef } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { collection, addDoc, serverTimestamp } from 'firebase/firestore';
+import imageCompression from 'browser-image-compression';
 import { db } from '@/lib/firebase';
 import { censorText } from '@/lib/moderation';
+import { getPresignedUploadUrl } from '@/app/actions/r2-upload';
 
 const CATEGORIES = [
   { id: 'thoughts', label: 'Thoughts' },
@@ -19,6 +21,7 @@ const Icons = {
   ArrowLeft: () => <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="19" y1="12" x2="5" y2="12"/><polyline points="12 19 5 12 12 5"/></svg>,
   Send: () => <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>,
   Music: () => <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M9 18V5l12-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="18" cy="16" r="3"/></svg>,
+  Image: () => <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>,
   X: () => <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>,
   Trash: () => <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>,
   Sun: () => <svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="4"/><path d="M12 2v2"/><path d="M12 20v2"/><path d="m4.93 4.93 1.41 1.41"/><path d="m17.66 17.66 1.41 1.41"/><path d="M2 12h2"/><path d="M20 12h2"/><path d="m6.34 17.66-1.41 1.41"/><path d="m19.07 4.93-1.41 1.41"/></svg>,
@@ -113,6 +116,11 @@ export default function PostPage() {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [modalInputError, setModalInputError] = useState('');
 
+  // Image Upload state
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const [imageFile, setImageFile] = useState<File | null>(null);
+  const [imagePreview, setImagePreview] = useState<string | null>(null);
+
   // Initialize Dark Mode state from localStorage
   useEffect(() => {
     try {
@@ -166,6 +174,22 @@ export default function PostPage() {
     setSpotifyTrackId('');
   };
 
+  const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (e.target.files && e.target.files[0]) {
+      const file = e.target.files[0];
+      setImageFile(file);
+      setImagePreview(URL.createObjectURL(file));
+    }
+  };
+
+  const handleRemoveImage = () => {
+    setImageFile(null);
+    setImagePreview(null);
+    if (fileInputRef.current) {
+      fileInputRef.current.value = '';
+    }
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!content.trim()) {
@@ -184,6 +208,50 @@ export default function PostPage() {
     setError('');
 
     try {
+      let imageUrl: string | null = null;
+
+      // Process and upload photo if attached
+      if (imageFile) {
+        // 1. Compress image in browser before uploading
+        const compressionOptions = {
+          maxSizeMB: 1,
+          maxWidthOrHeight: 1920,
+          useWebWorker: true,
+          fileType: 'image/webp',
+        };
+
+        const compressedBlob = await imageCompression(imageFile, compressionOptions);
+        const compressedFile = new File(
+          [compressedBlob],
+          imageFile.name.replace(/\.[^/.]+$/, '') + '.webp',
+          { type: compressedBlob.type }
+        );
+
+        // 2. Request presigned upload URL from Cloudflare R2
+        const urlRes = await getPresignedUploadUrl(compressedFile.name, compressedFile.type);
+
+        if (!urlRes.success || !urlRes.signedUrl || !urlRes.publicUrl) {
+          setError(urlRes.error || 'Failed to authorize image upload.');
+          setLoading(false);
+          return;
+        }
+
+        // 3. Upload directly to Cloudflare R2 bucket
+        const uploadRes = await fetch(urlRes.signedUrl, {
+          method: 'PUT',
+          headers: {
+            'Content-Type': compressedFile.type,
+          },
+          body: compressedFile,
+        });
+
+        if (!uploadRes.ok) {
+          throw new Error('Failed to upload image to Cloudflare R2.');
+        }
+
+        imageUrl = urlRes.publicUrl;
+      }
+
       const authorAlias = generateAlias();
       
       // Apply automatic censorship to English and Tagalog bad words
@@ -201,6 +269,10 @@ export default function PostPage() {
 
       if (spotifyTrackId) {
         postData.spotifyTrackId = spotifyTrackId;
+      }
+
+      if (imageUrl) {
+        postData.imageUrl = imageUrl;
       }
 
       await addDoc(collection(db, 'posts'), postData);
@@ -312,50 +384,102 @@ export default function PostPage() {
             />
           </div>
 
-          {/* Optional Music Attachment Section */}
-          <div>
-            <div className="flex items-center justify-between mb-2">
-              <label className={`block font-mono text-xs font-bold uppercase tracking-wider ${isDarkMode ? 'text-neutral-400' : 'text-neutral-500'}`}>
-                Soundtrack <span className={`font-normal ${isDarkMode ? 'text-neutral-600' : 'text-neutral-300'}`}>(Optional)</span>
-              </label>
+          {/* Optional Attachments Section */}
+          <div className="space-y-6">
+            {/* Photo Attachment */}
+            <div>
+              <div className="flex items-center justify-between mb-2">
+                <label className={`block font-mono text-xs font-bold uppercase tracking-wider ${isDarkMode ? 'text-neutral-400' : 'text-neutral-500'}`}>
+                  Photo Attachment <span className={`font-normal ${isDarkMode ? 'text-neutral-600' : 'text-neutral-400'}`}>(Optional)</span>
+                </label>
+              </div>
+
+              <input
+                type="file"
+                ref={fileInputRef}
+                accept="image/*"
+                onChange={handleImageChange}
+                className="hidden"
+              />
+
+              {!imagePreview ? (
+                <button
+                  type="button"
+                  onClick={() => fileInputRef.current?.click()}
+                  className={`inline-flex items-center gap-2 px-4 py-2.5 border rounded-lg font-mono text-xs font-semibold transition-colors cursor-pointer ${
+                    isDarkMode 
+                      ? 'bg-neutral-900 hover:bg-neutral-800 border-neutral-800 text-neutral-300' 
+                      : 'bg-neutral-50 hover:bg-neutral-100 border-neutral-200 text-neutral-700'
+                  }`}
+                >
+                  <Icons.Image />
+                  <span>Attach Image</span>
+                </button>
+              ) : (
+                <div className={`p-3 border rounded-lg space-y-3 ${isDarkMode ? 'bg-neutral-900 border-neutral-800' : 'bg-neutral-50 border-neutral-200'}`}>
+                  <div className="flex items-center justify-between">
+                    <span className={`font-mono text-[10px] uppercase tracking-wider ${isDarkMode ? 'text-neutral-500' : 'text-neutral-400'}`}>Attached Photo Preview</span>
+                    <button
+                      type="button"
+                      onClick={handleRemoveImage}
+                      className={`inline-flex items-center gap-1 text-xs font-mono transition-colors cursor-pointer ${isDarkMode ? 'text-rose-400 hover:text-rose-300' : 'text-rose-500 hover:text-rose-700'}`}
+                    >
+                      <Icons.Trash />
+                      <span>Remove</span>
+                    </button>
+                  </div>
+                  <div className="relative max-h-64 overflow-hidden rounded-md border border-neutral-800/50 flex items-center justify-center bg-black/20">
+                    <img src={imagePreview} alt="Upload preview" className="max-h-64 w-auto object-contain rounded-md" />
+                  </div>
+                </div>
+              )}
             </div>
 
-            {!spotifyTrackId ? (
-              <button
-                type="button"
-                onClick={() => setIsModalOpen(true)}
-                className={`inline-flex items-center gap-2 px-4 py-2.5 border rounded-lg font-mono text-xs font-semibold transition-colors cursor-pointer ${
-                  isDarkMode 
-                    ? 'bg-neutral-900 hover:bg-neutral-800 border-neutral-800 text-neutral-300' 
-                    : 'bg-neutral-50 hover:bg-neutral-100 border-neutral-200 text-neutral-700'
-                }`}
-              >
-                <Icons.Music />
-                <span>Add Spotify Track</span>
-              </button>
-            ) : (
-              <div className={`p-3 border rounded-lg space-y-3 ${isDarkMode ? 'bg-neutral-900 border-neutral-800' : 'bg-neutral-50 border-neutral-200'}`}>
-                <div className="flex items-center justify-between">
-                  <span className={`font-mono text-[10px] uppercase tracking-wider ${isDarkMode ? 'text-neutral-500' : 'text-neutral-400'}`}>Attached Spotify Player Preview</span>
-                  <button
-                    type="button"
-                    onClick={handleRemoveSpotifyTrack}
-                    className={`inline-flex items-center gap-1 text-xs font-mono transition-colors cursor-pointer ${isDarkMode ? 'text-rose-400 hover:text-rose-300' : 'text-rose-500 hover:text-rose-700'}`}
-                  >
-                    <Icons.Trash />
-                    <span>Remove</span>
-                  </button>
-                </div>
-                <iframe
-                  src={`https://open.spotify.com/embed/track/${spotifyTrackId}?utm_source=generator&theme=${isDarkMode ? '1' : '0'}`}
-                  width="100%"
-                  height="80"
-                  frameBorder="0"
-                  allow="encrypted-media"
-                  className="rounded-md"
-                />
+            {/* Optional Music Attachment Section */}
+            <div>
+              <div className="flex items-center justify-between mb-2">
+                <label className={`block font-mono text-xs font-bold uppercase tracking-wider ${isDarkMode ? 'text-neutral-400' : 'text-neutral-500'}`}>
+                  Soundtrack <span className={`font-normal ${isDarkMode ? 'text-neutral-600' : 'text-neutral-400'}`}>(Optional)</span>
+                </label>
               </div>
-            )}
+
+              {!spotifyTrackId ? (
+                <button
+                  type="button"
+                  onClick={() => setIsModalOpen(true)}
+                  className={`inline-flex items-center gap-2 px-4 py-2.5 border rounded-lg font-mono text-xs font-semibold transition-colors cursor-pointer ${
+                    isDarkMode 
+                      ? 'bg-neutral-900 hover:bg-neutral-800 border-neutral-800 text-neutral-300' 
+                      : 'bg-neutral-50 hover:bg-neutral-100 border-neutral-200 text-neutral-700'
+                  }`}
+                >
+                  <Icons.Music />
+                  <span>Add Spotify Track</span>
+                </button>
+              ) : (
+                <div className={`p-3 border rounded-lg space-y-3 ${isDarkMode ? 'bg-neutral-900 border-neutral-800' : 'bg-neutral-50 border-neutral-200'}`}>
+                  <div className="flex items-center justify-between">
+                    <span className={`font-mono text-[10px] uppercase tracking-wider ${isDarkMode ? 'text-neutral-500' : 'text-neutral-400'}`}>Attached Spotify Player Preview</span>
+                    <button
+                      type="button"
+                      onClick={handleRemoveSpotifyTrack}
+                      className={`inline-flex items-center gap-1 text-xs font-mono transition-colors cursor-pointer ${isDarkMode ? 'text-rose-400 hover:text-rose-300' : 'text-rose-500 hover:text-rose-700'}`}
+                    >
+                      <Icons.Trash />
+                      <span>Remove</span>
+                    </button>
+                  </div>
+                  <iframe
+                    src={`https://open.spotify.com/embed/track/${spotifyTrackId}?utm_source=generator&theme=${isDarkMode ? '1' : '0'}`}
+                    width="100%"
+                    height="80"
+                    frameBorder="0"
+                    allow="encrypted-media"
+                    className="rounded-md"
+                  />
+                </div>
+              )}
+            </div>
           </div>
 
           <div className={`pt-4 border-t space-y-4 ${isDarkMode ? 'border-neutral-800' : 'border-neutral-200'}`}>

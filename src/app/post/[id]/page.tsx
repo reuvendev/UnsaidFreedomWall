@@ -27,6 +27,7 @@ interface PostData {
   upvotes: number;
   repliesCount: number;
   spotifyTrackId?: string;
+  imageUrl?: string;
   isDeveloperPost?: boolean;
 }
 
@@ -240,6 +241,7 @@ export default function PostDetailPage() {
             upvotes: data.upvotes || 0,
             repliesCount: data.replies || 0,
             spotifyTrackId: data.spotifyTrackId || null,
+            imageUrl: data.imageUrl || undefined,
             isDeveloperPost: data.isDeveloperPost || false,
           });
         } else {
@@ -514,6 +516,17 @@ export default function PostDetailPage() {
           <p className={`text-xl md:text-2xl font-medium mb-6 leading-relaxed ${isDarkMode ? 'text-neutral-100' : 'text-neutral-900'}`}>
             {post.content}
           </p>
+
+          {post.imageUrl && (
+            <div className="mb-6 overflow-hidden rounded-xl border border-neutral-200 dark:border-neutral-800">
+              <img
+                src={post.imageUrl}
+                alt="Attached image"
+                loading="lazy"
+                className="w-full max-h-[600px] object-contain"
+              />
+            </div>
+          )}
 
           {/* Spotify Embedded Player */}
           {post.spotifyTrackId && (

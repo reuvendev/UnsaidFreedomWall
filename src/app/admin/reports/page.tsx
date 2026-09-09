@@ -17,6 +17,7 @@ interface ReportItem {
   contentSnippet?: string;
   authorAlias?: string;
   category?: string;
+  imageUrl?: string;
 }
 
 export default function AdminReportsPage() {
@@ -75,6 +76,7 @@ export default function AdminReportsPage() {
         let contentSnippet = "[Content was deleted or not found]";
         let authorAlias = "UNSAID #00000";
         let category = "thoughts";
+        let imageUrl: string | undefined = undefined;
 
         if (contentType === 'reply' && postId && replyId) {
           const replyRef = doc(db, "posts", postId, "replies", replyId);
@@ -92,6 +94,7 @@ export default function AdminReportsPage() {
             contentSnippet = postData.content || "";
             authorAlias = postData.authorAlias || "UNSAID #00000";
             category = postData.category || "thoughts";
+            imageUrl = postData.imageUrl || undefined;
           }
         }
 
@@ -106,6 +109,7 @@ export default function AdminReportsPage() {
           contentSnippet,
           authorAlias,
           category,
+          imageUrl,
         });
       }
 
@@ -259,6 +263,21 @@ export default function AdminReportsPage() {
                   <p className="text-base text-neutral-200 bg-neutral-900 p-4 rounded border border-neutral-800/60 leading-relaxed">
                     &ldquo;{report.contentSnippet}&rdquo;
                   </p>
+                  {report.imageUrl && (
+  <div className="space-y-1">
+    <span className="font-mono text-[10px] text-neutral-500 uppercase tracking-widest">
+      Attached Image:
+    </span>
+    <div className="overflow-hidden rounded-lg border border-neutral-800 bg-neutral-900">
+      <img
+        src={report.imageUrl}
+        alt="Reported post attachment"
+        loading="lazy"
+        className="w-full max-h-[500px] object-contain"
+      />
+    </div>
+  </div>
+)}
                 </div>
 
                 {report.details && report.details !== report.contentSnippet && (

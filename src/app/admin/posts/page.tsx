@@ -22,6 +22,7 @@ interface PendingPost {
   category: string;
   createdAt: string;
   spotifyTrackId?: string;
+  imageUrl?: string; // <-- Added imageUrl field
 }
 
 const Icons = {
@@ -108,6 +109,7 @@ export default function AdminModerationPage() {
           category: data.category || "thoughts",
           createdAt: formattedDate,
           spotifyTrackId: data.spotifyTrackId || null,
+          imageUrl: data.imageUrl || data.image || null, // <-- Extract image URL from Firestore
         });
       });
 
@@ -267,10 +269,25 @@ export default function AdminModerationPage() {
                     </span>
                   </div>
 
-                  <p className="text-sm font-medium text-neutral-200 whitespace-pre-wrap leading-relaxed">
-                    {post.content}
-                  </p>
+                  {post.content && (
+                    <p className="text-sm font-medium text-neutral-200 whitespace-pre-wrap leading-relaxed">
+                      {post.content}
+                    </p>
+                  )}
 
+                  {/* Render Uploaded Image if available */}
+                  {post.imageUrl && (
+                    <div className="relative rounded-lg overflow-hidden border border-neutral-800/80 bg-neutral-950 flex items-center justify-center">
+                      <img
+                        src={post.imageUrl}
+                        alt="User uploaded attachment"
+                        className="max-h-96 w-auto object-contain rounded-lg"
+                        loading="lazy"
+                      />
+                    </div>
+                  )}
+
+                  {/* Render Spotify Embed if available */}
                   {post.spotifyTrackId && (
                     <div>
                       <iframe
