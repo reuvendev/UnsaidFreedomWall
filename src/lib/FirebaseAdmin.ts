@@ -13,4 +13,5 @@ if (!getApps().length) {
   });
 }
 
+export const adminApp = app;
 export const adminDb = getFirestore();
