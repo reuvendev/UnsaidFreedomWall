@@ -63,11 +63,11 @@ const STREAK_STORAGE_KEY = 'unsaid_chat_user_id';
 const STREAK_MILESTONES = [
   { days: 1, title: 'Enrolled' },
   { days: 3, title: 'Good Standing' },
-  { days: 7, title: 'With Honors' },
-  { days: 14, title: 'With High Honors' },
-  { days: 30, title: 'With Highest Honors' },
-  { days: 60, title: "Dean's List" },
-  { days: 100, title: 'Valedictorian' },
+  { days: 7, title: 'Academic Scholar' },
+  { days: 14, title: "Dean's Lister" },
+  { days: 30, title: 'Cum Laude' },
+  { days: 60, title: "Magna Cum Laude" },
+  { days: 100, title: 'Summa Cum Laude' },
 ];
 
 interface StreakData {
