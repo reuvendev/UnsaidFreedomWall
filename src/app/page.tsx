@@ -1,6 +1,11 @@
 'use client';
 
-import React, { useState, useEffect, useMemo, useCallback } from 'react';
+import React, {
+  useState,
+  useEffect,
+  useMemo,
+  useCallback,
+} from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import {
@@ -66,7 +71,7 @@ const STREAK_MILESTONES = [
   { days: 7, title: 'Academic Scholar' },
   { days: 14, title: "Dean's Lister" },
   { days: 30, title: 'Cum Laude' },
-  { days: 60, title: "Magna Cum Laude" },
+  { days: 60, title: 'Magna Cum Laude' },
   { days: 100, title: 'Summa Cum Laude' },
 ];
 
@@ -83,7 +88,6 @@ interface StreakData {
  * It does NOT create a new ID.
  *
  * The ID should already be created by the chat system.
- * This makes sure posts and chats use the same anonymous user.
  */
 const getAnonymousUserId = (): string | null => {
   if (typeof window === 'undefined') {
@@ -93,7 +97,10 @@ const getAnonymousUserId = (): string | null => {
   try {
     return localStorage.getItem(STREAK_STORAGE_KEY);
   } catch (error) {
-    console.error('Failed to get anonymous user ID:', error);
+    console.error(
+      'Failed to get anonymous user ID:',
+      error
+    );
     return null;
   }
 };
@@ -120,13 +127,6 @@ const getDateDifference = (
   );
 };
 
-/*
- * If the user has not been active today or yesterday,
- * the visible streak is considered expired.
- *
- * This does NOT modify Firestore.
- * It only controls what is displayed on the homepage.
- */
 const getEffectiveStreak = (
   streakData: StreakData
 ): number => {
@@ -385,22 +385,24 @@ const Icons = {
     </svg>
   ),
 
-  Pin: (props: React.SVGProps<SVGSVGElement>) => (
-  <svg
-    {...props}
-    viewBox="0 0 24 24"
-    fill="none"
-    stroke="currentColor"
-    strokeWidth="2"
-    strokeLinecap="round"
-    strokeLinejoin="round"
-  >
-    <path d="M12 17v5" />
-    <path d="M5 9l3-3 1-4h6l1 4 3 3" />
-    <path d="M5 9h14" />
-    <path d="M8 9v4l-2 2h12l-2-2V9" />
-  </svg>
-),
+  Pin: (
+    props: React.SVGProps<SVGSVGElement>
+  ) => (
+    <svg
+      {...props}
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    >
+      <path d="M12 17v5" />
+      <path d="M5 9l3-3 1-4h6l1 4 3 3" />
+      <path d="M5 9h14" />
+      <path d="M8 9v4l-2 2h12l-2-2V9" />
+    </svg>
+  ),
 };
 
 export default function HomePage() {
@@ -414,6 +416,9 @@ export default function HomePage() {
 
   const [debouncedSearch, setDebouncedSearch] =
     useState<string>('');
+
+  const [pinnedPosts, setPinnedPosts] =
+    useState<PostProps[]>([]);
 
   const [rawPosts, setRawPosts] =
     useState<PostProps[]>([]);
@@ -460,7 +465,30 @@ export default function HomePage() {
     useState<boolean>(false);
 
   const [isDarkMode, setIsDarkMode] =
-    useState<boolean>(false);
+  useState<boolean>(false);
+
+useEffect(() => {
+  try {
+    const storedTheme =
+      localStorage.getItem('unsaid_dark_mode');
+
+    if (storedTheme !== null) {
+      setIsDarkMode(JSON.parse(storedTheme));
+    } else if (
+      window.matchMedia &&
+      window.matchMedia(
+        '(prefers-color-scheme: dark)'
+      ).matches
+    ) {
+      setIsDarkMode(true);
+    }
+  } catch (error) {
+    console.error(
+      'Failed to load dark mode:',
+      error
+    );
+  }
+}, []);
 
   const [streak, setStreak] =
     useState<StreakData>({
@@ -472,54 +500,313 @@ export default function HomePage() {
   const [streakLoading, setStreakLoading] =
     useState<boolean>(true);
 
+  /* =========================================================
+     FORMAT POSTS
+  ========================================================= */
+
+  const formatPosts = (
+    querySnapshot: any
+  ): PostProps[] => {
+    const fetched: PostProps[] = [];
+
+    querySnapshot.forEach(
+      (
+        docSnap: QueryDocumentSnapshot<DocumentData>
+      ) => {
+        const data = docSnap.data();
+
+        let formattedDate = 'Just now';
+
+        if (data.createdAt?.toDate) {
+          const dateObj =
+            data.createdAt.toDate();
+
+          formattedDate =
+            dateObj.toLocaleDateString([], {
+              month: 'short',
+              day: 'numeric',
+              year: 'numeric',
+            }) +
+            ' at ' +
+            dateObj.toLocaleTimeString([], {
+              hour: '2-digit',
+              minute: '2-digit',
+            });
+        }
+
+        fetched.push({
+          id: docSnap.id,
+
+          authorAlias:
+            data.authorAlias ||
+            'Anonymous Louisian',
+
+          content:
+            data.content || '',
+
+          category:
+            data.category ||
+            'thoughts',
+
+          createdAt:
+            formattedDate,
+
+          upvotes:
+            data.upvotes || 0,
+
+          replies:
+            data.replies || 0,
+
+          spotifyTrackId:
+            data.spotifyTrackId ||
+            undefined,
+
+          imageUrl:
+            data.imageUrl ||
+            undefined,
+
+          isDeveloperPost:
+            data.isDeveloperPost ||
+            false,
+
+          isPinned:
+            data.isPinned === true,
+        });
+      }
+    );
+
+    return fetched;
+  };
+
+  /* =========================================================
+     FIRESTORE POSTS QUERY
+  ========================================================= */
+
+  const buildQuery = useCallback(
+    (
+      category: string,
+      limitCount: number,
+      startAfterDoc:
+        | QueryDocumentSnapshot<DocumentData>
+        | null = null
+    ): Query => {
+      const postsRef =
+        collection(db, 'posts');
+
+      /*
+       * IMPORTANT:
+       * Do NOT query isPinned == false here.
+       *
+       * Older posts do not have isPinned.
+       * This query therefore loads all approved posts.
+       */
+
+      const constraints: any[] = [
+        where(
+          'status',
+          '==',
+          'approved'
+        ),
+        orderBy(
+          'createdAt',
+          'desc'
+        ),
+      ];
+
+      if (category !== 'all') {
+        constraints.push(
+          where(
+            'category',
+            '==',
+            category
+          )
+        );
+      }
+
+      if (startAfterDoc) {
+        constraints.push(
+          startAfter(startAfterDoc)
+        );
+      }
+
+      constraints.push(
+        limit(limitCount)
+      );
+
+      return query(
+        postsRef,
+        ...constraints
+      );
+    },
+    []
+  );
+
+  /* =========================================================
+     SEARCH DEBOUNCE
+  ========================================================= */
+
   useEffect(() => {
-    try {
-      const storedVotes =
-        localStorage.getItem(
-          'unsaid_voted_posts'
-        );
+    const timer = setTimeout(() => {
+      setDebouncedSearch(
+        searchQuery.trim()
+      );
+    }, 300);
 
-      if (storedVotes) {
-        setVotedPosts(
-          JSON.parse(storedVotes)
-        );
-      }
+    return () =>
+      clearTimeout(timer);
+  }, [searchQuery]);
 
-      const storedReports =
-        localStorage.getItem(
-          'unsaid_reported_posts'
-        );
+  /* =========================================================
+     LOAD POSTS
+  ========================================================= */
 
-      if (storedReports) {
-        setReportedPosts(
-          JSON.parse(storedReports)
-        );
-      }
+  useEffect(() => {
+    setLoading(true);
+    setHasMore(true);
+    setRawPosts([]);
+    setPinnedPosts([]);
+    setLastVisible(null);
 
-      const storedTheme =
-        localStorage.getItem(
-          'unsaid_dark_mode'
-        );
+    const fetchLimit =
+      debouncedSearch !== ''
+        ? 50
+        : 10;
 
-      if (storedTheme) {
-        setIsDarkMode(
-          JSON.parse(storedTheme)
-        );
-      } else if (
-        window.matchMedia &&
-        window.matchMedia(
-          '(prefers-color-scheme: dark)'
-        ).matches
-      ) {
-        setIsDarkMode(true);
-      }
-    } catch (e) {
-      console.error(
-        'Failed to load local settings:',
-        e
+    const postsRef =
+      collection(db, 'posts');
+
+    /* =======================================================
+       NORMAL POSTS
+    ======================================================= */
+
+    const normalQuery = buildQuery(
+      selectedCategory,
+      fetchLimit
+    );
+
+    const unsubscribeNormal =
+      onSnapshot(
+        normalQuery,
+        (querySnapshot) => {
+          const formatted =
+            formatPosts(
+              querySnapshot
+            );
+
+          if (
+            querySnapshot.docs.length >
+            0
+          ) {
+            setLastVisible(
+              querySnapshot.docs[
+                querySnapshot.docs.length -
+                  1
+              ]
+            );
+
+            if (
+              querySnapshot.docs.length <
+                fetchLimit ||
+              debouncedSearch !== ''
+            ) {
+              setHasMore(false);
+            } else {
+              setHasMore(true);
+            }
+          } else {
+            setLastVisible(null);
+            setHasMore(false);
+          }
+
+          setRawPosts(formatted);
+          setLoading(false);
+        },
+        (error) => {
+          console.error(
+            'Error listening to normal posts:',
+            error
+          );
+
+          setLoading(false);
+        }
+      );
+
+    /* =======================================================
+       PINNED POSTS
+    ======================================================= */
+
+    const pinnedConstraints: any[] = [
+      where(
+        'status',
+        '==',
+        'approved'
+      ),
+      where(
+        'isPinned',
+        '==',
+        true
+      ),
+      orderBy(
+        'createdAt',
+        'desc'
+      ),
+    ];
+
+    /*
+     * If a category is selected, insert the category
+     * condition between status and isPinned.
+     */
+    if (
+      selectedCategory !== 'all'
+    ) {
+      pinnedConstraints.splice(
+        1,
+        0,
+        where(
+          'category',
+          '==',
+          selectedCategory
+        )
       );
     }
-  }, []);
+
+    const pinnedQuery = query(
+      postsRef,
+      ...pinnedConstraints
+    );
+
+    const unsubscribePinned =
+      onSnapshot(
+        pinnedQuery,
+        (querySnapshot) => {
+          const formatted =
+            formatPosts(
+              querySnapshot
+            );
+
+          setPinnedPosts(
+            formatted
+          );
+        },
+        (error) => {
+          console.error(
+            'Error listening to pinned posts:',
+            error
+          );
+
+          setPinnedPosts([]);
+        }
+      );
+
+    return () => {
+      unsubscribeNormal();
+      unsubscribePinned();
+    };
+  }, [
+    selectedCategory,
+    debouncedSearch,
+    buildQuery,
+  ]);
 
   /* =========================================================
      LOAD STREAK
@@ -530,12 +817,6 @@ export default function HomePage() {
       const anonymousUserId =
         getAnonymousUserId();
 
-      /*
-       * Do not create an ID here.
-       *
-       * If the user has never used the chat system,
-       * there is no streak document to load.
-       */
       if (!anonymousUserId) {
         setStreak({
           current: 0,
@@ -557,7 +838,9 @@ export default function HomePage() {
         const userSnapshot =
           await getDoc(userRef);
 
-        if (userSnapshot.exists()) {
+        if (
+          userSnapshot.exists()
+        ) {
           const data =
             userSnapshot.data();
 
@@ -610,7 +893,7 @@ export default function HomePage() {
   }, []);
 
   /* =========================================================
-     SCROLL POSITION
+     LOAD SAVED SCROLL POSITION
   ========================================================= */
 
   useEffect(() => {
@@ -637,6 +920,10 @@ export default function HomePage() {
       }
     }
   }, [loading]);
+
+  /* =========================================================
+     SAVE SCROLL POSITION
+  ========================================================= */
 
   useEffect(() => {
     const handleScroll = () => {
@@ -667,270 +954,82 @@ export default function HomePage() {
   ========================================================= */
 
   const toggleDarkMode = () => {
-    const nextMode = !isDarkMode;
+    const nextMode =
+      !isDarkMode;
 
-    setIsDarkMode(nextMode);
+    setIsDarkMode(
+      nextMode
+    );
 
     try {
       localStorage.setItem(
         'unsaid_dark_mode',
-        JSON.stringify(nextMode)
+        JSON.stringify(
+          nextMode
+        )
       );
     } catch (e) {}
   };
 
   /* =========================================================
-     SEARCH
+     COMBINE POSTS
   ========================================================= */
-
-  useEffect(() => {
-    const timer = setTimeout(() => {
-      setDebouncedSearch(
-        searchQuery.trim()
-      );
-    }, 300);
-
-    return () =>
-      clearTimeout(timer);
-  }, [searchQuery]);
-
-  /* =========================================================
-     FIRESTORE POSTS QUERY
-  ========================================================= */
-
-  const buildQuery = useCallback(
-    (
-      category: string,
-      limitCount: number,
-      startAfterDoc:
-        | QueryDocumentSnapshot<DocumentData>
-        | null = null
-    ): Query => {
-      const postsRef =
-        collection(db, 'posts');
-
-      const constraints: any[] = [
-        where(
-          'status',
-          '==',
-          'approved'
-        ),
-        orderBy(
-          'createdAt',
-          'desc'
-        ),
-      ];
-
-      if (category !== 'all') {
-        constraints.unshift(
-          where(
-            'category',
-            '==',
-            category
-          )
-        );
-      }
-
-      if (startAfterDoc) {
-        constraints.push(
-          startAfter(startAfterDoc)
-        );
-      }
-
-      constraints.push(
-        limit(limitCount)
-      );
-
-      return query(
-        postsRef,
-        ...constraints
-      );
-    },
-    []
-  );
-
-  const formatPosts = (
-    querySnapshot: any
-  ): PostProps[] => {
-    const fetched: PostProps[] = [];
-
-    querySnapshot.forEach(
-      (
-        docSnap: QueryDocumentSnapshot<DocumentData>
-      ) => {
-        const data =
-          docSnap.data();
-
-        let formattedDate =
-          'Just now';
-
-        if (
-          data.createdAt?.toDate
-        ) {
-          const dateObj =
-            data.createdAt.toDate();
-
-          formattedDate =
-            dateObj.toLocaleDateString(
-              [],
-              {
-                month: 'short',
-                day: 'numeric',
-                year: 'numeric',
-              }
-            ) +
-            ' at ' +
-            dateObj.toLocaleTimeString(
-              [],
-              {
-                hour: '2-digit',
-                minute: '2-digit',
-              }
-            );
-        }
-
-        fetched.push({
-          id: docSnap.id,
-
-          authorAlias:
-            data.authorAlias ||
-            'Anonymous Louisian',
-
-          content:
-            data.content || '',
-
-          category:
-            data.category ||
-            'thoughts',
-
-          createdAt:
-            formattedDate,
-
-          upvotes:
-            data.upvotes || 0,
-
-          replies:
-            data.replies || 0,
-
-          spotifyTrackId:
-            data.spotifyTrackId ||
-            undefined,
-
-          imageUrl:
-            data.imageUrl ||
-            undefined,
-
-          isDeveloperPost:
-            data.isDeveloperPost ||
-            false,
-
-          isPinned:
-            data.isPinned ||
-            false,
-        });
-      }
-    );
-
-    return fetched;
-  };
-
-  useEffect(() => {
-    setLoading(true);
-    setHasMore(true);
-    setRawPosts([]);
-    setLastVisible(null);
-
-    const fetchLimit =
-      debouncedSearch !== ''
-        ? 50
-        : 10;
-
-    const q = buildQuery(
-      selectedCategory,
-      fetchLimit
-    );
-
-    const unsubscribe =
-      onSnapshot(
-        q,
-        (querySnapshot) => {
-          const formatted =
-            formatPosts(
-              querySnapshot
-            );
-
-          if (
-            querySnapshot.docs.length >
-            0
-          ) {
-            setLastVisible(
-              querySnapshot.docs[
-                querySnapshot.docs
-                  .length - 1
-              ]
-            );
-
-            if (
-              querySnapshot.docs
-                .length <
-                fetchLimit ||
-              debouncedSearch !== ''
-            ) {
-              setHasMore(false);
-            }
-          } else {
-            setLastVisible(null);
-            setHasMore(false);
-          }
-
-          setRawPosts(formatted);
-          setLoading(false);
-        },
-        (error) => {
-          console.error(
-            'Error listening to posts:',
-            error
-          );
-
-          setLoading(false);
-        }
-      );
-
-    return () =>
-      unsubscribe();
-  }, [
-    selectedCategory,
-    debouncedSearch,
-    buildQuery,
-  ]);
 
   const posts = useMemo(() => {
-  let filteredPosts = rawPosts;
+    let filteredPosts =
+      rawPosts;
 
-  if (debouncedSearch) {
-    const queryLower =
-      debouncedSearch.toLowerCase();
+    if (debouncedSearch) {
+      const queryLower =
+        debouncedSearch.toLowerCase();
 
-    filteredPosts = rawPosts.filter(
-      (post) =>
-        post.content
-          .toLowerCase()
-          .includes(queryLower) ||
-        post.authorAlias
-          .toLowerCase()
-          .includes(queryLower)
-    );
-  }
+      filteredPosts =
+        rawPosts.filter(
+          (post) =>
+            post.content
+              .toLowerCase()
+              .includes(
+                queryLower
+              ) ||
+            post.authorAlias
+              .toLowerCase()
+              .includes(
+                queryLower
+              )
+        );
+    }
 
-  return [...filteredPosts].sort((a, b) => {
-    if (a.isPinned && !b.isPinned) return -1;
-    if (!a.isPinned && b.isPinned) return 1;
-    return 0;
-  });
-}, [
-  rawPosts,
-  debouncedSearch,
-]);
+    /*
+     * Pinned posts are loaded separately.
+     * Remove them from the normal list to avoid duplicates.
+     */
+    const pinnedIds =
+      new Set(
+        pinnedPosts.map(
+          (post) => post.id
+        )
+      );
+
+    const normalPosts =
+      filteredPosts.filter(
+        (post) =>
+          !pinnedIds.has(
+            post.id
+          )
+      );
+
+    /*
+     * Pinned posts ALWAYS appear first.
+     */
+    return [
+      ...pinnedPosts,
+      ...normalPosts,
+    ];
+  }, [
+    rawPosts,
+    pinnedPosts,
+    debouncedSearch,
+  ]);
 
   /* =========================================================
      LOAD MORE
@@ -974,15 +1073,35 @@ export default function HomePage() {
             querySnapshot
           );
 
-        setRawPosts((prev) => [
-          ...prev,
-          ...morePosts,
-        ]);
+        setRawPosts(
+          (prev) => {
+            const existingIds =
+              new Set(
+                prev.map(
+                  (post) =>
+                    post.id
+                )
+              );
+
+            const uniquePosts =
+              morePosts.filter(
+                (post) =>
+                  !existingIds.has(
+                    post.id
+                  )
+              );
+
+            return [
+              ...prev,
+              ...uniquePosts,
+            ];
+          }
+        );
 
         setLastVisible(
           querySnapshot.docs[
-            querySnapshot.docs
-              .length - 1
+            querySnapshot.docs.length -
+              1
           ]
         );
 
@@ -1008,7 +1127,9 @@ export default function HomePage() {
 
   const handleVoteToggle =
     async (id: string) => {
-      if (votingLocked[id]) {
+      if (
+        votingLocked[id]
+      ) {
         return;
       }
 
@@ -1098,7 +1219,9 @@ export default function HomePage() {
         return;
       }
 
-      setIsSubmittingReport(true);
+      setIsSubmittingReport(
+        true
+      );
 
       try {
         await addDoc(
@@ -1182,13 +1305,11 @@ export default function HomePage() {
 
       if (navigator.share) {
         try {
-          await navigator.share(
-            {
-              title:
-                'Tambayan Eselyu Entry',
-              url: postUrl,
-            }
-          );
+          await navigator.share({
+            title:
+              'Tambayan Eselyu Entry',
+            url: postUrl,
+          });
 
           return;
         } catch (err) {}
@@ -1272,7 +1393,6 @@ export default function HomePage() {
           : 'bg-neutral-50/50 text-neutral-900'
       }`}
     >
-
       {/* HEADER */}
       <header
         className={`sticky top-0 z-50 backdrop-blur-md border-b shadow-2xs ${
@@ -1282,7 +1402,6 @@ export default function HomePage() {
         }`}
       >
         <div className="max-w-2xl mx-auto px-6 h-16 flex items-center justify-between">
-
           <Link
             href="/"
             className="font-mono text-xl font-black tracking-tighter"
@@ -1294,7 +1413,6 @@ export default function HomePage() {
           </Link>
 
           <nav className="flex items-center gap-4 sm:gap-5 font-mono text-[11px] font-bold tracking-widest uppercase">
-
             <Link
               href="/about"
               className={
@@ -1334,7 +1452,6 @@ export default function HomePage() {
                 <Icons.Moon />
               )}
             </button>
-
           </nav>
         </div>
       </header>
@@ -1482,7 +1599,6 @@ export default function HomePage() {
               : 'border-neutral-200/80'
           }`}
         >
-
           {CATEGORIES.map(
             (cat) => (
               <button
@@ -1505,7 +1621,6 @@ export default function HomePage() {
               </button>
             )
           )}
-
         </div>
 
         {/* POSTS */}
@@ -1562,7 +1677,22 @@ export default function HomePage() {
                     : post.content;
 
                 return (
-                  <article key={post.id} className={`p-5 sm:p-6 rounded-2xl relative group hover:-translate-y-1 hover:shadow-xl ${ isDev ? isDarkMode ? 'bg-emerald-950/20 border-2 border-emerald-500/50 shadow-md ring-1 ring-emerald-500/10' : 'bg-emerald-50/50 border-2 border-emerald-500/60 shadow-md ring-1 ring-emerald-500/20' : post.isPinned ? isDarkMode ? 'bg-amber-950/20 border-2 border-amber-500/50 shadow-md ring-1 ring-amber-500/10' : 'bg-amber-50/60 border-2 border-amber-400/60 shadow-md ring-1 ring-amber-400/20' : isDarkMode ? 'bg-neutral-900 border border-neutral-800 shadow-xs hover:border-neutral-700' : 'bg-white border border-neutral-200/80 shadow-xs hover:border-neutral-300' }`} >
+                  <article
+                    key={post.id}
+                    className={`p-5 sm:p-6 rounded-2xl relative group hover:-translate-y-1 hover:shadow-xl ${
+                      isDev
+                        ? isDarkMode
+                          ? 'bg-emerald-950/20 border-2 border-emerald-500/50 shadow-md ring-1 ring-emerald-500/10'
+                          : 'bg-emerald-50/50 border-2 border-emerald-500/60 shadow-md ring-1 ring-emerald-500/20'
+                        : post.isPinned
+                          ? isDarkMode
+                            ? 'bg-amber-950/20 border-2 border-amber-500/50 shadow-md ring-1 ring-amber-500/10'
+                            : 'bg-amber-50/60 border-2 border-amber-400/60 shadow-md ring-1 ring-amber-400/20'
+                          : isDarkMode
+                            ? 'bg-neutral-900 border border-neutral-800 shadow-xs hover:border-neutral-700'
+                            : 'bg-white border border-neutral-200/80 shadow-xs hover:border-neutral-300'
+                    }`}
+                  >
 
                     {/* OFFICIAL BADGE */}
                     {isDev && (
@@ -1574,6 +1704,7 @@ export default function HomePage() {
                       </div>
                     )}
 
+                    {/* PINNED BADGE */}
                     {post.isPinned && (
                       <div className="absolute -top-3 right-6 inline-flex items-center gap-1.5 px-2.5 py-1 bg-neutral-900 text-white rounded-full shadow-xs">
                         <Icons.Pin className="w-3 h-3" />
@@ -1591,7 +1722,6 @@ export default function HomePage() {
                           : ''
                       }`}
                     >
-
                       <div className="flex items-center gap-2 font-mono text-[11px] uppercase tracking-wider min-w-0">
 
                         <span
@@ -1635,7 +1765,6 @@ export default function HomePage() {
                           post.category
                         }
                       </span>
-
                     </div>
 
                     {/* CONTENT */}
