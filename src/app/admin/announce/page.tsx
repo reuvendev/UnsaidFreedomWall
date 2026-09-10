@@ -106,6 +106,44 @@ const Icons = {
       <path d="M21 15a4 4 0 0 1-4 4H8l-5 3V7a4 4 0 0 1 4-4h10a4 4 0 0 1 4 4z" />
     </svg>
   ),
+  Pin: () => (
+  <svg
+    xmlns="http://www.w3.org/2000/svg"
+    width="16"
+    height="16"
+    viewBox="0 0 24 24"
+    fill="none"
+    stroke="currentColor"
+    strokeWidth="2"
+    strokeLinecap="round"
+    strokeLinejoin="round"
+  >
+    <path d="M12 17v5" />
+    <path d="M5 9l3-3 1-4h6l1 4 3 3" />
+    <path d="M5 9h14" />
+    <path d="M8 9v4l-2 2h12l-2-2V9" />
+  </svg>
+),
+
+PinOff: () => (
+  <svg
+    xmlns="http://www.w3.org/2000/svg"
+    width="16"
+    height="16"
+    viewBox="0 0 24 24"
+    fill="none"
+    stroke="currentColor"
+    strokeWidth="2"
+    strokeLinecap="round"
+    strokeLinejoin="round"
+  >
+    <path d="M12 17v5" />
+    <path d="M5 9l3-3 1-4h6l1 4 3 3" />
+    <path d="M5 9h14" />
+    <path d="M8 9v4l-2 2h12l-2-2V9" />
+    <line x1="3" y1="3" x2="21" y2="21" />
+  </svg>
+),
 };
 
 export default function AdminPostPortal() {
@@ -238,6 +276,7 @@ export default function AdminPostPortal() {
       replies: data.replies || 0,
       spotifyTrackId: data.spotifyTrackId || undefined,
       imageUrl: data.imageUrl || undefined,
+      isPinned: data.isPinned || false,
     };
   };
 
@@ -497,6 +536,8 @@ export default function AdminPostPortal() {
       setIsSubmitting(false);
     }
   };
+
+  const handleTogglePin = async ( postId: string, currentlyPinned: boolean ) => { try { const postRef = doc(db, 'posts', postId); await updateDoc(postRef, { isPinned: !currentlyPinned, }); setPosts((prev) => prev.map((post) => post.id === postId ? { ...post, isPinned: !currentlyPinned, } : post ) ); } catch (error) { console.error( 'Error updating pin status:', error ); alert( currentlyPinned ? 'Failed to unpin post.' : 'Failed to pin post.' ); } };
 
   // =========================
   // DELETE POST
@@ -956,15 +997,42 @@ export default function AdminPostPortal() {
                       </div>
                     </div>
 
-                    <button
-                      onClick={() =>
-                        handleDeletePost(post.id)
-                      }
-                      className="p-2 text-neutral-600 hover:text-red-400 transition"
-                      title="Delete post"
-                    >
-                      <Icons.Trash />
-                    </button>
+                    <div className="flex items-center gap-1">
+  <button
+    onClick={() =>
+      handleTogglePin(
+        post.id,
+        post.isPinned || false
+      )
+    }
+    className={`p-2 transition ${
+      post.isPinned
+        ? 'text-amber-400 hover:text-amber-300'
+        : 'text-neutral-600 hover:text-amber-400'
+    }`}
+    title={
+      post.isPinned
+        ? 'Unpin post'
+        : 'Pin post'
+    }
+  >
+    {post.isPinned ? (
+      <Icons.PinOff />
+    ) : (
+      <Icons.Pin />
+    )}
+  </button>
+
+  <button
+    onClick={() =>
+      handleDeletePost(post.id)
+    }
+    className="p-2 text-neutral-600 hover:text-red-400 transition"
+    title="Delete post"
+  >
+    <Icons.Trash />
+  </button>
+</div>
                   </div>
 
                   {/* CONTENT */}

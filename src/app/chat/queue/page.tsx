@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import {
@@ -17,39 +17,20 @@ import {
   serverTimestamp,
   setDoc,
   increment,
+  runTransaction,
 } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 
+const STREAK_USER_KEY = 'unsaid_chat_user_id';
+
 const Icons = {
   Loader: () => (
-    <svg
-      className="animate-spin"
-      xmlns="http://www.w3.org/2000/svg"
-      width="20"
-      height="20"
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="2"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-    >
+    <svg className="animate-spin" xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
       <path d="M21 12a9 9 0 1 1-6.219-8.56"></path>
     </svg>
   ),
-
   Sun: () => (
-    <svg
-      xmlns="http://www.w3.org/2000/svg"
-      width="15"
-      height="15"
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="2"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-    >
+    <svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
       <circle cx="12" cy="12" r="4" />
       <path d="M12 2v2" />
       <path d="M12 20v2" />
@@ -61,25 +42,92 @@ const Icons = {
       <path d="m19.07 4.93-1.41 1.41" />
     </svg>
   ),
-
   Moon: () => (
-    <svg
-      xmlns="http://www.w3.org/2000/svg"
-      width="15"
-      height="15"
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="2"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-    >
+    <svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
       <path d="M12 3a6 6 0 0 0 9 9 9 9 0 1 1-9-9Z" />
     </svg>
   ),
 };
 
-// Helper function to get recent matches and clean up entries older than 24 hours
+function getPhilippineDate(): string {
+  return new Intl.DateTimeFormat('en-CA', {
+    timeZone: 'Asia/Manila',
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+  }).format(new Date());
+}
+
+function getYesterday(date: string): string {
+  const [year, month, day] = date.split('-').map(Number);
+
+  const yesterday = new Date(
+    Date.UTC(year, month - 1, day - 1)
+  );
+
+  return yesterday.toISOString().split('T')[0];
+}
+
+async function updateUserStreak(userId: string): Promise<number> {
+  const userRef = doc(db, 'users', userId);
+  const today = getPhilippineDate();
+
+  return await runTransaction(db, async (transaction) => {
+    const userSnapshot = await transaction.get(userRef);
+
+    if (!userSnapshot.exists()) {
+      transaction.set(userRef, {
+        streak: {
+          current: 1,
+          longest: 1,
+          lastActiveDate: today,
+        },
+      });
+
+      return 1;
+    }
+
+    const userData = userSnapshot.data();
+    const existingStreak = userData.streak;
+
+    if (!existingStreak) {
+      transaction.update(userRef, {
+        streak: {
+          current: 1,
+          longest: 1,
+          lastActiveDate: today,
+        },
+      });
+
+      return 1;
+    }
+
+    if (existingStreak.lastActiveDate === today) {
+      return existingStreak.current || 1;
+    }
+
+    const yesterday = getYesterday(today);
+    let newCurrent = 1;
+
+    if (existingStreak.lastActiveDate === yesterday) {
+      newCurrent = (existingStreak.current || 0) + 1;
+    }
+
+    const newLongest = Math.max(
+      existingStreak.longest || 0,
+      newCurrent
+    );
+
+    transaction.update(userRef, {
+      'streak.current': newCurrent,
+      'streak.longest': newLongest,
+      'streak.lastActiveDate': today,
+    });
+
+    return newCurrent;
+  });
+}
+
 function getRecentMatches(): string[] {
   try {
     const raw = localStorage.getItem('unsaid_chat_recent_matches');
@@ -104,7 +152,6 @@ function getRecentMatches(): string[] {
   }
 }
 
-// Helper function to add a new match to the 24-hour exclusion list
 function addRecentMatch(peerId: string) {
   try {
     const raw = localStorage.getItem('unsaid_chat_recent_matches');
@@ -141,12 +188,9 @@ export default function ChatQueuePage() {
   );
 
   const [currentRoomId, setCurrentRoomId] = useState<string | null>(null);
-
   const [isDarkMode, setIsDarkMode] = useState<boolean>(false);
-
   const [retryKey, setRetryKey] = useState<number>(0);
 
-  // Initialize Dark Mode state
   useEffect(() => {
     try {
       const storedTheme = localStorage.getItem('unsaid_dark_mode');
@@ -175,20 +219,14 @@ export default function ChatQueuePage() {
     } catch (e) {}
   };
 
-  // Matchmaking Effect
   useEffect(() => {
     let isMounted = true;
-
     let unsubscribeRoom: (() => void) | null = null;
-
     let cleanupTimeout: NodeJS.Timeout | null = null;
-
     let countdownInterval: NodeJS.Timeout | null = null;
 
     const setupMatchmaking = async () => {
-      let userId = localStorage.getItem(
-        'unsaid_chat_user_id'
-      );
+      let userId = localStorage.getItem(STREAK_USER_KEY);
 
       if (!userId) {
         userId =
@@ -196,7 +234,7 @@ export default function ChatQueuePage() {
           Math.random().toString(36).substring(2, 11);
 
         localStorage.setItem(
-          'unsaid_chat_user_id',
+          STREAK_USER_KEY,
           userId
         );
       }
@@ -272,7 +310,6 @@ export default function ChatQueuePage() {
         const snapshot = await getDocs(q);
 
         let matchedRoomId: string | null = null;
-
         let matchedHostId: string | null = null;
 
         const waitingRooms = snapshot.docs.map(
@@ -294,8 +331,6 @@ export default function ChatQueuePage() {
           return timeA - timeB;
         });
 
-        // Skip own rooms, blocked users,
-        // and anyone matched within the last 24 hours
         for (const roomData of waitingRooms) {
           const hostId = roomData.hostId;
 
@@ -336,7 +371,6 @@ export default function ChatQueuePage() {
 
         if (!isMounted) return;
 
-        // Immediate match found
         if (
           matchedRoomId &&
           matchedHostId
@@ -351,14 +385,26 @@ export default function ChatQueuePage() {
             matchedRoomId
           );
 
+          let currentStreak = 1;
+
+          try {
+            currentStreak =
+              await updateUserStreak(userId);
+          } catch (streakError) {
+            console.error(
+              'Error updating streak:',
+              streakError
+            );
+          }
+
           await updateDoc(roomRef, {
             guestId: userId,
             guestNickname: nickname,
             guestSchool: school,
+            guestStreak: currentStreak,
             status: 'active',
           });
 
-          // Add to 24-hour exclusion list
           addRecentMatch(
             matchedHostId
           );
@@ -396,9 +442,11 @@ export default function ChatQueuePage() {
               hostId: userId,
               hostNickname: nickname,
               hostSchool: school,
+              hostStreak: null,
               guestId: null,
               guestNickname: null,
               guestSchool: null,
+              guestStreak: null,
               status: 'waiting',
               createdAt: serverTimestamp(),
             }
@@ -423,8 +471,6 @@ export default function ChatQueuePage() {
                   data.status === 'active' &&
                   data.guestId
                 ) {
-                  // Check if guest is blocked
-                  // or matched within the last 24 hours
                   if (
                     blockedUsers.includes(
                       data.guestId
@@ -455,7 +501,33 @@ export default function ChatQueuePage() {
                     return;
                   }
 
-                  // Add to 24-hour exclusion list
+                  let currentStreak = 1;
+
+                  try {
+                    currentStreak =
+                      await updateUserStreak(userId);
+                  } catch (streakError) {
+                    console.error(
+                      'Error updating streak:',
+                      streakError
+                    );
+                  }
+
+                  try {
+                    await updateDoc(
+                      newRoomRef,
+                      {
+                        hostStreak:
+                          currentStreak,
+                      }
+                    );
+                  } catch (streakRoomError) {
+                    console.error(
+                      'Error saving streak to room:',
+                      streakRoomError
+                    );
+                  }
+
                   addRecentMatch(
                     data.guestId
                   );
@@ -472,7 +544,6 @@ export default function ChatQueuePage() {
             }
           );
 
-          // Queue lasts 3 minutes
           cleanupTimeout = setTimeout(
             async () => {
               if (isMounted) {
@@ -490,7 +561,6 @@ export default function ChatQueuePage() {
                   null
                 );
 
-                // Start 5-second countdown
                 let timeLeft = 5;
 
                 setStatusText(
