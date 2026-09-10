@@ -36,6 +36,10 @@ const Icons = {
 };
 
 export default function AdminCleanupPage() {
+  const formatNumber = (number: number) => {
+      return number.toLocaleString('en-US');
+    };
+
   const [isAuthenticated, setIsAuthenticated] = useState<boolean | null>(null);
   const [authError, setAuthError] = useState<string>("");
   
@@ -283,31 +287,31 @@ export default function AdminCleanupPage() {
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
           <div className="bg-neutral-900/60 border border-neutral-800/80 p-6 rounded-2xl backdrop-blur-sm flex flex-col justify-between">
             <span className="text-xs font-mono uppercase tracking-widest text-emerald-500 font-bold">All-Time Created</span>
-            <div className="text-4xl font-black text-white mt-4 font-mono">{stats.allTimeCreated}</div>
+            <div className="text-4xl font-black text-white mt-4 font-mono">{formatNumber(stats.allTimeCreated)}</div>
             <span className="text-[11px] text-neutral-500 font-mono mt-2">Cumulative historical rooms</span>
           </div>
 
           <div className="bg-neutral-900/60 border border-neutral-800/80 p-6 rounded-2xl backdrop-blur-sm flex flex-col justify-between">
             <span className="text-xs font-mono uppercase tracking-widest text-neutral-400 font-bold">Live Documents</span>
-            <div className="text-4xl font-black text-neutral-200 mt-4 font-mono">{stats.totalRooms}</div>
+            <div className="text-4xl font-black text-neutral-200 mt-4 font-mono">{formatNumber(stats.totalRooms)}</div>
             <span className="text-[11px] text-neutral-500 font-mono mt-2">Active in DB right now</span>
           </div>
           
           <div className="bg-neutral-900/60 border border-neutral-800/80 p-6 rounded-2xl backdrop-blur-sm flex flex-col justify-between">
             <span className="text-xs font-mono uppercase tracking-widest text-blue-400 font-bold">Active Chats</span>
-            <div className="text-4xl font-black text-blue-400 mt-4 font-mono">{stats.activeRooms}</div>
+            <div className="text-4xl font-black text-blue-400 mt-4 font-mono">{formatNumber(stats.activeRooms)}</div>
             <span className="text-[11px] text-neutral-500 font-mono mt-2">Currently engaged rooms</span>
           </div>
 
           <div className="bg-neutral-900/60 border border-neutral-800/80 p-6 rounded-2xl backdrop-blur-sm flex flex-col justify-between">
             <span className="text-xs font-mono uppercase tracking-widest text-amber-400 font-bold">Stuck Queues</span>
-            <div className="text-4xl font-black text-amber-400 mt-4 font-mono">{stats.waitingRooms}</div>
+            <div className="text-4xl font-black text-amber-400 mt-4 font-mono">{formatNumber(stats.waitingRooms)}</div>
             <span className="text-[11px] text-neutral-500 font-mono mt-2">Waiting &gt; 2 mins</span>
           </div>
 
           <div className="bg-neutral-900/60 border border-neutral-800/80 p-6 rounded-2xl backdrop-blur-sm flex flex-col justify-between">
             <span className="text-xs font-mono uppercase tracking-widest text-rose-400 font-bold">Expired (24h+)</span>
-            <div className="text-4xl font-black text-rose-400 mt-4 font-mono">{stats.expiredRooms}</div>
+            <div className="text-4xl font-black text-rose-400 mt-4 font-mono">{formatNumber(stats.expiredRooms)}</div>
             <span className="text-[11px] text-neutral-500 font-mono mt-2">Eligible for deletion</span>
           </div>
         </div>

@@ -185,12 +185,14 @@ export default function ChatRoomPage() {
         if (data.status === 'blocked') {
           setChatStatus('blocked');
           if (data.blockedBy === userId) setBlockedByMe(true);
-          unsubscribeRoom?.();
-          unsubscribeMsgs?.();
+
+          // Keep chat history visible even after the room is blocked.
+          // The UI already prevents sending messages when the chat is inactive.
         } else if (data.status === 'closed' || data.status === 'ended') {
           setChatStatus('closed');
-          unsubscribeRoom?.();
-          unsubscribeMsgs?.();
+
+          // Keep the message listener active so revisiting this room
+          // still shows the full available chat history.
         }
       } else {
         setChatStatus('closed');
