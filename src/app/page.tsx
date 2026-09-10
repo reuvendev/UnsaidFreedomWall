@@ -490,6 +490,32 @@ useEffect(() => {
   }
 }, []);
 
+useEffect(() => {
+  try {
+    const storedVotes =
+      localStorage.getItem('unsaid_voted_posts');
+
+    if (storedVotes) {
+      const parsedVotes =
+        JSON.parse(storedVotes);
+
+      if (
+        parsedVotes &&
+        typeof parsedVotes === 'object'
+      ) {
+        setVotedPosts(parsedVotes);
+      }
+    }
+  } catch (error) {
+    console.error(
+      'Failed to load voted posts:',
+      error
+    );
+
+    setVotedPosts({});
+  }
+}, []);
+
   const [streak, setStreak] =
     useState<StreakData>({
       current: 0,
@@ -1874,11 +1900,7 @@ useEffect(() => {
                                   : 'text-neutral-500 hover:text-rose-500'
                           }`}
                         >
-                          <Icons.Heart
-                            filled={
-                              hasVoted
-                            }
-                          />
+                          <Icons.Heart filled={hasVoted} />
 
                           <span>
                             {
