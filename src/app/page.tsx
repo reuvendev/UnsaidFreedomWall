@@ -1575,8 +1575,11 @@ export default function HomePage() {
                     )}
 
                     {post.isPinned && (
-                      <div className="absolute -top-3 right-6 inline-flex items-center justify-center w-7 h-7 bg-neutral-900 text-white rounded-full shadow-xs">
-                        <Icons.Pin className="w-3.5 h-3.5" />
+                      <div className="absolute -top-3 right-6 inline-flex items-center gap-1.5 px-2.5 py-1 bg-neutral-900 text-white rounded-full shadow-xs">
+                        <Icons.Pin className="w-3 h-3" />
+                        <span className="text-[9px] font-semibold tracking-wide">
+                          PINNED
+                        </span>
                       </div>
                     )}
 
