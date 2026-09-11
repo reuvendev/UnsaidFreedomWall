@@ -565,7 +565,7 @@ useEffect(() => {
 
           authorAlias:
             data.authorAlias ||
-            'Anonymous Louisian',
+            'Louisian',
 
           content:
             data.content || '',
@@ -619,14 +619,6 @@ useEffect(() => {
       const postsRef =
         collection(db, 'posts');
 
-      /*
-       * IMPORTANT:
-       * Do NOT query isPinned == false here.
-       *
-       * Older posts do not have isPinned.
-       * This query therefore loads all approved posts.
-       */
-
       const constraints: any[] = [
         where(
           'status',
@@ -667,9 +659,6 @@ useEffect(() => {
     []
   );
 
-  /* =========================================================
-     SEARCH DEBOUNCE
-  ========================================================= */
 
   useEffect(() => {
     const timer = setTimeout(() => {
@@ -682,9 +671,6 @@ useEffect(() => {
       clearTimeout(timer);
   }, [searchQuery]);
 
-  /* =========================================================
-     LOAD POSTS
-  ========================================================= */
 
   useEffect(() => {
     setLoading(true);
@@ -700,10 +686,6 @@ useEffect(() => {
 
     const postsRef =
       collection(db, 'posts');
-
-    /* =======================================================
-       NORMAL POSTS
-    ======================================================= */
 
     const normalQuery = buildQuery(
       selectedCategory,
@@ -756,10 +738,6 @@ useEffect(() => {
           setLoading(false);
         }
       );
-
-    /* =======================================================
-       PINNED POSTS
-    ======================================================= */
 
     const pinnedConstraints: any[] = [
       where(
@@ -1785,6 +1763,7 @@ useEffect(() => {
                           : ''
                       }`}
                     >
+
                       <div className="flex items-center gap-2 font-mono text-[11px] uppercase tracking-wider min-w-0">
 
                         <span
