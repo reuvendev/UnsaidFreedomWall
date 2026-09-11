@@ -1649,6 +1649,43 @@ useEffect(() => {
           )}
         </div>
 
+        <div className="flex items-center justify-between mb-4">
+          <Link
+  href="/entries"
+  className={`mt-3 w-full flex items-center justify-between px-4 py-3 rounded-lg border transition-all ${
+    isDarkMode
+      ? 'border-neutral-800 bg-neutral-900/50 hover:border-emerald-500/40 hover:bg-neutral-900'
+      : 'border-neutral-200 bg-neutral-50 hover:border-emerald-500/40 hover:bg-neutral-100'
+  }`}
+>
+  <div className="text-left">
+    <p
+      className={`font-mono text-xs font-bold uppercase tracking-wider ${
+        isDarkMode ? 'text-neutral-200' : 'text-neutral-800'
+      }`}
+    >
+      My Entries
+    </p>
+
+    <p
+      className={`mt-0.5 text-[11px] ${
+        isDarkMode ? 'text-neutral-500' : 'text-neutral-500'
+      }`}
+    >
+      View your anonymous posts
+    </p>
+  </div>
+
+  <span
+    className={`text-lg ${
+      isDarkMode ? 'text-neutral-500' : 'text-neutral-400'
+    }`}
+  >
+    →
+  </span>
+</Link>
+        </div>
+
         {/* POSTS */}
         {loading ? (
           <div

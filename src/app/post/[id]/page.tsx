@@ -98,6 +98,22 @@ const REPORT_REASONS = [
   'Other',
 ];
 
+const USER_ID_KEY = 'unsaid_chat_user_id';
+
+function getAnonymousUserId(): string {
+  let userId = localStorage.getItem(USER_ID_KEY);
+
+  if (!userId) {
+    userId =
+      'user_' +
+      Math.random().toString(36).substring(2, 11);
+
+    localStorage.setItem(USER_ID_KEY, userId);
+  }
+
+  return userId;
+}
+
 // Component to handle third-party ad banner injection safely with a labeled header
 function BannerAd({ isDarkMode }: { isDarkMode: boolean }) {
   const bannerRef = useRef<HTMLDivElement>(null);
@@ -378,6 +394,7 @@ export default function PostDetailPage() {
       const replyData = {
         content: sanitizedContent,
         authorAlias: `Louisian #${randomId}`,
+        userId,
         createdAt: serverTimestamp(),
       };
 

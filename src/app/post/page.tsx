@@ -34,6 +34,26 @@ const Icons = {
   Moon: () => <svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 3a6 6 0 0 0 9 9 9 9 0 1 1-9-9Z"/></svg>,
 };
 
+const MY_POSTS_KEY = 'tambayan_my_posts';
+
+function saveMyPost(postId: string) {
+  try {
+    const existingPosts = JSON.parse(
+      localStorage.getItem(MY_POSTS_KEY) || '[]'
+    );
+
+    // Avoid duplicates
+    if (!existingPosts.includes(postId)) {
+      localStorage.setItem(
+        MY_POSTS_KEY,
+        JSON.stringify([...existingPosts, postId])
+      );
+    }
+  } catch (error) {
+    console.error('Failed to save post locally:', error);
+  }
+}
+
 // Anonymous user ID shared with the chat system
 const STREAK_USER_KEY = 'unsaid_chat_user_id';
 
@@ -406,6 +426,8 @@ export default function PostPage() {
 
       const authorAlias = generateAlias();
 
+      const userId = getAnonymousUserId();
+
       // Apply automatic censorship to English and Tagalog bad words
       const sanitizedContent = censorText(content.trim());
 
@@ -413,6 +435,7 @@ export default function PostPage() {
         content: sanitizedContent,
         category,
         authorAlias,
+        userId,
         upvotes: 0,
         replies: 0,
         createdAt: serverTimestamp(),
@@ -428,16 +451,18 @@ export default function PostPage() {
       }
 
       // Create post
-      await addDoc(collection(db, 'posts'), postData);
+      const postRef = await addDoc(
+        collection(db, 'posts'),
+        postData
+      );
 
-      // Get the same anonymous ID used by the chat system
-      const userId = getAnonymousUserId();
+      // Save this post ID locally
+      saveMyPost(postRef.id);
 
       // Update daily streak after successful post creation
       try {
         await updateUserStreak(userId);
       } catch (streakError) {
-        // Do not fail the post if streak update fails
         console.error(
           'Error updating streak:',
           streakError
