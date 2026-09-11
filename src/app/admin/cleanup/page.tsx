@@ -44,7 +44,8 @@ export default function AdminCleanupPage() {
   const [authError, setAuthError] = useState<string>("");
   
   const [stats, setStats] = useState({ 
-    totalRooms: 0,       // Current active documents in collection
+    totalRooms: 0, 
+    totalUsers: 0,    
     waitingRooms: 0, 
     expiredRooms: 0, 
     activeRooms: 0,
@@ -93,6 +94,7 @@ export default function AdminCleanupPage() {
     setFetching(true);
     try {
       const roomsSnap = await getDocs(collection(db, "chatRooms"));
+      const usersSnap = await getDocs(collection(db, "users"));
       let waiting = 0;
       let expired = 0;
       let active = 0;
@@ -120,6 +122,7 @@ export default function AdminCleanupPage() {
 
       setStats({
         totalRooms: roomsSnap.size,
+        totalUsers: usersSnap.size,
         waitingRooms: waiting,
         expiredRooms: expired,
         activeRooms: active,
@@ -284,11 +287,25 @@ export default function AdminCleanupPage() {
         </div>
 
         {/* Metrics Grid */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-4">
           <div className="bg-neutral-900/60 border border-neutral-800/80 p-6 rounded-2xl backdrop-blur-sm flex flex-col justify-between">
             <span className="text-xs font-mono uppercase tracking-widest text-emerald-500 font-bold">All-Time Created</span>
             <div className="text-4xl font-black text-white mt-4 font-mono">{formatNumber(stats.allTimeCreated)}</div>
             <span className="text-[11px] text-neutral-500 font-mono mt-2">Cumulative historical rooms</span>
+          </div>
+
+          <div className="bg-neutral-900/60 border border-neutral-800/80 p-6 rounded-2xl backdrop-blur-sm flex flex-col justify-between">
+            <span className="text-xs font-mono uppercase tracking-widest text-purple-400 font-bold">
+              Users
+            </span>
+
+            <div className="text-4xl font-black text-purple-400 mt-4 font-mono">
+              {formatNumber(stats.totalUsers)}
+            </div>
+
+            <span className="text-[11px] text-neutral-500 font-mono mt-2">
+              Registered user documents
+            </span>
           </div>
 
           <div className="bg-neutral-900/60 border border-neutral-800/80 p-6 rounded-2xl backdrop-blur-sm flex flex-col justify-between">
