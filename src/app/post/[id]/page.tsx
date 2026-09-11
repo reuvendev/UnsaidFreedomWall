@@ -391,6 +391,8 @@ export default function PostDetailPage() {
 
       const sanitizedContent = censorText(replyContent.trim());
 
+      const userId = getAnonymousUserId();
+
       const replyData = {
         content: sanitizedContent,
         authorAlias: `Louisian #${randomId}`,
