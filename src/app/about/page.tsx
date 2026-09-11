@@ -83,10 +83,13 @@ export default function AboutPage() {
 
         <div className={`space-y-6 leading-relaxed text-base mb-10 ${isDarkMode ? 'text-neutral-300' : 'text-neutral-700'}`}>
           <p>
-            <strong className={isDarkMode ? 'text-white' : 'text-neutral-900'}>TAMBAYAN</strong> is a modern, uninhibited digital student hangout and freedom wall tailored for navigating campus life, studies, rants, and everyday experiences. 
+            <strong className={isDarkMode ? 'text-white' : 'text-neutral-900'}>TAMBAYAN ESELYU</strong> is an online space for students to share their thoughts, experiences, rants, and stories about campus life and studies.
           </p>
           <p>
-            Built as a minimalist platform to let people express thoughts, anonymous confessions, academic updates, and personal stories without the friction of social media identity markers. Every thought published goes through manual moderation and is tagged securely.
+            It is a simple platform where people can post anonymous confessions, academic updates, and personal stories without showing their identity. Posts are reviewed through manual moderation before being published to help keep the community safe and organized.
+          </p>
+          <p>
+            Disclaimer: We are an independent student platform and are not officially affiliated, associated, authorized, endorsed by, or in any way connected with Saint Louis University (SLU) or any of its offices.
           </p>
         </div>
 
