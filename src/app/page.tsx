@@ -526,6 +526,9 @@ useEffect(() => {
   const [streakLoading, setStreakLoading] =
     useState<boolean>(true);
 
+  const [streakDetailsOpen, setStreakDetailsOpen] =
+    useState<boolean>(false);
+
   /* =========================================================
      FORMAT POSTS
   ========================================================= */
@@ -1467,40 +1470,56 @@ useEffect(() => {
         <div className="mb-10">
 
           {/* STREAK */}
-          {!streakLoading &&
-            effectiveStreak > 0 && (
-              <div
-                className={`mb-8 flex items-center justify-center gap-2 font-mono text-xs ${
+          {!streakLoading && (
+            <button
+              type="button"
+              onClick={() => setStreakDetailsOpen(true)}
+              className={`mb-8 mx-auto flex flex-wrap items-center justify-center gap-x-2 gap-y-1 font-mono text-[10px] sm:text-xs transition-opacity hover:opacity-70 active:scale-[0.98] cursor-pointer ${
+                isDarkMode
+                  ? 'text-neutral-400'
+                  : 'text-neutral-500'
+              }`}
+            >
+              <span className="streak-fire inline-flex">
+                <Icons.Flame />
+              </span>
+
+              {effectiveStreak > 0 ? (
+                <>
+                  <span>
+                    {effectiveStreak}{' '}
+                    day
+                    {effectiveStreak !== 1
+                      ? 's'
+                      : ''}{' '}
+                    streak
+                  </span>
+
+                  <span className="text-neutral-300">
+                    •
+                  </span>
+
+                  <span className="font-bold text-emerald-600">
+                    {currentMilestone.title}
+                  </span>
+                </>
+              ) : (
+                <span>
+                  Start your streak
+                </span>
+              )}
+
+              <span
+                className={`ml-1 underline underline-offset-2 ${
                   isDarkMode
-                    ? 'text-neutral-400'
-                    : 'text-neutral-500'
+                    ? 'text-neutral-500'
+                    : 'text-neutral-400'
                 }`}
               >
-                <span className="streak-fire inline-flex">
-                  <Icons.Flame />
-                </span>
-
-                <span>
-                  {effectiveStreak}{' '}
-                  day
-                  {effectiveStreak !==
-                  1
-                    ? 's'
-                    : ''}{' '}
-                  streak
-                </span>
-
-                <span className="text-neutral-300">
-                  •
-                </span>
-
-                <span className="font-bold text-emerald-600">
-                  {
-                    currentMilestone.title
-                  }
-                </span>
-              </div>
-            )}
+                View streak
+              </span>
+            </button>
+          )}
 
           <p className="font-mono text-[11px] font-bold text-neutral-400 tracking-widest uppercase mb-4 flex items-center gap-2">
             <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
@@ -2205,6 +2224,348 @@ useEffect(() => {
           </div>
         </div>
       )}
+
+```tsx
+{/* STREAK DETAILS MODAL */}
+{streakDetailsOpen && (
+  <div
+    className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-neutral-950/60 backdrop-blur-sm"
+    onClick={() => setStreakDetailsOpen(false)}
+  >
+    <div
+      onClick={(e) => e.stopPropagation()}
+      className={`w-full sm:max-w-md max-h-[92vh] sm:max-h-[85vh] flex flex-col rounded-t-2xl sm:rounded-2xl shadow-xl border overflow-hidden ${
+        isDarkMode
+          ? 'bg-neutral-900 border-neutral-800 text-white'
+          : 'bg-white border-neutral-200 text-neutral-900'
+      }`}
+    >
+      {/* HEADER - FIXED */}
+      <div
+        className={`shrink-0 flex items-center justify-between px-4 sm:px-6 py-4 border-b ${
+          isDarkMode
+            ? 'border-neutral-800'
+            : 'border-neutral-100'
+        }`}
+      >
+        <div className="min-w-0 pr-3">
+          <h3 className="font-mono text-xs font-bold uppercase tracking-widest">
+            Your Streak
+          </h3>
+
+          <p
+            className={`mt-1 font-mono text-[9px] sm:text-[10px] ${
+              isDarkMode
+                ? 'text-neutral-500'
+                : 'text-neutral-400'
+            }`}
+          >
+            Post or get matched to keep your streak going.
+          </p>
+        </div>
+
+        <button
+          type="button"
+          onClick={() => setStreakDetailsOpen(false)}
+          aria-label="Close streak details"
+          className={`shrink-0 p-2 rounded-lg transition-colors ${
+            isDarkMode
+              ? 'text-neutral-500 hover:text-white hover:bg-neutral-800'
+              : 'text-neutral-400 hover:text-neutral-900 hover:bg-neutral-100'
+          }`}
+        >
+          <Icons.Close />
+        </button>
+      </div>
+
+      {/* SCROLLABLE CONTENT */}
+      <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain">
+        <div className="p-4 sm:p-6">
+
+          {/* CURRENT + LONGEST */}
+          <div className="grid grid-cols-2 gap-2 sm:gap-3 mb-5 sm:mb-6">
+            <div
+              className={`rounded-xl border p-3 sm:p-4 text-center ${
+                isDarkMode
+                  ? 'bg-neutral-950 border-neutral-800'
+                  : 'bg-neutral-50 border-neutral-200'
+              }`}
+            >
+              <div className="flex justify-center mb-1.5 sm:mb-2">
+                <span className="streak-fire inline-flex text-orange-500">
+                  <Icons.Flame />
+                </span>
+              </div>
+
+              <p className="font-mono text-xl sm:text-2xl font-bold">
+                {effectiveStreak}
+              </p>
+
+              <p
+                className={`mt-1 font-mono text-[9px] sm:text-[10px] uppercase tracking-wider ${
+                  isDarkMode
+                    ? 'text-neutral-500'
+                    : 'text-neutral-400'
+                }`}
+              >
+                Current streak
+              </p>
+            </div>
+
+            <div
+              className={`rounded-xl border p-3 sm:p-4 text-center ${
+                isDarkMode
+                  ? 'bg-neutral-950 border-neutral-800'
+                  : 'bg-neutral-50 border-neutral-200'
+              }`}
+            >
+              <div className="mb-1.5 sm:mb-2 text-emerald-600 font-mono text-[10px] sm:text-sm font-bold">
+                BEST
+              </div>
+
+              <p className="font-mono text-xl sm:text-2xl font-bold">
+                {Math.max(
+                  streak.longest,
+                  effectiveStreak
+                )}
+              </p>
+
+              <p
+                className={`mt-1 font-mono text-[9px] sm:text-[10px] uppercase tracking-wider ${
+                  isDarkMode
+                    ? 'text-neutral-500'
+                    : 'text-neutral-400'
+                }`}
+              >
+                Longest streak
+              </p>
+            </div>
+          </div>
+
+          {/* HOW STREAK WORKS */}
+          <div
+            className={`mb-5 rounded-xl border px-4 py-3 ${
+              isDarkMode
+                ? 'bg-neutral-950 border-neutral-800'
+                : 'bg-neutral-50 border-neutral-200'
+            }`}
+          >
+            <p
+              className={`font-mono text-[10px] sm:text-xs leading-relaxed text-center ${
+                isDarkMode
+                  ? 'text-neutral-400'
+                  : 'text-neutral-500'
+              }`}
+            >
+              Your streak goes up when you{' '}
+              <span className="font-bold text-emerald-600">
+                post
+              </span>{' '}
+              on the Freedom Wall or{' '}
+              <span className="font-bold text-emerald-600">
+                get matched
+              </span>{' '}
+              in the anonymous chat.
+            </p>
+          </div>
+
+          {/* CURRENT TITLE / NEW USER */}
+          {effectiveStreak > 0 ? (
+            <div
+              className={`mb-5 rounded-xl border p-3 sm:p-4 text-center ${
+                isDarkMode
+                  ? 'bg-emerald-950/20 border-emerald-900/50'
+                  : 'bg-emerald-50 border-emerald-200'
+              }`}
+            >
+              <p
+                className={`font-mono text-[9px] sm:text-[10px] uppercase tracking-widest mb-1 ${
+                  isDarkMode
+                    ? 'text-emerald-500'
+                    : 'text-emerald-600'
+                }`}
+              >
+                Current title
+              </p>
+
+              <p className="font-mono text-sm font-bold">
+                {currentMilestone.title}
+              </p>
+
+              <p
+                className={`mt-1 font-mono text-[9px] sm:text-[10px] ${
+                  isDarkMode
+                    ? 'text-neutral-500'
+                    : 'text-neutral-400'
+                }`}
+              >
+                {effectiveStreak} day
+                {effectiveStreak !== 1
+                  ? 's'
+                  : ''}{' '}
+                reached
+              </p>
+            </div>
+          ) : (
+            <div
+              className={`mb-5 rounded-xl border p-4 sm:p-5 text-center ${
+                isDarkMode
+                  ? 'bg-orange-950/20 border-orange-900/40'
+                  : 'bg-orange-50 border-orange-200'
+              }`}
+            >
+              <div className="flex justify-center mb-2">
+                <span className="streak-fire inline-flex text-orange-500">
+                  <Icons.Flame />
+                </span>
+              </div>
+
+              <p className="font-mono text-sm font-bold">
+                Start your streak
+              </p>
+
+              <p
+                className={`mt-1 font-mono text-[10px] leading-relaxed ${
+                  isDarkMode
+                    ? 'text-neutral-500'
+                    : 'text-neutral-500'
+                }`}
+              >
+                Post on the Freedom Wall or get matched
+                in anonymous chat to start building your
+                streak.
+              </p>
+            </div>
+          )}
+
+          {/* MILESTONES */}
+          <div>
+            <p
+              className={`mb-3 font-mono text-[9px] sm:text-[10px] font-bold uppercase tracking-widest ${
+                isDarkMode
+                  ? 'text-neutral-500'
+                  : 'text-neutral-400'
+              }`}
+            >
+              Streak titles
+            </p>
+
+            <div className="space-y-1.5 sm:space-y-2">
+              {STREAK_MILESTONES.map((milestone) => {
+                const reached =
+                  effectiveStreak >= milestone.days;
+
+                const current =
+                  effectiveStreak > 0 &&
+                  currentMilestone.days === milestone.days;
+
+                return (
+                  <div
+                    key={milestone.days}
+                    className={`flex items-center justify-between gap-3 rounded-lg border px-3 sm:px-4 py-2.5 sm:py-3 ${
+                      current
+                        ? isDarkMode
+                          ? 'border-emerald-800 bg-emerald-950/30'
+                          : 'border-emerald-200 bg-emerald-50'
+                        : isDarkMode
+                          ? 'border-neutral-800'
+                          : 'border-neutral-100'
+                    }`}
+                  >
+                    <div className="flex items-center gap-2.5 sm:gap-3 min-w-0">
+                      <span
+                        className={`shrink-0 font-mono text-xs font-bold ${
+                          reached
+                            ? 'text-emerald-600'
+                            : isDarkMode
+                              ? 'text-neutral-700'
+                              : 'text-neutral-300'
+                        }`}
+                      >
+                        {reached ? '✓' : '○'}
+                      </span>
+
+                      <div className="min-w-0">
+                        <p
+                          className={`font-mono text-[10px] sm:text-xs font-bold truncate ${
+                            reached
+                              ? isDarkMode
+                                ? 'text-neutral-100'
+                                : 'text-neutral-900'
+                              : isDarkMode
+                                ? 'text-neutral-600'
+                                : 'text-neutral-400'
+                          }`}
+                        >
+                          {milestone.title}
+                        </p>
+
+                        <p
+                          className={`font-mono text-[9px] ${
+                            isDarkMode
+                              ? 'text-neutral-600'
+                              : 'text-neutral-400'
+                          }`}
+                        >
+                          {milestone.days} day
+                          {milestone.days !== 1
+                            ? 's'
+                            : ''}
+                        </p>
+                      </div>
+                    </div>
+
+                    {current && (
+                      <span className="shrink-0 font-mono text-[8px] sm:text-[9px] font-bold uppercase tracking-wider text-emerald-600">
+                        Current
+                      </span>
+                    )}
+
+                    {!current && reached && (
+                      <span
+                        className={`shrink-0 font-mono text-[8px] sm:text-[9px] uppercase tracking-wider ${
+                          isDarkMode
+                            ? 'text-neutral-600'
+                            : 'text-neutral-400'
+                        }`}
+                      >
+                        Reached
+                      </span>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+
+          {/* EXTRA BOTTOM SPACE FOR MOBILE SCROLLING */}
+          <div className="h-2 sm:h-0" />
+        </div>
+      </div>
+
+      {/* FOOTER - FIXED */}
+      <div
+        className={`shrink-0 px-4 sm:px-6 py-3 sm:py-4 border-t ${
+          isDarkMode
+            ? 'border-neutral-800'
+            : 'border-neutral-100'
+        }`}
+      >
+        <button
+          type="button"
+          onClick={() => setStreakDetailsOpen(false)}
+          className={`w-full px-4 py-2.5 rounded-xl border font-mono text-[10px] sm:text-xs uppercase font-bold tracking-wider transition-colors ${
+            isDarkMode
+              ? 'bg-neutral-800 border-neutral-700 text-neutral-300 hover:bg-neutral-700'
+              : 'bg-white border-neutral-200 text-neutral-700 hover:bg-neutral-100'
+          }`}
+        >
+          Close
+        </button>
+      </div>
+    </div>
+  </div>
+)}
 
     </div>
   );
