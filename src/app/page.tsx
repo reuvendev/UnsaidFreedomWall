@@ -1476,7 +1476,9 @@ useEffect(() => {
                     : 'text-neutral-500'
                 }`}
               >
-                <Icons.Flame />
+                <span className="streak-fire inline-flex">
+                  <Icons.Flame />
+                </span>
 
                 <span>
                   {effectiveStreak}{' '}
