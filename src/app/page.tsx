@@ -2225,7 +2225,6 @@ useEffect(() => {
         </div>
       )}
 
-```tsx
 {/* STREAK DETAILS MODAL */}
 {streakDetailsOpen && (
   <div
