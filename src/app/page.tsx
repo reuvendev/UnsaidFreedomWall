@@ -31,6 +31,7 @@ import { db } from '@/lib/firebase';
 
 export interface PostProps {
   id: string;
+  userId?: string;
   authorAlias: string;
   content: string;
   category: string;
@@ -41,6 +42,10 @@ export interface PostProps {
   imageUrl?: string;
   isDeveloperPost?: boolean;
   isPinned?: boolean;
+  cardTheme?: {
+  background: string;
+  border: string;
+};
 }
 
 const CATEGORIES = [
@@ -79,6 +84,80 @@ interface StreakData {
   current: number;
   longest: number;
   lastActiveDate: string | null;
+}
+
+const CARD_BACKGROUNDS = [
+  {
+    id: 'default',
+    label: 'Default',
+    light: '#ffffff',
+    dark: '#171717',
+    borderLight: '#d4d4d4',
+    borderDark: '#525252',
+  },
+  {
+    id: 'lavender',
+    label: 'Lavender',
+    light: '#f5f3ff',
+    dark: '#292342',
+    borderLight: '#c4b5fd',
+    borderDark: '#7c6bb5',
+  },
+  {
+    id: 'blue',
+    label: 'Blue',
+    light: '#eff6ff',
+    dark: '#1e293b',
+    borderLight: '#93c5fd',
+    borderDark: '#5b7fb3',
+  },
+  {
+    id: 'green',
+    label: 'Green',
+    light: '#f0fdf4',
+    dark: '#1f3025',
+    borderLight: '#86efac',
+    borderDark: '#5b9b6d',
+  },
+  {
+    id: 'rose',
+    label: 'Rose',
+    light: '#fff1f2',
+    dark: '#332126',
+    borderLight: '#F79ac0',
+    borderDark: '#F79ac0',
+  },
+  {
+    id: 'yellow',
+    label: 'Yellow',
+    light: '#fefce8',
+    dark: '#302d1b',
+    borderLight: '#fde68a',
+    borderDark: '#a18a43',
+  },
+];
+
+const CARD_BORDERS = [
+  {
+    id: 'solid',
+    label: 'Solid',
+    style: 'solid',
+  },
+  {
+    id: 'dashed',
+    label: 'Dashed',
+    style: 'dashed',
+  },
+  {
+    id: 'dotted',
+    label: 'Dotted',
+    style: 'dotted',
+  },
+];
+
+interface CardTheme {
+  background: string;
+  border: string;
 }
 
 /*
@@ -529,6 +608,15 @@ useEffect(() => {
   const [streakDetailsOpen, setStreakDetailsOpen] =
     useState<boolean>(false);
 
+  const [cardTheme, setCardTheme] =
+  useState<CardTheme>({
+    background: 'default',
+    border: 'solid',
+  });
+
+  const [cardThemeSaving, setCardThemeSaving] =
+  useState<boolean>(false);
+
   /* =========================================================
      FORMAT POSTS
   ========================================================= */
@@ -566,6 +654,10 @@ useEffect(() => {
         fetched.push({
           id: docSnap.id,
 
+          userId:
+            data.userId ||
+            undefined,
+
           authorAlias:
             data.authorAlias ||
             'Louisian',
@@ -600,6 +692,16 @@ useEffect(() => {
 
           isPinned:
             data.isPinned === true,
+
+          cardTheme:
+            data.cardTheme &&
+            typeof data.cardTheme.background === 'string' &&
+            typeof data.cardTheme.border === 'string'
+              ? {
+                  background: data.cardTheme.background,
+                  border: data.cardTheme.border,
+                }
+              : undefined,
         });
       }
     );
@@ -854,6 +956,21 @@ useEffect(() => {
           const streakData =
             data.streak || {};
 
+          const savedCardTheme = data.cardTheme;
+
+          if (savedCardTheme) {
+            setCardTheme({
+              background:
+                typeof savedCardTheme.background === 'string'
+                  ? savedCardTheme.background
+                  : 'default',
+              border:
+                typeof savedCardTheme.border === 'string'
+                  ? savedCardTheme.border
+                  : 'solid',
+            });
+          }
+
           setStreak({
             current:
               typeof streakData.current ===
@@ -978,6 +1095,45 @@ useEffect(() => {
     } catch (e) {}
   };
 
+  const saveCardTheme = async (
+    theme: CardTheme
+  ) => {
+    const anonymousUserId =
+      getAnonymousUserId();
+
+    if (!anonymousUserId) {
+      return;
+    }
+
+    if (effectiveStreak < 3) {
+      return;
+    }
+
+    setCardThemeSaving(true);
+
+    try {
+      await updateDoc(
+        doc(
+          db,
+          'users',
+          anonymousUserId
+        ),
+        {
+          cardTheme: theme,
+        }
+      );
+
+      setCardTheme(theme);
+    } catch (error) {
+      console.error(
+        'Failed to save card theme:',
+        error
+      );
+    } finally {
+      setCardThemeSaving(false);
+    }
+  };
+
   /* =========================================================
      COMBINE POSTS
   ========================================================= */
@@ -1028,6 +1184,8 @@ useEffect(() => {
     /*
      * Pinned posts ALWAYS appear first.
      */
+
+
     return [
       ...pinnedPosts,
       ...normalPosts,
@@ -1720,6 +1878,16 @@ useEffect(() => {
                 const isDev =
                   post.isDeveloperPost;
 
+                const selectedBackground =
+                  CARD_BACKGROUNDS.find(
+                    (item) => item.id === post.cardTheme?.background
+                  ) || CARD_BACKGROUNDS[0];
+
+                const selectedBorder =
+                  CARD_BORDERS.find(
+                    (item) => item.id === post.cardTheme?.border
+                  ) || CARD_BORDERS[0];
+
                 const isLongContent =
                   post.content.length >
                   CHARACTER_LIMIT;
@@ -1741,7 +1909,7 @@ useEffect(() => {
                 return (
                   <article
                     key={post.id}
-                    className={`p-5 sm:p-6 rounded-2xl relative group hover:-translate-y-1 hover:shadow-xl ${
+                    className={`p-5 sm:p-6 rounded-2xl relative group transition-all duration-200 hover:-translate-y-1 hover:shadow-xl ${
                       isDev
                         ? isDarkMode
                           ? 'bg-emerald-950/20 border-2 border-emerald-500/50 shadow-md ring-1 ring-emerald-500/10'
@@ -1750,10 +1918,22 @@ useEffect(() => {
                           ? isDarkMode
                             ? 'bg-amber-950/20 border-2 border-amber-500/50 shadow-md ring-1 ring-amber-500/10'
                             : 'bg-amber-50/60 border-2 border-amber-400/60 shadow-md ring-1 ring-amber-400/20'
-                          : isDarkMode
-                            ? 'bg-neutral-900 border border-neutral-800 shadow-xs hover:border-neutral-700'
-                            : 'bg-white border border-neutral-200/80 shadow-xs hover:border-neutral-300'
+                          : 'shadow-xs'
                     }`}
+                    style={
+                      !isDev && !post.isPinned
+                        ? {
+                            backgroundColor: isDarkMode
+                              ? selectedBackground.dark
+                              : selectedBackground.light,
+                            borderStyle: selectedBorder.style,
+                            borderWidth: '2px',
+                            borderColor: isDarkMode
+                              ? selectedBackground.borderDark
+                              : selectedBackground.borderLight,
+                          }
+                        : undefined
+                    }
                   >
 
                     {/* OFFICIAL BADGE */}
@@ -1778,56 +1958,61 @@ useEffect(() => {
 
                     {/* POST HEADER */}
                     <div
-                      className={`flex flex-wrap items-center justify-between gap-y-2 mb-3 ${
-                        isDev
-                          ? 'mt-1'
-                          : ''
+                      className={`mb-4 ${
+                        isDev ? 'mt-1' : ''
                       }`}
                     >
+                      <div className="flex items-start justify-between gap-3">
 
-                      <div className="flex items-center gap-2 font-mono text-[11px] uppercase tracking-wider min-w-0">
+                        {/* AUTHOR + DATE */}
+                        <div className="min-w-0 flex-1">
 
+                          <div className="flex items-center gap-2 min-w-0">
+                            <span
+                              className={`px-2.5 py-1 rounded-md border font-bold font-mono text-[11px] uppercase tracking-wider whitespace-nowrap ${
+                                isDev
+                                  ? isDarkMode
+                                    ? 'bg-emerald-950 text-emerald-300 border-emerald-800'
+                                    : 'bg-emerald-100/80 text-emerald-900 border-emerald-200'
+                                  : isDarkMode
+                                    ? 'bg-black/30 text-white border-white/30'
+                                    : 'bg-white/60 text-neutral-950 border-black/15'
+                              }`}
+                            >
+                              {post.authorAlias}
+                            </span>
+                          </div>
+
+                          {/* DATE */}
+                          <div
+                            className={`mt-1.5 flex items-center gap-1.5 font-mono text-[10px] ${
+                              isDev
+                                ? 'text-neutral-400'
+                                : isDarkMode
+                                  ? 'text-white/60'
+                                  : 'text-neutral-600'
+                            }`}
+                          >
+                            <span>•</span>
+                            <span>{post.createdAt}</span>
+                          </div>
+
+                        </div>
+
+                        {/* CATEGORY */}
                         <span
-                          className={`px-2.5 py-1 rounded-md border font-bold truncate max-w-[150px] sm:max-w-none ${
+                          className={`shrink-0 max-w-[45%] truncate text-[10px] font-mono uppercase tracking-widest px-2.5 py-1 rounded-md ${
                             isDev
-                              ? isDarkMode
-                                ? 'bg-emerald-950 text-emerald-300 border-emerald-800'
-                                : 'bg-emerald-100/80 text-emerald-900 border-emerald-200'
+                              ? 'bg-emerald-100 text-emerald-800 font-bold'
                               : isDarkMode
-                                ? 'bg-neutral-800 text-neutral-300 border-neutral-700'
-                                : 'bg-neutral-100 text-neutral-800 border-neutral-200/60'
+                                ? 'bg-black/30 text-white border border-white/30'
+                                : 'bg-white/60 text-neutral-950 border border-black/15'
                           }`}
                         >
-                          {
-                            post.authorAlias
-                          }
-                        </span>
-
-                        <span className="text-neutral-500 shrink-0">
-                          •
-                        </span>
-
-                        <span className="text-neutral-400 text-[10px] shrink-0">
-                          {
-                            post.createdAt
-                          }
+                          {post.category}
                         </span>
 
                       </div>
-
-                      <span
-                        className={`text-[10px] font-mono uppercase tracking-widest px-2.5 py-1 rounded-md shrink-0 ${
-                          isDev
-                            ? 'bg-emerald-100 text-emerald-800 font-bold'
-                            : isDarkMode
-                              ? 'bg-neutral-800 text-neutral-400 border border-neutral-700/50'
-                              : 'bg-neutral-100/80 text-neutral-600 border border-neutral-200/40'
-                        }`}
-                      >
-                        {
-                          post.category
-                        }
-                      </span>
                     </div>
 
                     {/* CONTENT */}
@@ -1840,8 +2025,8 @@ useEffect(() => {
                               ? 'text-emerald-200 font-semibold'
                               : 'text-emerald-950 font-semibold'
                             : isDarkMode
-                              ? 'text-neutral-200'
-                              : 'text-neutral-800'
+                              ? 'text-white'
+                              : 'text-neutral-950'
                         }`}
                       >
                         {
@@ -1906,8 +2091,8 @@ useEffect(() => {
                             ? 'border-emerald-900/40'
                             : 'border-emerald-200/60'
                           : isDarkMode
-                            ? 'border-neutral-800'
-                            : 'border-neutral-100'
+                            ? 'border-white/30'
+                            : 'border-black/20'
                       }`}
                     >
 
@@ -1933,8 +2118,8 @@ useEffect(() => {
                               : isDev
                                 ? 'text-emerald-600 hover:text-rose-500'
                                 : isDarkMode
-                                  ? 'text-neutral-400 hover:text-rose-500'
-                                  : 'text-neutral-500 hover:text-rose-500'
+                                  ?'text-white/80 hover:text-rose-500'
+                                  : 'text-neutral-800 hover:text-rose-500'
                           }`}
                         >
                           <Icons.Heart filled={hasVoted} />
@@ -1955,8 +2140,8 @@ useEffect(() => {
                             isDev
                               ? 'text-emerald-600 hover:text-emerald-400'
                               : isDarkMode
-                                ? 'text-neutral-400 hover:text-white'
-                                : 'text-neutral-500 hover:text-neutral-900'
+                                ? 'text-white/80 hover:text-white'
+                                : 'text-neutral-800 hover:text-neutral-950'
                           }`}
                         >
                           <Icons.Message />
@@ -1984,7 +2169,11 @@ useEffect(() => {
                             disabled={
                               isReported
                             }
-                            className="font-mono text-[11px] text-neutral-400 hover:text-rose-600 uppercase tracking-wider disabled:opacity-50"
+                            className={`font-mono text-[11px] uppercase tracking-wider disabled:opacity-50 ${
+                              isDarkMode
+                                ? 'text-white/70 hover:text-rose-400'
+                                : 'text-neutral-700 hover:text-rose-600'
+                            }`}
                           >
                             {isReported
                               ? 'Reported'
@@ -2003,8 +2192,8 @@ useEffect(() => {
                             isDev
                               ? 'text-emerald-600 hover:text-emerald-400'
                               : isDarkMode
-                                ? 'text-neutral-400 hover:text-white'
-                                : 'text-neutral-400 hover:text-neutral-900'
+                                ? 'text-white/80 hover:text-white'
+                                : 'text-neutral-800 hover:text-neutral-950'
                           }`}
                         >
                           <Icons.Share />
@@ -2436,6 +2625,183 @@ useEffect(() => {
               </p>
             </div>
           )}
+
+          {/* CARD CUSTOMIZATION */}
+<div className="mb-6">
+  <div
+    className={`rounded-xl border p-4 ${
+      effectiveStreak >= 3
+        ? isDarkMode
+          ? 'bg-neutral-950 border-neutral-800'
+          : 'bg-neutral-50 border-neutral-200'
+        : isDarkMode
+          ? 'bg-neutral-950/50 border-neutral-800'
+          : 'bg-neutral-50/50 border-neutral-200'
+    }`}
+  >
+    <div className="flex items-center justify-between mb-3">
+      <div>
+        <p
+          className={`font-mono text-[10px] font-bold uppercase tracking-widest ${
+            isDarkMode
+              ? 'text-neutral-300'
+              : 'text-neutral-700'
+          }`}
+        >
+          Card Theme
+        </p>
+
+        <p
+          className={`mt-1 font-mono text-[9px] ${
+            isDarkMode
+              ? 'text-neutral-500'
+              : 'text-neutral-400'
+          }`}
+        >
+          {effectiveStreak >= 3
+            ? 'Customize how your posts look.'
+            : 'Reach a 3-day streak to unlock.'}
+        </p>
+      </div>
+
+      {effectiveStreak < 3 && (
+        <span className="font-mono text-[9px] font-bold uppercase tracking-wider text-neutral-400">
+          Locked
+        </span>
+      )}
+    </div>
+
+    {effectiveStreak >= 3 ? (
+      <>
+        {/* BACKGROUND COLORS */}
+        <div className="mb-4">
+          <p
+            className={`mb-2 font-mono text-[9px] font-bold uppercase tracking-wider ${
+              isDarkMode
+                ? 'text-neutral-500'
+                : 'text-neutral-400'
+            }`}
+          >
+            Color
+          </p>
+
+          <div className="grid grid-cols-3 gap-2">
+            {CARD_BACKGROUNDS.map(
+              (background) => {
+                const selected =
+                  cardTheme.background ===
+                  background.id;
+
+                return (
+                  <button
+                    key={background.id}
+                    type="button"
+                    disabled={cardThemeSaving}
+                    onClick={() =>
+                      saveCardTheme({
+                        ...cardTheme,
+                        background:
+                          background.id,
+                      })
+                    }
+                    className={`h-12 rounded-lg border-2 transition-all ${
+                      selected
+                        ? 'border-emerald-500 ring-2 ring-emerald-500/20'
+                        : isDarkMode
+                          ? 'border-neutral-700'
+                          : 'border-neutral-200'
+                    }`}
+                    style={{
+                      backgroundColor:
+                        isDarkMode
+                          ? background.dark
+                          : background.light,
+                    }}
+                    title={
+                      background.label
+                    }
+                  >
+                    <span
+                      className={`font-mono text-[9px] font-bold ${
+                        background.id ===
+                        'default'
+                          ? isDarkMode
+                            ? 'text-neutral-300'
+                            : 'text-neutral-700'
+                          : 'text-neutral-700'
+                      }`}
+                    >
+                      {background.label}
+                    </span>
+                  </button>
+                );
+              }
+            )}
+          </div>
+        </div>
+
+        {/* BORDER STYLE */}
+        <div>
+          <p
+            className={`mb-2 font-mono text-[9px] font-bold uppercase tracking-wider ${
+              isDarkMode
+                ? 'text-neutral-500'
+                : 'text-neutral-400'
+            }`}
+          >
+            Border
+          </p>
+
+          <div className="grid grid-cols-3 gap-2">
+            {CARD_BORDERS.map(
+              (border) => {
+                const selected =
+                  cardTheme.border ===
+                  border.id;
+
+                return (
+                  <button
+                    key={border.id}
+                    type="button"
+                    disabled={cardThemeSaving}
+                    onClick={() =>
+                      saveCardTheme({
+                        ...cardTheme,
+                        border:
+                          border.id,
+                      })
+                    }
+                    className={`py-2.5 rounded-lg border text-[9px] font-mono font-bold uppercase tracking-wider transition-all ${
+                      selected
+                        ? 'border-emerald-500 text-emerald-600'
+                        : isDarkMode
+                          ? 'border-neutral-700 text-neutral-400'
+                          : 'border-neutral-200 text-neutral-500'
+                    }`}
+                  >
+                    {border.label}
+                  </button>
+                );
+              }
+            )}
+          </div>
+        </div>
+      </>
+    ) : (
+      <div
+        className={`rounded-lg border border-dashed px-3 py-4 text-center ${
+          isDarkMode
+            ? 'border-neutral-800 text-neutral-600'
+            : 'border-neutral-200 text-neutral-400'
+        }`}
+      >
+        <p className="font-mono text-[9px] uppercase tracking-wider">
+          Unlocks at 3 days
+        </p>
+      </div>
+    )}
+  </div>
+</div>
 
           {/* MILESTONES */}
           <div>

@@ -32,6 +32,10 @@ interface PostData {
   spotifyTrackId?: string;
   imageUrl?: string;
   isDeveloperPost?: boolean;
+  cardTheme?: {
+    background: string;
+    border: string;
+  };
 }
 
 interface ReplyData {
@@ -1077,16 +1081,16 @@ export default function PostDetailPage() {
             TAMBAYAN.
           </Link>
 
-          <Link
-            href="/"
-            className={`font-mono text-xs font-semibold uppercase tracking-wider ${
+          <button
+            onClick={() => window.close()}
+            className={`font-mono text-xs font-semibold uppercase tracking-wider text-left bg-transparent border-none cursor-pointer ${
               isDarkMode
                 ? 'text-neutral-400 hover:text-white'
                 : 'text-neutral-500 hover:text-neutral-900'
             }`}
           >
             ← Back to Feed
-          </Link>
+          </button>
         </div>
       </header>
 

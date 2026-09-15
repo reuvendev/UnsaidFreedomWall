@@ -9,6 +9,8 @@ import {
   serverTimestamp,
   doc,
   runTransaction,
+  getDoc,
+  setDoc,
 } from 'firebase/firestore';
 import imageCompression from 'browser-image-compression';
 import { db } from '@/lib/firebase';
@@ -22,6 +24,85 @@ const CATEGORIES = [
   { id: 'advice', label: 'Advice' },
   { id: 'others', label: 'Others' },
 ];
+
+const DEFAULT_CARD_THEME = {
+  background: 'default',
+  border: 'solid',
+};
+
+const CARD_BACKGROUNDS = [
+  {
+    id: 'default',
+    label: 'Default',
+    light: '#ffffff',
+    dark: '#171717',
+    borderLight: '#d4d4d4',
+    borderDark: '#525252',
+  },
+  {
+    id: 'lavender',
+    label: 'Lavender',
+    light: '#f5f3ff',
+    dark: '#c4b5fd',
+    borderLight: '#c4b5fd',
+    borderDark: '#7c6bb5',
+  },
+  {
+    id: 'blue',
+    label: 'Blue',
+    light: '#eff6ff',
+    dark: '#93c5fd',
+    borderLight: '#93c5fd',
+    borderDark: '#5b7fb3',
+  },
+  {
+    id: 'green',
+    label: 'Green',
+    light: '#f0fdf4',
+    dark: '#86efac',
+    borderLight: '#86efac',
+    borderDark: '#5b9b6d',
+  },
+  {
+    id: 'rose',
+    label: 'Rose',
+    light: '#fff1f2',
+    dark: '#F79ac0',
+    borderLight: '#F79ac0',
+    borderDark: '#F79ac0',
+  },
+  {
+    id: 'yellow',
+    label: 'Yellow',
+    light: '#fefce8',
+    dark: '#fde68a',
+    borderLight: '#fde68a',
+    borderDark: '#a18a43',
+  },
+];
+
+const CARD_BORDERS = [
+  {
+    id: 'solid',
+    label: 'Solid',
+    style: 'solid',
+  },
+  {
+    id: 'dashed',
+    label: 'Dashed',
+    style: 'dashed',
+  },
+  {
+    id: 'dotted',
+    label: 'Dotted',
+    style: 'dotted',
+  },
+];
+
+interface CardTheme {
+  background: string;
+  border: string;
+}
 
 const Icons = {
   ArrowLeft: () => <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="19" y1="12" x2="5" y2="12"/><polyline points="12 19 5 12 12 5"/></svg>,
@@ -236,6 +317,19 @@ export default function PostPage() {
   const [error, setError] = useState('');
   const [successMessage, setSuccessMessage] = useState(false);
 
+  const [streak, setStreak] = useState(0);
+
+  const [cardTheme, setCardTheme] =
+    useState<CardTheme>(DEFAULT_CARD_THEME);
+
+  const [cardThemeSaving, setCardThemeSaving] =
+    useState(false);
+
+  const [showThemePicker, setShowThemePicker] =
+    useState(false);
+
+  const effectiveStreak = streak;
+
   // Dark Mode state
   const [isDarkMode, setIsDarkMode] = useState<boolean>(false);
 
@@ -249,6 +343,55 @@ export default function PostPage() {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [imageFile, setImageFile] = useState<File | null>(null);
   const [imagePreview, setImagePreview] = useState<string | null>(null);
+
+  useEffect(() => {
+    const loadUserCustomization = async () => {
+      try {
+        const userId = getAnonymousUserId();
+
+        const userSnapshot = await getDoc(
+          doc(db, 'users', userId)
+        );
+
+        if (!userSnapshot.exists()) {
+          return;
+        }
+
+        const data = userSnapshot.data();
+
+        const streakData = data.streak || {};
+
+        if (
+          typeof streakData.current === 'number'
+        ) {
+          setStreak(streakData.current);
+        }
+
+        const savedTheme = data.cardTheme;
+
+        if (savedTheme) {
+          setCardTheme({
+            background:
+              typeof savedTheme.background === 'string'
+                ? savedTheme.background
+                : 'default',
+
+            border:
+              typeof savedTheme.border === 'string'
+                ? savedTheme.border
+                : 'solid',
+          });
+        }
+      } catch (error) {
+        console.error(
+          'Failed to load user customization:',
+          error
+        );
+      }
+    };
+
+    loadUserCustomization();
+  }, []);
 
   // Initialize Dark Mode state from localStorage
   useEffect(() => {
@@ -279,6 +422,31 @@ export default function PostPage() {
         JSON.stringify(nextMode)
       );
     } catch (e) {}
+  };
+
+  const handleThemeChange = async (nextTheme: CardTheme) => {
+    setCardTheme(nextTheme);
+
+    try {
+      setCardThemeSaving(true);
+
+      const userId = getAnonymousUserId();
+
+      await setDoc(
+        doc(db, 'users', userId),
+        {
+          cardTheme: nextTheme,
+        },
+        { merge: true }
+      );
+    } catch (error) {
+      console.error(
+        'Failed to save card theme:',
+        error
+      );
+    } finally {
+      setCardThemeSaving(false);
+    }
   };
 
   const generateAlias = () => {
@@ -436,6 +604,7 @@ export default function PostPage() {
         category,
         authorAlias,
         userId,
+        cardTheme,
         upvotes: 0,
         replies: 0,
         createdAt: serverTimestamp(),
@@ -606,6 +775,7 @@ export default function PostPage() {
               Select Category
             </label>
 
+
             <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
               {CATEGORIES.map((cat) => (
                 <button
@@ -626,6 +796,172 @@ export default function PostPage() {
                 </button>
               ))}
             </div>
+          </div>
+
+          {/* CARD THEME */}
+          <div
+            className={`rounded-xl border p-4 ${
+              isDarkMode
+                ? 'border-neutral-800 bg-neutral-900'
+                : 'border-neutral-200 bg-white'
+            }`}
+          >
+            <div className="flex items-center justify-between">
+              <div>
+                <p
+                  className={`text-sm font-medium ${
+                    isDarkMode
+                      ? 'text-white'
+                      : 'text-neutral-900'
+                  }`}
+                >
+                  Card Theme
+                </p>
+
+                <p
+                  className={`mt-0.5 text-xs ${
+                    isDarkMode
+                      ? 'text-neutral-500'
+                      : 'text-neutral-400'
+                  }`}
+                >
+                  {effectiveStreak >= 3
+                    ? 'Customize how your post looks'
+                    : 'Unlock at 3 streaks'}
+                </p>
+              </div>
+
+              {effectiveStreak >= 3 ? (
+                <button
+                  type="button"
+                  onClick={() =>
+                    setShowThemePicker(!showThemePicker)
+                  }
+                  className={`rounded-lg border px-3 py-2 text-xs font-medium transition-colors cursor-pointer ${
+                    isDarkMode
+                      ? 'border-neutral-700 text-neutral-300 hover:bg-neutral-800'
+                      : 'border-neutral-200 text-neutral-700 hover:bg-neutral-50'
+                  }`}
+                >
+                  {showThemePicker
+                    ? 'Hide Theme'
+                    : '+ Add Theme'}
+                </button>
+              ) : (
+                <span
+                  className={`rounded-lg border px-3 py-2 text-xs font-medium ${
+                    isDarkMode
+                      ? 'border-neutral-800 text-neutral-600'
+                      : 'border-neutral-200 text-neutral-400'
+                  }`}
+                >
+                  Locked
+                </span>
+              )}
+            </div>
+
+            {/* THEME OPTIONS */}
+            {effectiveStreak >= 3 && showThemePicker && (
+              <div className="mt-5 space-y-5">
+
+                {/* BACKGROUND */}
+                <div>
+                  <p
+                    className={`mb-2 font-mono text-[10px] font-bold uppercase tracking-wider ${
+                      isDarkMode
+                        ? 'text-neutral-400'
+                        : 'text-neutral-500'
+                    }`}
+                  >
+                    Background
+                  </p>
+
+                  <div className="grid grid-cols-3 gap-2">
+                    {CARD_BACKGROUNDS.map((background) => (
+                      <button
+                        key={background.id}
+                        type="button"
+                        disabled={cardThemeSaving}
+                        onClick={() =>
+                          handleThemeChange({
+                            ...cardTheme,
+                            background: background.id,
+                          })
+                        }
+                        className={`rounded-lg border p-2 text-xs transition-all cursor-pointer ${
+                          cardTheme.background === background.id
+                            ? 'ring-2 ring-neutral-500'
+                            : ''
+                        } ${
+                          isDarkMode
+                            ? 'border-neutral-800 hover:border-neutral-700'
+                            : 'border-neutral-200 hover:border-neutral-300'
+                        }`}
+                      >
+                        <div
+                          className="mb-2 h-8 rounded-md border border-neutral-300 dark:border-neutral-600"
+                          style={{
+                            backgroundColor: isDarkMode
+                              ? background.dark
+                              : background.light,
+                          }}
+                        />
+
+                        {background.label}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                {/* BORDER */}
+                <div>
+                  <p
+                    className={`mb-2 font-mono text-[10px] font-bold uppercase tracking-wider ${
+                      isDarkMode
+                        ? 'text-neutral-400'
+                        : 'text-neutral-500'
+                    }`}
+                  >
+                    Border
+                  </p>
+
+                  <div className="grid grid-cols-3 gap-2">
+                    {CARD_BORDERS.map((border) => (
+                      <button
+                        key={border.id}
+                        type="button"
+                        disabled={cardThemeSaving}
+                        onClick={() =>
+                          handleThemeChange({
+                            ...cardTheme,
+                            border: border.id,
+                          })
+                        }
+                        className={`rounded-lg border p-3 text-xs transition-all cursor-pointer ${
+                          cardTheme.border === border.id
+                            ? 'ring-2 ring-neutral-500'
+                            : ''
+                        } ${
+                          isDarkMode
+                            ? 'border-neutral-800 hover:border-neutral-700'
+                            : 'border-neutral-200 hover:border-neutral-300'
+                        }`}
+                      >
+                        <div
+                          className="mb-2 h-6 rounded-md border"
+                          style={{
+                            borderStyle: border.style,
+                          }}
+                        />
+
+                        {border.label}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+              </div>
+            )}
           </div>
 
           <div>
