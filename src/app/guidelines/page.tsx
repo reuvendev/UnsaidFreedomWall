@@ -100,7 +100,7 @@ export default function GuidelinesPage() {
               03. Protection Against Doxxing
             </h2>
             <p className="text-sm md:text-base">
-              Do not post real names, contact numbers, specific residential addresses, or direct social media links of any individual. Our submission system actively filters out potential doxxing attempts to protect student privacy.
+              Do not share private or sensitive information that could expose or identify someone without their consent, such as full legal names, phone numbers, specific home addresses, private contact details, or other personal information. Public usernames, nicknames, or social media handles may be shared as long as they do not expose sensitive personal information or put someone at risk. Our submission system actively filters potential doxxing attempts to help protect student privacy.
             </p>
           </section>
 

@@ -709,6 +709,14 @@ useEffect(() => {
     return fetched;
   };
 
+  const isInAppBrowser = () => {
+    if (typeof navigator === 'undefined') return false;
+
+    const ua = navigator.userAgent || navigator.vendor || '';
+
+    return /FBAN|FBAV|Instagram|Messenger|Line|Twitter|TikTok/i.test(ua);
+  };
+
   /* =========================================================
      FIRESTORE POSTS QUERY
   ========================================================= */
@@ -2625,183 +2633,6 @@ useEffect(() => {
               </p>
             </div>
           )}
-
-          {/* CARD CUSTOMIZATION */}
-<div className="mb-6">
-  <div
-    className={`rounded-xl border p-4 ${
-      effectiveStreak >= 3
-        ? isDarkMode
-          ? 'bg-neutral-950 border-neutral-800'
-          : 'bg-neutral-50 border-neutral-200'
-        : isDarkMode
-          ? 'bg-neutral-950/50 border-neutral-800'
-          : 'bg-neutral-50/50 border-neutral-200'
-    }`}
-  >
-    <div className="flex items-center justify-between mb-3">
-      <div>
-        <p
-          className={`font-mono text-[10px] font-bold uppercase tracking-widest ${
-            isDarkMode
-              ? 'text-neutral-300'
-              : 'text-neutral-700'
-          }`}
-        >
-          Card Theme
-        </p>
-
-        <p
-          className={`mt-1 font-mono text-[9px] ${
-            isDarkMode
-              ? 'text-neutral-500'
-              : 'text-neutral-400'
-          }`}
-        >
-          {effectiveStreak >= 3
-            ? 'Customize how your posts look.'
-            : 'Reach a 3-day streak to unlock.'}
-        </p>
-      </div>
-
-      {effectiveStreak < 3 && (
-        <span className="font-mono text-[9px] font-bold uppercase tracking-wider text-neutral-400">
-          Locked
-        </span>
-      )}
-    </div>
-
-    {effectiveStreak >= 3 ? (
-      <>
-        {/* BACKGROUND COLORS */}
-        <div className="mb-4">
-          <p
-            className={`mb-2 font-mono text-[9px] font-bold uppercase tracking-wider ${
-              isDarkMode
-                ? 'text-neutral-500'
-                : 'text-neutral-400'
-            }`}
-          >
-            Color
-          </p>
-
-          <div className="grid grid-cols-3 gap-2">
-            {CARD_BACKGROUNDS.map(
-              (background) => {
-                const selected =
-                  cardTheme.background ===
-                  background.id;
-
-                return (
-                  <button
-                    key={background.id}
-                    type="button"
-                    disabled={cardThemeSaving}
-                    onClick={() =>
-                      saveCardTheme({
-                        ...cardTheme,
-                        background:
-                          background.id,
-                      })
-                    }
-                    className={`h-12 rounded-lg border-2 transition-all ${
-                      selected
-                        ? 'border-emerald-500 ring-2 ring-emerald-500/20'
-                        : isDarkMode
-                          ? 'border-neutral-700'
-                          : 'border-neutral-200'
-                    }`}
-                    style={{
-                      backgroundColor:
-                        isDarkMode
-                          ? background.dark
-                          : background.light,
-                    }}
-                    title={
-                      background.label
-                    }
-                  >
-                    <span
-                      className={`font-mono text-[9px] font-bold ${
-                        background.id ===
-                        'default'
-                          ? isDarkMode
-                            ? 'text-neutral-300'
-                            : 'text-neutral-700'
-                          : 'text-neutral-700'
-                      }`}
-                    >
-                      {background.label}
-                    </span>
-                  </button>
-                );
-              }
-            )}
-          </div>
-        </div>
-
-        {/* BORDER STYLE */}
-        <div>
-          <p
-            className={`mb-2 font-mono text-[9px] font-bold uppercase tracking-wider ${
-              isDarkMode
-                ? 'text-neutral-500'
-                : 'text-neutral-400'
-            }`}
-          >
-            Border
-          </p>
-
-          <div className="grid grid-cols-3 gap-2">
-            {CARD_BORDERS.map(
-              (border) => {
-                const selected =
-                  cardTheme.border ===
-                  border.id;
-
-                return (
-                  <button
-                    key={border.id}
-                    type="button"
-                    disabled={cardThemeSaving}
-                    onClick={() =>
-                      saveCardTheme({
-                        ...cardTheme,
-                        border:
-                          border.id,
-                      })
-                    }
-                    className={`py-2.5 rounded-lg border text-[9px] font-mono font-bold uppercase tracking-wider transition-all ${
-                      selected
-                        ? 'border-emerald-500 text-emerald-600'
-                        : isDarkMode
-                          ? 'border-neutral-700 text-neutral-400'
-                          : 'border-neutral-200 text-neutral-500'
-                    }`}
-                  >
-                    {border.label}
-                  </button>
-                );
-              }
-            )}
-          </div>
-        </div>
-      </>
-    ) : (
-      <div
-        className={`rounded-lg border border-dashed px-3 py-4 text-center ${
-          isDarkMode
-            ? 'border-neutral-800 text-neutral-600'
-            : 'border-neutral-200 text-neutral-400'
-        }`}
-      >
-        <p className="font-mono text-[9px] uppercase tracking-wider">
-          Unlocks at 3 days
-        </p>
-      </div>
-    )}
-  </div>
-</div>
 
           {/* MILESTONES */}
           <div>
