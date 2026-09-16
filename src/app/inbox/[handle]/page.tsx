@@ -225,7 +225,7 @@ export default function PublicInboxPage() {
               disabled={loading}
               className="w-full py-4 bg-neutral-900 hover:bg-neutral-800 text-white font-mono text-xs font-bold uppercase tracking-wider rounded-xl transition-all shadow-xs active:scale-95 disabled:opacity-50"
             >
-              {loading ? 'Encrypting & Sending...' : 'Send Secret Message 🤫'}
+              {loading ? 'Encrypting & Sending...' : 'Send Secret Message'}
             </button>
 
             {/* Guidelines Label */}
