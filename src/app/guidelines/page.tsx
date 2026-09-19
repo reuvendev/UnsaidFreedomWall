@@ -26,7 +26,7 @@ const rules = [
     content: (
       <>
         Freedom Wall posts use an automated Louisian alias instead of publicly displaying the
-        poster&apos;s real name. Submissions are reviewed before publication to help keep the
+        poster's real name. Submissions are reviewed before publication to help keep the
         community safe and organized. Anonymity should not be treated as permission to violate
         these guidelines or harm another person.
       </>
@@ -233,7 +233,36 @@ export default function GuidelinesPage() {
               allow open expression while protecting the privacy and safety of other members of
               the community.
             </p>
+
+            <p>
+              Anonymous Chat is available only to users who are at least
+              18 years old. By entering Anonymous Chat, you confirm that
+              you meet this age requirement.
+            </p>
+
           </div>
+        </section>
+
+        {/* AGE REQUIREMENT */}
+        <section className="mb-8">
+          <p className="font-mono text-[10px] font-bold uppercase tracking-widest text-amber-600 mb-2">
+            18+ Community
+          </p>
+
+          <h2
+            className={`text-xl font-extrabold tracking-tight mb-3 ${heading}`}
+          >
+            You must be at least 18 years old to use Tambayan.
+          </h2>
+
+          <p
+            className={`text-sm sm:text-base leading-relaxed ${body}`}
+          >
+            Tambayan&apos;s Freedom Wall, Anonymous Chat, and other
+            community features are intended only for users who are
+            18 years old or older. By using these features, you confirm
+            that you meet this age requirement.
+          </p>
         </section>
 
         <section

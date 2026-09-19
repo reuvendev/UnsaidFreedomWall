@@ -96,6 +96,11 @@ export default function PrivacyPolicyPage() {
               a public profile or provide your real name or email address to use the main community
               features.
             </p>
+            <p>
+              Tambayan is intended only for users who are 18 years old or
+              older. By using the website's community features, you
+              confirm that you meet this age requirement.
+            </p>
           </div>
         </section>
 
@@ -394,6 +399,50 @@ export default function PrivacyPolicyPage() {
               Contact Tambayan →
             </Link>
           </section>
+
+        <section
+          className={`rounded-2xl border p-6 sm:p-8 ${
+            isDarkMode
+              ? 'bg-amber-950/20 border-amber-900/50'
+              : 'bg-amber-50 border-amber-200'
+          }`}
+        >
+          <p className="font-mono text-[10px] font-bold uppercase tracking-widest text-amber-600 mb-3">
+            Age Requirement
+          </p>
+
+          <h2
+            className={`text-2xl font-extrabold tracking-tight mb-4 ${heading}`}
+          >
+            Tambayan is for users aged 18 and above
+          </h2>
+
+          <div
+            className={`space-y-4 text-sm sm:text-base leading-relaxed ${body}`}
+          >
+            <p>
+              Tambayan is intended only for individuals who are at least
+              18 years old. By using the Freedom Wall, Anonymous Chat, or
+              other community features, you confirm that you are 18 years
+              old or older.
+            </p>
+
+            <p>
+              Tambayan does not knowingly provide its community features
+              to individuals under the age of 18. If we become aware that
+              an underage person is using the service, appropriate action
+              may be taken to restrict access or remove relevant content
+              where necessary.
+            </p>
+
+            <p>
+              Because Tambayan does not require a traditional account,
+              the service generally relies on users to truthfully confirm
+              that they meet the age requirement.
+            </p>
+          </div>
+        </section>
+
 
           <section className={`rounded-2xl border p-6 sm:p-8 ${isDarkMode ? 'bg-emerald-950/20 border-emerald-900/50' : 'bg-emerald-50 border-emerald-200'}`}>
             <p className="font-mono text-[10px] font-bold uppercase tracking-widest text-emerald-600 mb-3">Independent Community</p>
