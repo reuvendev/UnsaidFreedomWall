@@ -1,61 +1,206 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
 import Link from 'next/link';
 
 const Icons = {
-  Sun: () => <svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="4"/><path d="M12 2v2"/><path d="M12 20v2"/><path d="m4.93 4.93 1.41 1.41"/><path d="m17.66 17.66 1.41 1.41"/><path d="M2 12h2"/><path d="M20 12h2"/><path d="m6.34 17.66-1.41 1.41"/><path d="m19.07 4.93-1.41 1.41"/></svg>,
-  Moon: () => <svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 3a6 6 0 0 0 9 9 9 9 0 1 1-9-9Z"/></svg>,
+  Sun: () => (
+    <svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <circle cx="12" cy="12" r="4" />
+      <path d="M12 2v2" /><path d="M12 20v2" /><path d="m4.93 4.93 1.41 1.41" />
+      <path d="m17.66 17.66 1.41 1.41" /><path d="M2 12h2" /><path d="M20 12h2" />
+      <path d="m6.34 17.66-1.41 1.41" /><path d="m19.07 4.93-1.41 1.41" />
+    </svg>
+  ),
+  Moon: () => (
+    <svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M12 3a6 6 0 0 0 9 9 9 9 0 1 1-9-9Z" />
+    </svg>
+  ),
 };
 
-export default function GuidelinesPage() {
-  const [isDarkMode, setIsDarkMode] = useState<boolean>(false);
+const rules = [
+  {
+    number: '01',
+    title: 'Anonymous Participation & Moderation',
+    content: (
+      <>
+        Freedom Wall posts use an automated Louisian alias instead of publicly displaying the
+        poster&apos;s real name. Submissions are reviewed before publication to help keep the
+        community safe and organized. Anonymity should not be treated as permission to violate
+        these guidelines or harm another person.
+      </>
+    ),
+  },
+  {
+    number: '02',
+    title: 'No Harassment or Bullying',
+    content: (
+      <>
+        Do not use Tambayan to target, humiliate, threaten, intimidate, or repeatedly attack
+        another person. Campus rants, disagreements, confessions, and criticism may be shared,
+        but targeted bullying, hate speech, malicious personal attacks, and harassment may be
+        rejected or removed.
+      </>
+    ),
+  },
+  {
+    number: '03',
+    title: 'Protect Personal Information',
+    content: (
+      <>
+        Do not share private or sensitive information that could expose or identify another
+        person without their consent. This includes home addresses, phone numbers, private
+        contact details, account credentials, identification numbers, or similar sensitive
+        information. Nicknames or public social media handles may be mentioned when doing so
+        does not expose sensitive information, facilitate harassment, or put someone at risk.
+      </>
+    ),
+  },
+  {
+    number: '04',
+    title: 'No Threats or Promotion of Harm',
+    content: (
+      <>
+        Content that contains credible threats, encourages violence, promotes self-harm toward
+        another person, or calls for someone to be physically harmed is not allowed. If a post
+        appears to present an immediate safety concern, it may be removed or withheld from
+        publication.
+      </>
+    ),
+  },
+  {
+    number: '05',
+    title: 'No Hate Speech or Discriminatory Attacks',
+    content: (
+      <>
+        Do not attack or degrade people based on protected or personal characteristics. Content
+        that promotes hatred, dehumanization, exclusion, or violence against a person or group
+        may be rejected or removed.
+      </>
+    ),
+  },
+  {
+    number: '06',
+    title: 'No Sexual Exploitation or Non-Consensual Content',
+    content: (
+      <>
+        Sexual exploitation, sexual content involving minors, non-consensual intimate material,
+        requests for exploitative sexual content, or attempts to distribute such material are
+        prohibited. Do not upload or link to intimate material involving another person without
+        their consent.
+      </>
+    ),
+  },
+  {
+    number: '07',
+    title: 'No Impersonation or Deceptive Identity Claims',
+    content: (
+      <>
+        Do not pretend to be another student, faculty member, organization, school office, or
+        other person in a way that is intended to deceive or harm others. Anonymous participation
+        is allowed, but impersonation is not.
+      </>
+    ),
+  },
+  {
+    number: '08',
+    title: 'No Spam, Scams, or Malicious Links',
+    content: (
+      <>
+        Repetitive junk posts, scams, phishing attempts, suspicious downloads, malicious links,
+        and misleading promotions are not allowed. Commercial advertising or repeated
+        self-promotion may also be rejected when it disrupts the purpose of the community.
+      </>
+    ),
+  },
+  {
+    number: '09',
+    title: 'Share Responsibly',
+    content: (
+      <>
+        Tambayan welcomes campus experiences, academic struggles, questions, confessions,
+        relationships, opinions, stories, and everyday thoughts. Before submitting something,
+        consider whether it unnecessarily exposes, targets, or harms another person. You are
+        responsible for the content you choose to submit.
+      </>
+    ),
+  },
+];
 
-  // Initialize Dark Mode state from localStorage
+export default function GuidelinesPage() {
+  const [isDarkMode, setIsDarkMode] = useState(false);
+
   useEffect(() => {
     try {
       const storedTheme = localStorage.getItem('unsaid_dark_mode');
-      if (storedTheme) {
+
+      if (storedTheme !== null) {
         setIsDarkMode(JSON.parse(storedTheme));
-      } else if (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches) {
+      } else if (window.matchMedia?.('(prefers-color-scheme: dark)').matches) {
         setIsDarkMode(true);
       }
-    } catch (e) {
-      // Ignore
+    } catch (error) {
+      console.error('Failed to load dark mode:', error);
     }
   }, []);
 
   const toggleDarkMode = () => {
     const nextMode = !isDarkMode;
     setIsDarkMode(nextMode);
+
     try {
       localStorage.setItem('unsaid_dark_mode', JSON.stringify(nextMode));
-    } catch (e) {}
+    } catch (error) {
+      console.error('Failed to save dark mode:', error);
+    }
   };
 
+  const heading = isDarkMode ? 'text-white' : 'text-neutral-900';
+  const body = isDarkMode ? 'text-neutral-400' : 'text-neutral-600';
+  const card = isDarkMode
+    ? 'bg-neutral-900/60 border-neutral-800'
+    : 'bg-white border-neutral-200/80';
+
   return (
-    <div className={`min-h-screen font-sans selection:bg-neutral-900 selection:text-white ${isDarkMode ? 'bg-neutral-950 text-neutral-100' : 'bg-white text-neutral-900'}`}>
-      {/* Header */}
-      <header className={`sticky top-0 z-50 backdrop-blur-md border-b ${isDarkMode ? 'bg-neutral-900/85 border-neutral-800' : 'bg-white/85 border-neutral-200'}`}>
+    <div
+      className={`min-h-screen font-sans selection:bg-neutral-900 selection:text-white ${
+        isDarkMode
+          ? 'bg-neutral-950 text-neutral-100'
+          : 'bg-neutral-50/50 text-neutral-900'
+      }`}
+    >
+      <header
+        className={`sticky top-0 z-50 backdrop-blur-md border-b ${
+          isDarkMode
+            ? 'bg-neutral-900/95 border-neutral-800'
+            : 'bg-white/95 border-neutral-200/80'
+        }`}
+      >
         <div className="max-w-2xl mx-auto px-6 h-16 flex items-center justify-between">
-          <Link href="/" className={`font-mono text-xl font-black tracking-tighter hover:opacity-70 transition-opacity ${isDarkMode ? 'text-white' : 'text-neutral-900'}`}>
-            TAMBAYAN.
+          <Link href="/" className="font-mono text-xl font-black tracking-tighter">
+            TAMBAYAN<span className="text-emerald-600">.</span>
           </Link>
-          
+
           <div className="flex items-center gap-4">
-            <Link 
-              href="/" 
-              className={`font-mono text-xs font-semibold uppercase tracking-wider transition-colors ${isDarkMode ? 'text-neutral-400 hover:text-white' : 'text-neutral-500 hover:text-neutral-900'}`}
+            <Link
+              href="/"
+              className={`font-mono text-[11px] font-bold uppercase tracking-widest ${
+                isDarkMode
+                  ? 'text-neutral-400 hover:text-white'
+                  : 'text-neutral-500 hover:text-neutral-900'
+              }`}
             >
-              ← Back to Feed
+              ← Back Home
             </Link>
 
             <button
+              type="button"
               onClick={toggleDarkMode}
-              aria-label="Toggle Dark Mode"
-              className={`p-2 rounded-xl border cursor-pointer ${
-                isDarkMode 
-                  ? 'bg-neutral-800 border-neutral-700 text-amber-400 hover:bg-neutral-700' 
+              aria-label="Toggle dark mode"
+              className={`p-2 rounded-xl border ${
+                isDarkMode
+                  ? 'bg-neutral-800 border-neutral-700 text-amber-400 hover:bg-neutral-700'
                   : 'bg-neutral-100 border-neutral-200 text-neutral-700 hover:bg-neutral-200'
               }`}
             >
@@ -65,80 +210,206 @@ export default function GuidelinesPage() {
         </div>
       </header>
 
-      {/* Main Content */}
-      <main className="max-w-2xl mx-auto px-6 pt-12 pb-24">
-        <div className="mb-10">
-          <p className={`font-mono text-[11px] font-bold tracking-widest uppercase mb-2 ${isDarkMode ? 'text-neutral-500' : 'text-neutral-400'}`}>
+      <main className="max-w-2xl mx-auto px-6 pt-14 pb-24">
+        <section className="mb-12">
+          <p className="font-mono text-[10px] font-bold uppercase tracking-widest text-emerald-600 mb-3">
             Community Standards & Safety
           </p>
-          <h1 className={`text-3xl md:text-4xl font-extrabold tracking-tight ${isDarkMode ? 'text-white' : 'text-neutral-900'}`}>
-            Guidelines
+
+          <h1 className={`text-4xl sm:text-5xl font-extrabold tracking-tight leading-tight mb-6 ${heading}`}>
+            Community Guidelines
           </h1>
+
+          <div className={`space-y-4 text-base leading-relaxed ${body}`}>
+            <p>
+              Tambayan is a space for Louisians to share thoughts, stories, questions,
+              experiences, and conversations anonymously. These guidelines explain what is
+              expected from everyone who uses the platform.
+            </p>
+
+            <p>
+              Being anonymous does not remove responsibility. Content may be reviewed,
+              rejected, reported, or removed when it violates these guidelines. The goal is to
+              allow open expression while protecting the privacy and safety of other members of
+              the community.
+            </p>
+          </div>
+        </section>
+
+        <section
+          className={`rounded-2xl border p-6 sm:p-8 mb-5 ${
+            isDarkMode
+              ? 'bg-emerald-950/20 border-emerald-900/50'
+              : 'bg-emerald-50 border-emerald-200'
+          }`}
+        >
+          <p className="font-mono text-[10px] font-bold uppercase tracking-widest text-emerald-600 mb-3">
+            Before You Post
+          </p>
+          <h2 className={`text-2xl font-extrabold tracking-tight mb-4 ${heading}`}>
+            Express yourself without putting someone else at risk.
+          </h2>
+          <p className={`text-sm sm:text-base leading-relaxed ${body}`}>
+            You can share difficult experiences, disagreements, frustrations, and personal
+            stories. Focus on the experience or issue instead of using anonymity to expose,
+            threaten, humiliate, or organize harassment against another person.
+          </p>
+        </section>
+
+        <div className="space-y-5">
+          {rules.map((rule) => (
+            <section key={rule.number} className={`rounded-2xl border p-6 sm:p-8 ${card}`}>
+              <div className="flex gap-4">
+                <span className="shrink-0 font-mono text-xs font-black text-emerald-600 pt-1">
+                  {rule.number}
+                </span>
+
+                <div>
+                  <h2 className={`text-lg font-bold tracking-tight mb-3 ${heading}`}>
+                    {rule.title}
+                  </h2>
+                  <p className={`text-sm sm:text-base leading-relaxed ${body}`}>
+                    {rule.content}
+                  </p>
+                </div>
+              </div>
+            </section>
+          ))}
         </div>
 
-        <div className={`space-y-8 leading-relaxed ${isDarkMode ? 'text-neutral-300' : 'text-neutral-700'}`}>
-          <section className={`p-6 border rounded-lg space-y-3 ${isDarkMode ? 'bg-neutral-900 border-neutral-800' : 'bg-neutral-50 border-neutral-200'}`}>
-            <h2 className={`font-mono text-xs font-bold uppercase tracking-widest ${isDarkMode ? 'text-white' : 'text-neutral-900'}`}>
-              01. Absolute Anonymity & Manual Review
-            </h2>
-            <p className="text-sm md:text-base">
-              Every post is assigned an automated Louisian alias (e.g., <code className={`font-mono text-xs px-2 py-0.5 border rounded ${isDarkMode ? 'bg-neutral-950 border-neutral-800 text-neutral-200' : 'bg-white border-neutral-200'}`}>Louisian #48291</code>). To keep the community safe, all entries undergo <strong className={isDarkMode ? 'text-white' : 'text-neutral-900'}>manual moderation review</strong> by administrators before going live on the public feed.
-            </p>
-          </section>
+        <section className={`rounded-2xl border p-6 sm:p-8 mt-5 ${card}`}>
+          <p className="font-mono text-[10px] font-bold uppercase tracking-widest text-emerald-600 mb-3">
+            Reporting Content
+          </p>
 
-          <section className={`p-6 border rounded-lg space-y-3 ${isDarkMode ? 'bg-neutral-900 border-neutral-800' : 'bg-neutral-50 border-neutral-200'}`}>
-            <h2 className={`font-mono text-xs font-bold uppercase tracking-widest ${isDarkMode ? 'text-white' : 'text-neutral-900'}`}>
-              02. Zero Tolerance for Harassment & Bullying
-            </h2>
-            <p className="text-sm md:text-base">
-              While campus rants, confessions, and thoughts are welcome, we enforce a strict <strong className={isDarkMode ? 'text-white' : 'text-neutral-900'}>zero-tolerance policy</strong> for targeted bullying, hate speech, malicious defamation, or personal attacks against fellow Louisians or faculty members. Violating submissions are permanently rejected.
-            </p>
-          </section>
+          <h2 className={`text-2xl font-extrabold tracking-tight mb-4 ${heading}`}>
+            See something that breaks the rules?
+          </h2>
 
-          <section className={`p-6 border rounded-lg space-y-3 ${isDarkMode ? 'bg-neutral-900 border-neutral-800' : 'bg-neutral-50 border-neutral-200'}`}>
-            <h2 className={`font-mono text-xs font-bold uppercase tracking-widest ${isDarkMode ? 'text-white' : 'text-neutral-900'}`}>
-              03. Protection Against Doxxing
-            </h2>
-            <p className="text-sm md:text-base">
-              Do not share private or sensitive information that could expose or identify someone without their consent, such as full legal names, phone numbers, specific home addresses, private contact details, or other personal information. Public usernames, nicknames, or social media handles may be shared as long as they do not expose sensitive personal information or put someone at risk. Our submission system actively filters potential doxxing attempts to help protect student privacy.
+          <div className={`space-y-4 text-sm sm:text-base leading-relaxed ${body}`}>
+            <p>
+              Freedom Wall posts include a reporting feature. If you believe a published post
+              violates these guidelines, submit a report so it can be brought to the attention
+              of moderation.
             </p>
-          </section>
 
-          <section className={`p-6 border rounded-lg space-y-3 ${isDarkMode ? 'bg-neutral-900 border-neutral-800' : 'bg-neutral-50 border-neutral-200'}`}>
-            <h2 className={`font-mono text-xs font-bold uppercase tracking-widest ${isDarkMode ? 'text-white' : 'text-neutral-900'}`}>
-              04. Open Campus Expression
-            </h2>
-            <p className="text-sm md:text-base">
-              This space is built for Louisians to share academic struggles, campus experiences, secret admirations, or daily musings freely in a secure and respectful environment.
+            <p>
+              A report does not automatically mean that content will be removed. Reports may be
+              reviewed based on the content and context of the post. Content found to violate
+              these guidelines may be removed or otherwise restricted.
             </p>
-          </section>
+          </div>
 
-          <section className={`p-6 border rounded-lg space-y-3 ${isDarkMode ? 'bg-neutral-900 border-neutral-800' : 'bg-neutral-50 border-neutral-200'}`}>
-            <h2 className={`font-mono text-xs font-bold uppercase tracking-widest ${isDarkMode ? 'text-white' : 'text-neutral-900'}`}>
-              05. No Spam or Commercial Promotions
-            </h2>
-            <p className="text-sm md:text-base">
-              Avoid posting commercial advertisements, spam links, business self-promotion, or repetitive junk content that disrupts the campus feed.
+          <Link
+            href="/wall"
+            className="inline-flex mt-5 font-mono text-[10px] font-bold uppercase tracking-wider text-emerald-600 hover:text-emerald-500"
+          >
+            Visit Freedom Wall →
+          </Link>
+        </section>
+
+        <section className={`rounded-2xl border p-6 sm:p-8 mt-5 ${card}`}>
+          <p className="font-mono text-[10px] font-bold uppercase tracking-widest text-emerald-600 mb-3">
+            Moderation Decisions
+          </p>
+
+          <h2 className={`text-2xl font-extrabold tracking-tight mb-4 ${heading}`}>
+            Why a submission may not appear
+          </h2>
+
+          <div className={`space-y-4 text-sm sm:text-base leading-relaxed ${body}`}>
+            <p>
+              Submitting an entry does not guarantee publication. A submission may be rejected
+              when it violates these guidelines, contains sensitive personal information,
+              appears to be spam, creates a significant safety concern, or is otherwise
+              unsuitable for the community.
             </p>
-          </section>
 
-          <div className={`pt-6 border-t flex items-center justify-between ${isDarkMode ? 'border-neutral-800' : 'border-neutral-200'}`}>
-            <span className={`font-mono text-xs ${isDarkMode ? 'text-neutral-500' : 'text-neutral-400'}`}>
-              Maintained safely for the Louisian community.
-            </span>
+            <p>
+              Moderation cannot guarantee that every violation will be identified immediately.
+              Published content can therefore still be reported for another review.
+            </p>
+          </div>
+        </section>
+
+        <section className={`rounded-2xl border p-6 sm:p-8 mt-5 ${card}`}>
+          <p className="font-mono text-[10px] font-bold uppercase tracking-widest text-emerald-600 mb-3">
+            Anonymous Chat
+          </p>
+
+          <h2 className={`text-2xl font-extrabold tracking-tight mb-4 ${heading}`}>
+            The same basic standards apply to conversations.
+          </h2>
+
+          <p className={`text-sm sm:text-base leading-relaxed ${body}`}>
+            Anonymous Chat should not be used for harassment, threats, scams, exploitation,
+            malicious links, or attempts to obtain another user&apos;s sensitive information.
+            Users should be careful about voluntarily sharing identifying or private information
+            with someone they meet through anonymous chat.
+          </p>
+        </section>
+
+        <section
+          className={`mt-10 pt-8 border-t ${
+            isDarkMode ? 'border-neutral-800' : 'border-neutral-200'
+          }`}
+        >
+          <h2 className={`text-xl font-bold mb-2 ${heading}`}>
+            Learn more
+          </h2>
+
+          <p className={`text-sm leading-relaxed mb-5 ${body}`}>
+            Read more about how Tambayan works, how information is handled, or return to the
+            Freedom Wall.
+          </p>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <Link
+              href="/wall"
+              className="px-5 py-3.5 rounded-lg bg-neutral-900 dark:bg-emerald-600 text-white text-center font-mono text-[11px] font-bold uppercase tracking-wider"
+            >
+              Freedom Wall
+            </Link>
 
             <Link
-              href="/"
-              className={`px-5 py-2.5 font-mono text-xs font-bold uppercase tracking-wider rounded transition-all active:scale-95 shadow-sm cursor-pointer ${
-                isDarkMode 
-                  ? 'bg-neutral-100 text-neutral-950 hover:bg-white' 
-                  : 'bg-neutral-900 text-white hover:bg-neutral-800'
+              href="/how-it-works"
+              className={`px-5 py-3.5 rounded-lg border text-center font-mono text-[11px] font-bold uppercase tracking-wider ${
+                isDarkMode
+                  ? 'border-neutral-800 bg-neutral-900 text-neutral-200'
+                  : 'border-neutral-200 bg-white text-neutral-800'
               }`}
             >
-              Return to Feed
+              How It Works
+            </Link>
+
+            <Link
+              href="/privacy"
+              className={`px-5 py-3.5 rounded-lg border text-center font-mono text-[11px] font-bold uppercase tracking-wider ${
+                isDarkMode
+                  ? 'border-neutral-800 bg-neutral-900 text-neutral-200'
+                  : 'border-neutral-200 bg-white text-neutral-800'
+              }`}
+            >
+              Privacy Policy
+            </Link>
+
+            <Link
+              href="/about"
+              className={`px-5 py-3.5 rounded-lg border text-center font-mono text-[11px] font-bold uppercase tracking-wider ${
+                isDarkMode
+                  ? 'border-neutral-800 bg-neutral-900 text-neutral-200'
+                  : 'border-neutral-200 bg-white text-neutral-800'
+              }`}
+            >
+              About Tambayan
             </Link>
           </div>
-        </div>
+        </section>
+
+        <p className={`font-mono text-[10px] leading-relaxed mt-8 text-center ${isDarkMode ? 'text-neutral-600' : 'text-neutral-400'}`}>
+          Tambayan SLU is an independent student platform and is not officially affiliated with
+          or endorsed by Saint Louis University.
+        </p>
       </main>
     </div>
   );

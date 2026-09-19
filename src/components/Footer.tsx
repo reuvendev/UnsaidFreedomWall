@@ -77,6 +77,16 @@ export function Footer() {
             <Link href="/privacy" className={`transition-colors ${isDarkMode ? 'hover:text-white' : 'hover:text-neutral-900'}`}>Privacy</Link>
             <Link href="/contact" className={`transition-colors ${isDarkMode ? 'hover:text-white' : 'hover:text-neutral-900'}`}>Contact</Link>
             <Link href="/credits" className={`transition-colors ${isDarkMode ? 'hover:text-white' : 'hover:text-neutral-900'}`}>Credits</Link>
+            <Link
+              href="/appeal"
+              className={`transition-colors ${
+                isDarkMode
+                  ? 'hover:text-white'
+                  : 'hover:text-neutral-900'
+              }`}
+            >
+              Appeal
+            </Link>
             <Link href="/post" className={`transition-opacity ${isDarkMode ? 'text-white hover:opacity-70' : 'text-neutral-900 hover:opacity-70'}`}>Submit +</Link>
           </div>
         </div>

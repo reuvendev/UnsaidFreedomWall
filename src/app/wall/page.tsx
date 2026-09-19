@@ -1,0 +1,2250 @@
+'use client';
+
+import React, {
+  useState,
+  useEffect,
+  useMemo,
+  useCallback,
+} from 'react';
+import Link from 'next/link';
+import {
+  collection,
+  onSnapshot,
+  query,
+  orderBy,
+  limit,
+  startAfter,
+  getDocs,
+  doc,
+  updateDoc,
+  increment,
+  addDoc,
+  serverTimestamp,
+  where,
+  DocumentData,
+  QueryDocumentSnapshot,
+  Query,
+} from 'firebase/firestore';
+import { db } from '@/lib/firebase';
+
+export interface PostProps {
+  id: string;
+  userId?: string;
+  authorAlias: string;
+  content: string;
+  category: string;
+  createdAt: string;
+  upvotes: number;
+  replies: number;
+  spotifyTrackId?: string;
+  imageUrl?: string;
+  isDeveloperPost?: boolean;
+  isPinned?: boolean;
+  cardTheme?: {
+  background: string;
+  border: string;
+};
+}
+
+const CATEGORIES = [
+  { id: 'all', label: 'All Entries' },
+  { id: 'thoughts', label: 'Thoughts' },
+  { id: 'love', label: 'Love & Connections' },
+  { id: 'rants', label: 'Rants' },
+  { id: 'advice', label: 'Advice' },
+  { id: 'others', label: 'Others' },
+];
+
+const REPORT_REASONS = [
+  'Harassment or bullying',
+  'Hate speech or discriminatory content',
+  'Explicit or inappropriate content',
+  'Doxxing or personal information',
+  'Spam or misleading information',
+  'Other violation',
+];
+
+const CHARACTER_LIMIT = 280;
+
+const CARD_BACKGROUNDS = [
+  {
+    id: 'default',
+    label: 'Default',
+    light: '#ffffff',
+    dark: '#171717',
+    borderLight: '#d4d4d4',
+    borderDark: '#525252',
+  },
+  {
+    id: 'lavender',
+    label: 'Lavender',
+    light: '#f5f3ff',
+    dark: '#292342',
+    borderLight: '#c4b5fd',
+    borderDark: '#7c6bb5',
+  },
+  {
+    id: 'blue',
+    label: 'Blue',
+    light: '#eff6ff',
+    dark: '#1e293b',
+    borderLight: '#93c5fd',
+    borderDark: '#5b7fb3',
+  },
+  {
+    id: 'green',
+    label: 'Green',
+    light: '#f0fdf4',
+    dark: '#1f3025',
+    borderLight: '#86efac',
+    borderDark: '#5b9b6d',
+  },
+  {
+    id: 'rose',
+    label: 'Rose',
+    light: '#fff1f2',
+    dark: '#332126',
+    borderLight: '#F79ac0',
+    borderDark: '#F79ac0',
+  },
+  {
+    id: 'yellow',
+    label: 'Yellow',
+    light: '#fefce8',
+    dark: '#302d1b',
+    borderLight: '#fde68a',
+    borderDark: '#a18a43',
+  },
+];
+
+const CARD_BORDERS = [
+  {
+    id: 'solid',
+    label: 'Solid',
+    style: 'solid',
+  },
+  {
+    id: 'dashed',
+    label: 'Dashed',
+    style: 'dashed',
+  },
+  {
+    id: 'dotted',
+    label: 'Dotted',
+    style: 'dotted',
+  },
+];
+
+interface CardTheme {
+  background: string;
+  border: string;
+}
+
+/*
+ * IMPORTANT:
+ * This function ONLY reads the existing anonymous chat ID.
+ *
+ * It does NOT create a new ID.
+ *
+ * The ID should already be created by the chat system.
+ */
+const getAnonymousUserId = (): string | null => {
+  if (typeof window === 'undefined') {
+    return null;
+  }
+
+  try {
+    return localStorage.getItem(STREAK_STORAGE_KEY);
+  } catch (error) {
+    console.error(
+      'Failed to get anonymous user ID:',
+      error
+    );
+    return null;
+  }
+};
+
+const getPhilippineDate = (): string => {
+  return new Intl.DateTimeFormat('en-CA', {
+    timeZone: 'Asia/Manila',
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+  }).format(new Date());
+};
+
+const getDateDifference = (
+  date1: string,
+  date2: string
+): number => {
+  const first = new Date(`${date1}T00:00:00`);
+  const second = new Date(`${date2}T00:00:00`);
+
+  return Math.round(
+    (second.getTime() - first.getTime()) /
+      (1000 * 60 * 60 * 24)
+  );
+};
+
+const getEffectiveStreak = (
+  streakData: StreakData
+): number => {
+  if (!streakData.lastActiveDate) {
+    return 0;
+  }
+
+  const today = getPhilippineDate();
+
+  const difference = getDateDifference(
+    streakData.lastActiveDate,
+    today
+  );
+
+  if (difference <= 1) {
+    return streakData.current;
+  }
+
+  return 0;
+};
+
+const getStreakMilestone = (streak: number) => {
+  let currentMilestone = STREAK_MILESTONES[0];
+
+  for (const milestone of STREAK_MILESTONES) {
+    if (streak >= milestone.days) {
+      currentMilestone = milestone;
+    } else {
+      break;
+    }
+  }
+
+  return currentMilestone;
+};
+
+const getNextMilestone = (streak: number) => {
+  return (
+    STREAK_MILESTONES.find(
+      (milestone) => milestone.days > streak
+    ) || null
+  );
+};
+
+const Icons = {
+  Heart: ({ filled }: { filled?: boolean }) => (
+    <svg
+      xmlns="http://www.w3.org/2000/svg"
+      width="16"
+      height="16"
+      viewBox="0 0 24 24"
+      fill={filled ? 'currentColor' : 'none'}
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      className="transform active:scale-125"
+    >
+      <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z" />
+    </svg>
+  ),
+
+  Message: () => (
+    <svg
+      xmlns="http://www.w3.org/2000/svg"
+      width="16"
+      height="16"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    >
+      <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
+    </svg>
+  ),
+
+  Pen: () => (
+    <svg
+      xmlns="http://www.w3.org/2000/svg"
+      width="14"
+      height="14"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    >
+      <path d="M12 20h9" />
+      <path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z" />
+    </svg>
+  ),
+
+  Search: () => (
+    <svg
+      xmlns="http://www.w3.org/2000/svg"
+      width="16"
+      height="16"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    >
+      <circle cx="11" cy="11" r="8" />
+      <path d="m21 21-4.3-4.3" />
+    </svg>
+  ),
+
+  Share: () => (
+    <svg
+      xmlns="http://www.w3.org/2000/svg"
+      width="15"
+      height="15"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    >
+      <path d="M4 12v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8" />
+      <polyline points="16 6 12 2 8 6" />
+      <line x1="12" y1="2" x2="12" y2="15" />
+    </svg>
+  ),
+
+  Close: () => (
+    <svg
+      xmlns="http://www.w3.org/2000/svg"
+      width="18"
+      height="18"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    >
+      <line x1="18" y1="6" x2="6" y2="18" />
+      <line x1="6" y1="6" x2="18" y2="18" />
+    </svg>
+  ),
+
+  ShieldCheck: () => (
+    <svg
+      xmlns="http://www.w3.org/2000/svg"
+      width="13"
+      height="13"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2.5"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    >
+      <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
+      <polyline points="9 12 11 14 15 10" />
+    </svg>
+  ),
+
+  Sun: () => (
+    <svg
+      xmlns="http://www.w3.org/2000/svg"
+      width="15"
+      height="15"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    >
+      <circle cx="12" cy="12" r="4" />
+      <path d="M12 2v2" />
+      <path d="M12 20v2" />
+      <path d="m4.93 4.93 1.41 1.41" />
+      <path d="m17.66 17.66 1.41 1.41" />
+      <path d="M2 12h2" />
+      <path d="M20 12h2" />
+      <path d="m6.34 17.66-1.41 1.41" />
+      <path d="m19.07 4.93-1.41 1.41" />
+    </svg>
+  ),
+
+  Moon: () => (
+    <svg
+      xmlns="http://www.w3.org/2000/svg"
+      width="15"
+      height="15"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    >
+      <path d="M12 3a6 6 0 0 0 9 9 9 9 0 1 1-9-9Z" />
+    </svg>
+  ),
+
+  Pin: (
+    props: React.SVGProps<SVGSVGElement>
+  ) => (
+    <svg
+      {...props}
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    >
+      <path d="M12 17v5" />
+      <path d="M5 9l3-3 1-4h6l1 4 3 3" />
+      <path d="M5 9h14" />
+      <path d="M8 9v4l-2 2h12l-2-2V9" />
+    </svg>
+  ),
+};
+
+export default function HomePage() {
+  const [selectedCategory, setSelectedCategory] =
+    useState<string>('all');
+
+  const [searchQuery, setSearchQuery] =
+    useState<string>('');
+
+  const [debouncedSearch, setDebouncedSearch] =
+    useState<string>('');
+
+  const [pinnedPosts, setPinnedPosts] =
+    useState<PostProps[]>([]);
+
+  const [rawPosts, setRawPosts] =
+    useState<PostProps[]>([]);
+
+  const [topPosts, setTopPosts] =
+  useState<PostProps[]>([]);
+
+  const [loading, setLoading] =
+    useState<boolean>(true);
+
+  const [loadingMore, setLoadingMore] =
+    useState<boolean>(false);
+
+  const [hasMore, setHasMore] =
+    useState<boolean>(true);
+
+  const [lastVisible, setLastVisible] =
+    useState<QueryDocumentSnapshot<DocumentData> | null>(
+      null
+    );
+
+  const [copiedId, setCopiedId] =
+    useState<string | null>(null);
+
+  const [votedPosts, setVotedPosts] =
+    useState<Record<string, boolean>>({});
+
+  const [votingLocked, setVotingLocked] =
+    useState<Record<string, boolean>>({});
+
+  const [reportedPosts, setReportedPosts] =
+    useState<Record<string, boolean>>({});
+
+  const [expandedPosts, setExpandedPosts] =
+    useState<Record<string, boolean>>({});
+
+  const [activeReportPostId, setActiveReportPostId] =
+    useState<string | null>(null);
+
+  const [selectedReason, setSelectedReason] =
+    useState<string>(REPORT_REASONS[0]);
+
+  const [reportDetails, setReportDetails] =
+    useState<string>('');
+
+  const [isSubmittingReport, setIsSubmittingReport] =
+    useState<boolean>(false);
+
+  const [isDarkMode, setIsDarkMode] =
+  useState<boolean>(false);
+
+useEffect(() => {
+  try {
+    const storedTheme =
+      localStorage.getItem('unsaid_dark_mode');
+
+    if (storedTheme !== null) {
+      setIsDarkMode(JSON.parse(storedTheme));
+    } else if (
+      window.matchMedia &&
+      window.matchMedia(
+        '(prefers-color-scheme: dark)'
+      ).matches
+    ) {
+      setIsDarkMode(true);
+    }
+  } catch (error) {
+    console.error(
+      'Failed to load dark mode:',
+      error
+    );
+  }
+}, []);
+
+useEffect(() => {
+  try {
+    const storedVotes =
+      localStorage.getItem('unsaid_voted_posts');
+
+    if (storedVotes) {
+      const parsedVotes =
+        JSON.parse(storedVotes);
+
+      if (
+        parsedVotes &&
+        typeof parsedVotes === 'object'
+      ) {
+        setVotedPosts(parsedVotes);
+      }
+    }
+  } catch (error) {
+    console.error(
+      'Failed to load voted posts:',
+      error
+    );
+
+    setVotedPosts({});
+  }
+}, []);
+
+  /* =========================================================
+     FORMAT POSTS
+  ========================================================= */
+
+  const formatPosts = (
+    querySnapshot: any
+  ): PostProps[] => {
+    const fetched: PostProps[] = [];
+
+    querySnapshot.forEach(
+      (
+        docSnap: QueryDocumentSnapshot<DocumentData>
+      ) => {
+        const data = docSnap.data();
+
+        let formattedDate = 'Just now';
+
+        if (data.createdAt?.toDate) {
+          const dateObj =
+            data.createdAt.toDate();
+
+          formattedDate =
+            dateObj.toLocaleDateString([], {
+              month: 'short',
+              day: 'numeric',
+              year: 'numeric',
+            }) +
+            ' at ' +
+            dateObj.toLocaleTimeString([], {
+              hour: '2-digit',
+              minute: '2-digit',
+            });
+        }
+
+        fetched.push({
+          id: docSnap.id,
+
+          userId:
+            data.userId ||
+            undefined,
+
+          authorAlias:
+            data.authorAlias ||
+            'Louisian',
+
+          content:
+            data.content || '',
+
+          category:
+            data.category ||
+            'thoughts',
+
+          createdAt:
+            formattedDate,
+
+          upvotes:
+            data.upvotes || 0,
+
+          replies:
+            data.replies || 0,
+
+          spotifyTrackId:
+            data.spotifyTrackId ||
+            undefined,
+
+          imageUrl:
+            data.imageUrl ||
+            undefined,
+
+          isDeveloperPost:
+            data.isDeveloperPost ||
+            false,
+
+          isPinned:
+            data.isPinned === true,
+
+          cardTheme:
+            data.cardTheme &&
+            typeof data.cardTheme.background === 'string' &&
+            typeof data.cardTheme.border === 'string'
+              ? {
+                  background: data.cardTheme.background,
+                  border: data.cardTheme.border,
+                }
+              : undefined,
+        });
+      }
+    );
+
+    return fetched;
+  };
+
+  /* =========================================================
+     FIRESTORE POSTS QUERY
+  ========================================================= */
+
+  const buildQuery = useCallback(
+    (
+      category: string,
+      limitCount: number,
+      startAfterDoc:
+        | QueryDocumentSnapshot<DocumentData>
+        | null = null
+    ): Query => {
+      const postsRef =
+        collection(db, 'posts');
+
+      const constraints: any[] = [
+        where(
+          'status',
+          '==',
+          'approved'
+        ),
+        orderBy(
+          'createdAt',
+          'desc'
+        ),
+      ];
+
+      if (category !== 'all') {
+        constraints.push(
+          where(
+            'category',
+            '==',
+            category
+          )
+        );
+      }
+
+      if (startAfterDoc) {
+        constraints.push(
+          startAfter(startAfterDoc)
+        );
+      }
+
+      constraints.push(
+        limit(limitCount)
+      );
+
+      return query(
+        postsRef,
+        ...constraints
+      );
+    },
+    []
+  );
+
+
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setDebouncedSearch(
+        searchQuery.trim()
+      );
+    }, 300);
+
+    return () =>
+      clearTimeout(timer);
+  }, [searchQuery]);
+
+
+  useEffect(() => {
+    setLoading(true);
+    setHasMore(true);
+    setRawPosts([]);
+    setPinnedPosts([]);
+    setLastVisible(null);
+
+    const fetchLimit =
+      debouncedSearch !== ''
+        ? 50
+        : 10;
+
+    const postsRef =
+      collection(db, 'posts');
+
+    const normalQuery = buildQuery(
+      selectedCategory,
+      fetchLimit
+    );
+
+    const unsubscribeNormal =
+      onSnapshot(
+        normalQuery,
+        (querySnapshot) => {
+          const formatted =
+            formatPosts(
+              querySnapshot
+            );
+
+          if (
+            querySnapshot.docs.length >
+            0
+          ) {
+            setLastVisible(
+              querySnapshot.docs[
+                querySnapshot.docs.length -
+                  1
+              ]
+            );
+
+            if (
+              querySnapshot.docs.length <
+                fetchLimit ||
+              debouncedSearch !== ''
+            ) {
+              setHasMore(false);
+            } else {
+              setHasMore(true);
+            }
+          } else {
+            setLastVisible(null);
+            setHasMore(false);
+          }
+
+          setRawPosts(formatted);
+          setLoading(false);
+        },
+        (error) => {
+          console.error(
+            'Error listening to normal posts:',
+            error
+          );
+
+          setLoading(false);
+        }
+      );
+
+    const pinnedConstraints: any[] = [
+      where(
+        'status',
+        '==',
+        'approved'
+      ),
+      where(
+        'isPinned',
+        '==',
+        true
+      ),
+      orderBy(
+        'createdAt',
+        'desc'
+      ),
+    ];
+
+    /*
+     * If a category is selected, insert the category
+     * condition between status and isPinned.
+     */
+    if (
+      selectedCategory !== 'all'
+    ) {
+      pinnedConstraints.splice(
+        1,
+        0,
+        where(
+          'category',
+          '==',
+          selectedCategory
+        )
+      );
+    }
+
+    const pinnedQuery = query(
+      postsRef,
+      ...pinnedConstraints
+    );
+
+    const unsubscribePinned =
+      onSnapshot(
+        pinnedQuery,
+        (querySnapshot) => {
+          const formatted =
+            formatPosts(
+              querySnapshot
+            );
+
+          setPinnedPosts(
+            formatted
+          );
+        },
+        (error) => {
+          console.error(
+            'Error listening to pinned posts:',
+            error
+          );
+
+          setPinnedPosts([]);
+        }
+      );
+
+    return () => {
+      unsubscribeNormal();
+      unsubscribePinned();
+    };
+  }, [
+    selectedCategory,
+    debouncedSearch,
+    buildQuery,
+  ]);
+
+  /* =========================================================
+   TOP 5 MOST UPVOTED
+========================================================= */
+
+useEffect(() => {
+  const postsRef =
+    collection(db, 'posts');
+
+  const topPostsQuery = query(
+    postsRef,
+    where(
+      'status',
+      '==',
+      'approved'
+    ),
+    orderBy(
+      'upvotes',
+      'desc'
+    ),
+    limit(5)
+  );
+
+  const unsubscribe =
+    onSnapshot(
+      topPostsQuery,
+      (querySnapshot) => {
+        const formatted =
+          formatPosts(
+            querySnapshot
+          );
+
+        setTopPosts(
+          formatted
+        );
+      },
+      (error) => {
+        console.error(
+          'Error loading top posts:',
+          error
+        );
+
+        setTopPosts([]);
+      }
+    );
+
+  return () => {
+    unsubscribe();
+  };
+}, []);
+
+  /* =========================================================
+     DARK MODE
+  ========================================================= */
+
+  const toggleDarkMode = () => {
+    const nextMode =
+      !isDarkMode;
+
+    setIsDarkMode(
+      nextMode
+    );
+
+    try {
+      localStorage.setItem(
+        'unsaid_dark_mode',
+        JSON.stringify(
+          nextMode
+        )
+      );
+    } catch (e) {}
+  };
+
+  /* =========================================================
+     COMBINE POSTS
+  ========================================================= */
+
+  const posts = useMemo(() => {
+    let filteredPosts =
+      rawPosts;
+
+    if (debouncedSearch) {
+      const queryLower =
+        debouncedSearch.toLowerCase();
+
+      filteredPosts =
+        rawPosts.filter(
+          (post) =>
+            post.content
+              .toLowerCase()
+              .includes(
+                queryLower
+              ) ||
+            post.authorAlias
+              .toLowerCase()
+              .includes(
+                queryLower
+              )
+        );
+    }
+
+    /*
+     * Pinned posts are loaded separately.
+     * Remove them from the normal list to avoid duplicates.
+     */
+    const pinnedIds =
+      new Set(
+        pinnedPosts.map(
+          (post) => post.id
+        )
+      );
+
+    const normalPosts =
+      filteredPosts.filter(
+        (post) =>
+          !pinnedIds.has(
+            post.id
+          )
+      );
+
+    /*
+     * Pinned posts ALWAYS appear first.
+     */
+
+
+    return [
+      ...pinnedPosts,
+      ...normalPosts,
+    ];
+  }, [
+    rawPosts,
+    pinnedPosts,
+    debouncedSearch,
+  ]);
+
+  /* =========================================================
+     LOAD MORE
+  ========================================================= */
+
+  const loadMorePosts =
+    async () => {
+      if (
+        !lastVisible ||
+        loadingMore ||
+        !hasMore ||
+        debouncedSearch !== ''
+      ) {
+        return;
+      }
+
+      setLoadingMore(true);
+
+      try {
+        const nextQuery =
+          buildQuery(
+            selectedCategory,
+            10,
+            lastVisible
+          );
+
+        const querySnapshot =
+          await getDocs(
+            nextQuery
+          );
+
+        if (
+          querySnapshot.empty
+        ) {
+          setHasMore(false);
+          return;
+        }
+
+        const morePosts =
+          formatPosts(
+            querySnapshot
+          );
+
+        setRawPosts(
+          (prev) => {
+            const existingIds =
+              new Set(
+                prev.map(
+                  (post) =>
+                    post.id
+                )
+              );
+
+            const uniquePosts =
+              morePosts.filter(
+                (post) =>
+                  !existingIds.has(
+                    post.id
+                  )
+              );
+
+            return [
+              ...prev,
+              ...uniquePosts,
+            ];
+          }
+        );
+
+        setLastVisible(
+          querySnapshot.docs[
+            querySnapshot.docs.length -
+              1
+          ]
+        );
+
+        if (
+          querySnapshot.docs.length <
+          10
+        ) {
+          setHasMore(false);
+        }
+      } catch (error) {
+        console.error(
+          'Error loading more posts:',
+          error
+        );
+      } finally {
+        setLoadingMore(false);
+      }
+    };
+
+  /* =========================================================
+     VOTING
+  ========================================================= */
+
+  const handleVoteToggle =
+    async (id: string) => {
+      if (
+        votingLocked[id]
+      ) {
+        return;
+      }
+
+      setVotingLocked(
+        (prev) => ({
+          ...prev,
+          [id]: true,
+        })
+      );
+
+      const hasVoted =
+        votedPosts[id];
+
+      const voteChange =
+        hasVoted ? -1 : 1;
+
+      try {
+        const postRef =
+          doc(
+            db,
+            'posts',
+            id
+          );
+
+        await updateDoc(
+          postRef,
+          {
+            upvotes:
+              increment(
+                voteChange
+              ),
+          }
+        );
+
+        const updatedVotes = {
+          ...votedPosts,
+        };
+
+        if (hasVoted) {
+          delete updatedVotes[
+            id
+          ];
+        } else {
+          updatedVotes[id] =
+            true;
+        }
+
+        setVotedPosts(
+          updatedVotes
+        );
+
+        localStorage.setItem(
+          'unsaid_voted_posts',
+          JSON.stringify(
+            updatedVotes
+          )
+        );
+      } catch (error) {
+        console.error(
+          'Error updating vote:',
+          error
+        );
+      } finally {
+        setVotingLocked(
+          (prev) => ({
+            ...prev,
+            [id]: false,
+          })
+        );
+      }
+    };
+
+  /* =========================================================
+     REPORT
+  ========================================================= */
+
+  const handleReportSubmit =
+    async (
+      e: React.FormEvent
+    ) => {
+      e.preventDefault();
+
+      if (
+        !activeReportPostId ||
+        isSubmittingReport
+      ) {
+        return;
+      }
+
+      setIsSubmittingReport(
+        true
+      );
+
+      try {
+        await addDoc(
+          collection(
+            db,
+            'reports'
+          ),
+          {
+            postId:
+              activeReportPostId,
+
+            reason:
+              selectedReason,
+
+            details:
+              reportDetails.trim(),
+
+            createdAt:
+              serverTimestamp(),
+
+            status:
+              'pending',
+          }
+        );
+
+        const updatedReports =
+          {
+            ...reportedPosts,
+            [activeReportPostId]:
+              true,
+          };
+
+        setReportedPosts(
+          updatedReports
+        );
+
+        localStorage.setItem(
+          'unsaid_reported_posts',
+          JSON.stringify(
+            updatedReports
+          )
+        );
+
+        setActiveReportPostId(
+          null
+        );
+
+        setReportDetails('');
+
+        setSelectedReason(
+          REPORT_REASONS[0]
+        );
+
+        alert(
+          'Thank you. Your report has been sent to the moderators.'
+        );
+      } catch (error) {
+        console.error(
+          'Error submitting report:',
+          error
+        );
+
+        alert(
+          'Failed to submit report. Please try again.'
+        );
+      } finally {
+        setIsSubmittingReport(
+          false
+        );
+      }
+    };
+
+  /* =========================================================
+     SHARE
+  ========================================================= */
+
+  const handleShare =
+    async (id: string) => {
+      const postUrl =
+        `${window.location.origin}/post/${id}`;
+
+      if (navigator.share) {
+        try {
+          await navigator.share({
+            title:
+              'Tambayan Eselyu Entry',
+            url: postUrl,
+          });
+
+          return;
+        } catch (err) {}
+      }
+
+      try {
+        await navigator.clipboard.writeText(
+          postUrl
+        );
+
+        setCopiedId(id);
+
+        setTimeout(
+          () =>
+            setCopiedId(null),
+          2000
+        );
+      } catch (error) {
+        console.error(
+          'Failed to copy:',
+          error
+        );
+      }
+    };
+
+  /* =========================================================
+     EXPAND POST
+  ========================================================= */
+
+  const toggleExpand = (
+    id: string
+  ) => {
+    setExpandedPosts(
+      (prev) => ({
+        ...prev,
+        [id]: !prev[id],
+      })
+    );
+  };
+
+  return (
+    <div
+      className={`min-h-screen font-sans selection:bg-neutral-900 selection:text-white relative ${
+        isDarkMode
+          ? 'bg-neutral-950 text-neutral-100'
+          : 'bg-neutral-50/50 text-neutral-900'
+      }`}
+    >
+      {/* HEADER */}
+      <header
+        className={`sticky top-0 z-50 backdrop-blur-md border-b shadow-2xs ${
+          isDarkMode
+            ? 'bg-neutral-900/95 border-neutral-800'
+            : 'bg-white/95 border-neutral-200/80'
+        }`}
+      >
+        <div className="max-w-2xl mx-auto px-6 h-16 flex items-center justify-between">
+          <Link
+            href="/"
+            className="font-mono text-xl font-black tracking-tighter"
+          >
+            TAMBAYAN
+            <span className="text-emerald-600">
+              .
+            </span>
+          </Link>
+
+          <nav className="flex items-center gap-4 sm:gap-5 font-mono text-[11px] font-bold tracking-widest uppercase">
+            <Link
+              href="/"
+              className={
+                isDarkMode
+                  ? 'text-neutral-400 hover:text-white'
+                  : 'text-neutral-500 hover:text-neutral-900'
+              }
+            >
+              Home
+            </Link>
+
+            <Link
+              href="/guidelines"
+              className={
+                isDarkMode
+                  ? 'text-neutral-400 hover:text-white'
+                  : 'text-neutral-500 hover:text-neutral-900'
+              }
+            >
+              Guidelines
+            </Link>
+
+            <button
+              onClick={
+                toggleDarkMode
+              }
+              aria-label="Toggle Dark Mode"
+              className={`p-2 rounded-xl border cursor-pointer ${
+                isDarkMode
+                  ? 'bg-neutral-800 border-neutral-700 text-amber-400 hover:bg-neutral-700'
+                  : 'bg-neutral-100 border-neutral-200 text-neutral-700 hover:bg-neutral-200'
+              }`}
+            >
+              {isDarkMode ? (
+                <Icons.Sun />
+              ) : (
+                <Icons.Moon />
+              )}
+            </button>
+          </nav>
+        </div>
+      </header>
+
+      {/* MAIN */}
+      <main className="max-w-2xl mx-auto px-6 pt-16 pb-24">
+
+        {/* FREEDOM WALL HEADER */}
+        <section className="mb-10">
+          <p className="font-mono text-[11px] font-bold text-emerald-600 tracking-widest uppercase mb-4 flex items-center gap-2">
+            <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
+            Tambayan Eselyu
+          </p>
+
+          <div className="flex flex-col sm:flex-row sm:items-end sm:justify-between gap-6">
+            <div>
+              <h1
+                className={`text-4xl md:text-5xl font-extrabold tracking-tight mb-4 leading-tight ${
+                  isDarkMode ? 'text-white' : 'text-neutral-900'
+                }`}
+              >
+                Freedom Wall
+              </h1>
+
+              <p
+                className={`text-base leading-relaxed max-w-lg ${
+                  isDarkMode ? 'text-neutral-400' : 'text-neutral-600'
+                }`}
+              >
+                Share your thoughts, confessions, rants, questions, and stories anonymously with fellow Louisians.
+              </p>
+            </div>
+
+            <Link
+              href="/post"
+              className="shrink-0 inline-flex items-center justify-center gap-2 bg-neutral-900 dark:bg-emerald-600 text-white font-mono text-xs font-bold uppercase tracking-wider px-6 py-3.5 rounded-lg active:scale-95 shadow-sm"
+            >
+              <Icons.Pen />
+              <span>Say Something</span>
+            </Link>
+          </div>
+        </section>
+
+        {/* SEARCH */}
+        <div className="relative mb-6">
+
+          <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-neutral-400">
+            <Icons.Search />
+          </div>
+
+          <input
+            type="text"
+            value={searchQuery}
+            onChange={(e) =>
+              setSearchQuery(
+                e.target.value
+              )
+            }
+            placeholder="Search entries, keywords, or campus alias..."
+            className={`w-full pl-10 pr-4 py-3 border rounded-xl text-sm font-mono focus:outline-none shadow-2xs ${
+              isDarkMode
+                ? 'bg-neutral-900 border-neutral-800 text-white placeholder:text-neutral-500 focus:border-emerald-500'
+                : 'bg-white border-neutral-200 text-neutral-900 placeholder:text-neutral-400 focus:border-neutral-900 focus:ring-1 focus:ring-neutral-900'
+            }`}
+          />
+
+        </div>
+
+        {/* CATEGORIES */}
+        <div
+          className={`flex items-center gap-2 overflow-x-auto pb-4 mb-8 border-b hide-scrollbar ${
+            isDarkMode
+              ? 'border-neutral-800'
+              : 'border-neutral-200/80'
+          }`}
+        >
+          {CATEGORIES.map(
+            (cat) => (
+              <button
+                key={cat.id}
+                onClick={() =>
+                  setSelectedCategory(
+                    cat.id
+                  )
+                }
+                className={`px-4 py-2 text-xs font-mono font-semibold uppercase tracking-wider rounded-lg whitespace-nowrap ${
+                  selectedCategory ===
+                  cat.id
+                    ? 'bg-neutral-900 dark:bg-emerald-600 text-white shadow-sm'
+                    : isDarkMode
+                      ? 'bg-neutral-900 text-neutral-400 border border-neutral-800 hover:bg-neutral-800 hover:text-white'
+                      : 'bg-white text-neutral-600 border border-neutral-200/80 hover:bg-neutral-100 hover:text-neutral-900'
+                }`}
+              >
+                {cat.label}
+              </button>
+            )
+          )}
+        </div>
+
+        <div className="flex items-center justify-between mb-4">
+          <Link
+  href="/entries"
+  className={`mt-3 w-full flex items-center justify-between px-4 py-3 rounded-lg border transition-all ${
+    isDarkMode
+      ? 'border-neutral-800 bg-neutral-900/50 hover:border-emerald-500/40 hover:bg-neutral-900'
+      : 'border-neutral-200 bg-neutral-50 hover:border-emerald-500/40 hover:bg-neutral-100'
+  }`}
+>
+  <div className="text-left">
+    <p
+      className={`font-mono text-xs font-bold uppercase tracking-wider ${
+        isDarkMode ? 'text-neutral-200' : 'text-neutral-800'
+      }`}
+    >
+      My Entries
+    </p>
+
+    <p
+      className={`mt-0.5 text-[11px] ${
+        isDarkMode ? 'text-neutral-500' : 'text-neutral-500'
+      }`}
+    >
+      View your anonymous posts
+    </p>
+  </div>
+
+  <span
+    className={`text-lg ${
+      isDarkMode ? 'text-neutral-500' : 'text-neutral-400'
+    }`}
+  >
+    →
+  </span>
+</Link>
+        </div>
+
+        {/* TOP 5 MOST UPVOTED */}
+{topPosts.length > 0 && (
+  <section className="mb-10">
+
+    {/* HEADER */}
+    <div className="flex items-end justify-between gap-4 mb-4">
+      <div>
+        <p
+          className={`font-mono text-[10px] font-bold uppercase tracking-widest mb-1 ${
+            isDarkMode
+              ? 'text-emerald-400'
+              : 'text-emerald-600'
+          }`}
+        >
+          Community Favorites
+        </p>
+
+        <h2
+          className={`text-xl font-extrabold tracking-tight ${
+            isDarkMode
+              ? 'text-white'
+              : 'text-neutral-900'
+          }`}
+        >
+          Most Upvoted
+        </h2>
+      </div>
+
+      <span
+        className={`font-mono text-[10px] uppercase tracking-wider ${
+          isDarkMode
+            ? 'text-neutral-500'
+            : 'text-neutral-400'
+        }`}
+      >
+        Top 5
+      </span>
+    </div>
+
+    {/* SLIDER */}
+    <div
+      className="
+        flex gap-3
+        overflow-x-auto
+        snap-x snap-mandatory
+        pb-3
+        hide-scrollbar
+      "
+    >
+      {topPosts.map(
+        (post, index) => (
+          <Link
+            key={post.id}
+            href={`/post/${post.id}`}
+            className={`group relative shrink-0 w-[88%] sm:w-[60%]
+              snap-start rounded-2xl border p-5
+              transition-all duration-200
+              hover:-translate-y-0.5 ${
+                isDarkMode
+                  ? 'bg-neutral-900 border-neutral-800 hover:border-neutral-700'
+                  : 'bg-white border-neutral-200 hover:border-neutral-300'
+              }`}
+          >
+
+            {/* TOP */}
+            <div className="flex items-start justify-between gap-3 mb-4">
+
+              <div className="flex items-center gap-3 min-w-0">
+
+                {/* RANK */}
+                <div
+                  className={`w-9 h-9 shrink-0 flex items-center justify-center
+                    rounded-xl font-mono text-sm font-black ${
+                      index === 0
+                        ? isDarkMode
+                          ? 'bg-emerald-500/15 text-emerald-400 border border-emerald-500/20'
+                          : 'bg-emerald-50 text-emerald-700 border border-emerald-200'
+                        : isDarkMode
+                          ? 'bg-neutral-800 text-neutral-300 border border-neutral-700'
+                          : 'bg-neutral-100 text-neutral-600 border border-neutral-200'
+                    }`}
+                >
+                  #{index + 1}
+                </div>
+
+                {/* AUTHOR */}
+                <div className="min-w-0">
+                  <p
+                    className={`font-mono text-[11px] font-bold truncate ${
+                      isDarkMode
+                        ? 'text-neutral-200'
+                        : 'text-neutral-800'
+                    }`}
+                  >
+                    {post.authorAlias}
+                  </p>
+
+                  <p
+                    className={`font-mono text-[9px] uppercase tracking-wider mt-0.5 ${
+                      isDarkMode
+                        ? 'text-neutral-600'
+                        : 'text-neutral-400'
+                    }`}
+                  >
+                    {post.category}
+                  </p>
+                </div>
+
+              </div>
+
+              {/* UPVOTES */}
+              <div
+                className={`flex items-center gap-1.5 font-mono text-xs font-bold shrink-0 ${
+                  isDarkMode
+                    ? 'text-rose-400'
+                    : 'text-rose-500'
+                }`}
+              >
+                <Icons.Heart filled />
+
+                <span>
+                  {post.upvotes}
+                </span>
+              </div>
+
+            </div>
+
+            {/* CONTENT */}
+            <p
+              className={`text-sm leading-relaxed line-clamp-4 break-words ${
+                isDarkMode
+                  ? 'text-neutral-300'
+                  : 'text-neutral-700'
+              }`}
+            >
+              {post.content}
+            </p>
+
+            {/* BOTTOM */}
+            <div
+              className={`mt-5 pt-4 border-t flex items-center justify-between ${
+                isDarkMode
+                  ? 'border-neutral-800'
+                  : 'border-neutral-100'
+              }`}
+            >
+
+              <div
+                className={`flex items-center gap-1.5 font-mono text-[10px] ${
+                  isDarkMode
+                    ? 'text-neutral-500'
+                    : 'text-neutral-400'
+                }`}
+              >
+                <Icons.Message />
+
+                <span>
+                  {post.replies}{' '}
+                  {post.replies === 1
+                    ? 'reply'
+                    : 'replies'}
+                </span>
+              </div>
+
+              <span
+                className={`font-mono text-[10px] font-bold uppercase tracking-wider
+                  transition-transform group-hover:translate-x-1 ${
+                    isDarkMode
+                      ? 'text-neutral-400'
+                      : 'text-neutral-600'
+                  }`}
+              >
+                Read →
+              </span>
+
+            </div>
+
+          </Link>
+        )
+      )}
+    </div>
+
+    {/* MOBILE HINT */}
+    <p
+      className={`mt-1 font-mono text-[9px] uppercase tracking-widest sm:hidden ${
+        isDarkMode
+          ? 'text-neutral-600'
+          : 'text-neutral-400'
+      }`}
+    >
+      Swipe to explore →
+    </p>
+
+  </section>
+)}
+
+        {/* POSTS */}
+        {loading ? (
+          <div
+            className={`py-20 text-center font-mono text-sm border border-dashed rounded-2xl ${
+              isDarkMode
+                ? 'border-neutral-800 bg-neutral-900/50 text-neutral-400'
+                : 'border-neutral-200 bg-white/50 text-neutral-400'
+            }`}
+          >
+            <div className="w-2 h-2 rounded-full bg-emerald-500 animate-ping mx-auto mb-3" />
+            Connecting to live campus feed...
+          </div>
+        ) : (
+          <div className="space-y-6">
+
+            {posts.map(
+              (post) => {
+                const hasVoted =
+                  votedPosts[
+                    post.id
+                  ];
+
+                const isLocked =
+                  votingLocked[
+                    post.id
+                  ];
+
+                const isReported =
+                  reportedPosts[
+                    post.id
+                  ];
+
+                const isDev =
+                  post.isDeveloperPost;
+
+                const selectedBackground =
+                  CARD_BACKGROUNDS.find(
+                    (item) => item.id === post.cardTheme?.background
+                  ) || CARD_BACKGROUNDS[0];
+
+                const selectedBorder =
+                  CARD_BORDERS.find(
+                    (item) => item.id === post.cardTheme?.border
+                  ) || CARD_BORDERS[0];
+
+                const isLongContent =
+                  post.content.length >
+                  CHARACTER_LIMIT;
+
+                const isExpanded =
+                  expandedPosts[
+                    post.id
+                  ];
+
+                const displayContent =
+                  isLongContent &&
+                  !isExpanded
+                    ? `${post.content.slice(
+                        0,
+                        CHARACTER_LIMIT
+                      )}...`
+                    : post.content;
+
+                return (
+                  <article
+                    key={post.id}
+                    className={`p-5 sm:p-6 rounded-2xl relative group transition-all duration-200 hover:-translate-y-1 hover:shadow-xl ${
+                      isDev
+                        ? isDarkMode
+                          ? 'bg-emerald-950/20 border-2 border-emerald-500/50 shadow-md ring-1 ring-emerald-500/10'
+                          : 'bg-emerald-50/50 border-2 border-emerald-500/60 shadow-md ring-1 ring-emerald-500/20'
+                        : post.isPinned
+                          ? isDarkMode
+                            ? 'bg-amber-950/20 border-2 border-amber-500/50 shadow-md ring-1 ring-amber-500/10'
+                            : 'bg-amber-50/60 border-2 border-amber-400/60 shadow-md ring-1 ring-amber-400/20'
+                          : 'shadow-xs'
+                    }`}
+                    style={
+                      !isDev && !post.isPinned
+                        ? {
+                            backgroundColor: isDarkMode
+                              ? selectedBackground.dark
+                              : selectedBackground.light,
+                            borderStyle: selectedBorder.style,
+                            borderWidth: '2px',
+                            borderColor: isDarkMode
+                              ? selectedBackground.borderDark
+                              : selectedBackground.borderLight,
+                          }
+                        : undefined
+                    }
+                  >
+
+                    {/* OFFICIAL BADGE */}
+                    {isDev && (
+                      <div className="absolute -top-3 left-6 inline-flex items-center gap-1.5 px-3 py-0.5 bg-emerald-600 text-white font-mono text-[10px] font-bold uppercase tracking-widest rounded-full shadow-xs">
+                        <Icons.ShieldCheck />
+                        <span>
+                          Official Announcement
+                        </span>
+                      </div>
+                    )}
+
+                    {/* PINNED BADGE */}
+                    {post.isPinned && (
+                      <div className="absolute -top-3 right-6 inline-flex items-center gap-1.5 px-2.5 py-1 bg-neutral-900 text-white rounded-full shadow-xs">
+                        <Icons.Pin className="w-3 h-3" />
+                        <span className="text-[9px] font-semibold tracking-wide">
+                          PINNED
+                        </span>
+                      </div>
+                    )}
+
+                    {/* POST HEADER */}
+                    <div
+                      className={`mb-4 ${
+                        isDev ? 'mt-1' : ''
+                      }`}
+                    >
+                      <div className="flex items-start justify-between gap-3">
+
+                        {/* AUTHOR + DATE */}
+                        <div className="min-w-0 flex-1">
+
+                          <div className="flex items-center gap-2 min-w-0">
+                            <span
+                              className={`px-2.5 py-1 rounded-md border font-bold font-mono text-[11px] uppercase tracking-wider whitespace-nowrap ${
+                                isDev
+                                  ? isDarkMode
+                                    ? 'bg-emerald-950 text-emerald-300 border-emerald-800'
+                                    : 'bg-emerald-100/80 text-emerald-900 border-emerald-200'
+                                  : isDarkMode
+                                    ? 'bg-black/30 text-white border-white/30'
+                                    : 'bg-white/60 text-neutral-950 border-black/15'
+                              }`}
+                            >
+                              {post.authorAlias}
+                            </span>
+                          </div>
+
+                          {/* DATE */}
+                          <div
+                            className={`mt-1.5 flex items-center gap-1.5 font-mono text-[10px] ${
+                              isDev
+                                ? 'text-neutral-400'
+                                : isDarkMode
+                                  ? 'text-white/60'
+                                  : 'text-neutral-600'
+                            }`}
+                          >
+                            <span>•</span>
+                            <span>{post.createdAt}</span>
+                          </div>
+
+                        </div>
+
+                        {/* CATEGORY */}
+                        <span
+                          className={`shrink-0 max-w-[45%] truncate text-[10px] font-mono uppercase tracking-widest px-2.5 py-1 rounded-md ${
+                            isDev
+                              ? 'bg-emerald-100 text-emerald-800 font-bold'
+                              : isDarkMode
+                                ? 'bg-black/30 text-white border border-white/30'
+                                : 'bg-white/60 text-neutral-950 border border-black/15'
+                          }`}
+                        >
+                          {post.category}
+                        </span>
+
+                      </div>
+                    </div>
+
+                    {/* CONTENT */}
+                    <div className="mb-6">
+
+                      <p
+                        className={`text-base sm:text-lg md:text-xl font-normal leading-relaxed break-words whitespace-pre-wrap ${
+                          isDev
+                            ? isDarkMode
+                              ? 'text-emerald-200 font-semibold'
+                              : 'text-emerald-950 font-semibold'
+                            : isDarkMode
+                              ? 'text-white'
+                              : 'text-neutral-950'
+                        }`}
+                      >
+                        {
+                          displayContent
+                        }
+                      </p>
+
+                      {isLongContent && (
+                        <button
+                          onClick={() =>
+                            toggleExpand(
+                              post.id
+                            )
+                          }
+                          className="mt-2 text-xs font-mono font-bold uppercase tracking-wider text-emerald-500 hover:text-emerald-400 inline-block focus:outline-none"
+                        >
+                          {isExpanded
+                            ? 'See less'
+                            : 'See more'}
+                        </button>
+                      )}
+
+                    </div>
+
+                    {/* IMAGE ATTACHMENT */}
+                    {post.imageUrl && (
+                      <div className="mb-6 overflow-hidden rounded-xl border border-neutral-200/80 dark:border-neutral-800 bg-neutral-100 dark:bg-neutral-950">
+                        <img
+                          src={
+                            post.imageUrl
+                          }
+                          alt="Attached image"
+                          loading="lazy"
+                          className="w-full max-h-[600px] object-contain"
+                        />
+                      </div>
+                    )}
+
+                    {/* SPOTIFY */}
+                    {post.spotifyTrackId && (
+                      <div className="mb-6">
+                        <iframe
+                          src={`https://open.spotify.com/embed/track/${post.spotifyTrackId}?utm_source=generator&theme=${isDarkMode ? '1' : '0'}`}
+                          width="100%"
+                          height="80"
+                          frameBorder="0"
+                          allow="encrypted-media"
+                          className={`rounded-xl border shadow-2xs ${
+                            isDarkMode
+                              ? 'border-neutral-800'
+                              : 'border-neutral-100'
+                          }`}
+                        />
+                      </div>
+                    )}
+
+                    {/* ACTIONS */}
+                    <div
+                      className={`flex flex-wrap items-center justify-between gap-y-3 pt-4 border-t ${
+                        isDev
+                          ? isDarkMode
+                            ? 'border-emerald-900/40'
+                            : 'border-emerald-200/60'
+                          : isDarkMode
+                            ? 'border-white/30'
+                            : 'border-black/20'
+                      }`}
+                    >
+
+                      <div className="flex items-center gap-4 sm:gap-6 font-mono text-xs font-semibold">
+
+                        {/* LIKE */}
+                        <button
+                          onClick={() =>
+                            handleVoteToggle(
+                              post.id
+                            )
+                          }
+                          disabled={
+                            isLocked
+                          }
+                          className={`flex items-center gap-2 ${
+                            isLocked
+                              ? 'opacity-50 cursor-not-allowed'
+                              : ''
+                          } ${
+                            hasVoted
+                              ? 'text-rose-500 hover:text-rose-600'
+                              : isDev
+                                ? 'text-emerald-600 hover:text-rose-500'
+                                : isDarkMode
+                                  ?'text-white/80 hover:text-rose-500'
+                                  : 'text-neutral-800 hover:text-rose-500'
+                          }`}
+                        >
+                          <Icons.Heart filled={hasVoted} />
+
+                          <span>
+                            {
+                              post.upvotes
+                            }
+                          </span>
+                        </button>
+
+                        {/* REPLIES */}
+                        <Link
+                          href={`/post/${post.id}`}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className={`flex items-center gap-2 cursor-pointer ${
+                            isDev
+                              ? 'text-emerald-600 hover:text-emerald-400'
+                              : isDarkMode
+                                ? 'text-white/80 hover:text-white'
+                                : 'text-neutral-800 hover:text-neutral-950'
+                          }`}
+                        >
+                          <Icons.Message />
+
+                          <span>
+                            {
+                              post.replies
+                            }{' '}
+                            Replies
+                          </span>
+                        </Link>
+
+                      </div>
+
+                      <div className="flex items-center gap-4">
+
+                        {/* REPORT */}
+                        {!isDev && (
+                          <button
+                            onClick={() =>
+                              setActiveReportPostId(
+                                post.id
+                              )
+                            }
+                            disabled={
+                              isReported
+                            }
+                            className={`font-mono text-[11px] uppercase tracking-wider disabled:opacity-50 ${
+                              isDarkMode
+                                ? 'text-white/70 hover:text-rose-400'
+                                : 'text-neutral-700 hover:text-rose-600'
+                            }`}
+                          >
+                            {isReported
+                              ? 'Reported'
+                              : 'Report'}
+                          </button>
+                        )}
+
+                        {/* SHARE */}
+                        <button
+                          onClick={() =>
+                            handleShare(
+                              post.id
+                            )
+                          }
+                          className={`flex items-center gap-1.5 font-mono text-[11px] font-semibold uppercase tracking-wider ${
+                            isDev
+                              ? 'text-emerald-600 hover:text-emerald-400'
+                              : isDarkMode
+                                ? 'text-white/80 hover:text-white'
+                                : 'text-neutral-800 hover:text-neutral-950'
+                          }`}
+                        >
+                          <Icons.Share />
+
+                          <span>
+                            {copiedId ===
+                            post.id
+                              ? 'Copied!'
+                              : 'Share'}
+                          </span>
+                        </button>
+
+                      </div>
+                    </div>
+
+                  </article>
+                );
+              }
+            )}
+
+            {/* NO POSTS */}
+            {posts.length === 0 && (
+              <div
+                className={`py-16 text-center font-mono text-sm border border-dashed rounded-2xl ${
+                  isDarkMode
+                    ? 'border-neutral-800 bg-neutral-900/50 text-neutral-400'
+                    : 'border-neutral-200 bg-white/50 text-neutral-400'
+                }`}
+              >
+                {searchQuery
+                  ? `No entries found matching "${searchQuery}"`
+                  : 'No entries found in this category. Be the first to share your thoughts!'}
+              </div>
+            )}
+
+            {/* LOAD MORE */}
+            {hasMore &&
+              searchQuery.trim() ===
+                '' && (
+                <div className="pt-6 text-center">
+
+                  <button
+                    onClick={
+                      loadMorePosts
+                    }
+                    disabled={
+                      loadingMore
+                    }
+                    className={`px-6 py-3 border font-mono text-xs font-bold uppercase tracking-wider rounded-xl disabled:opacity-50 shadow-2xs ${
+                      isDarkMode
+                        ? 'bg-neutral-900 border-neutral-800 text-neutral-300 hover:bg-neutral-800'
+                        : 'bg-white border-neutral-200 text-neutral-700 hover:bg-neutral-100'
+                    }`}
+                  >
+                    {loadingMore
+                      ? 'Loading more...'
+                      : 'Load More Entries'}
+                  </button>
+
+                </div>
+              )}
+
+          </div>
+        )}
+      </main>
+
+      {/* REPORT MODAL */}
+      {activeReportPostId && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-neutral-950/60 backdrop-blur-xs">
+
+          <div
+            className={`w-full max-w-md rounded-2xl shadow-xl border overflow-hidden ${
+              isDarkMode
+                ? 'bg-neutral-900 border-neutral-800 text-white'
+                : 'bg-white border-neutral-200/80 text-neutral-900'
+            }`}
+          >
+
+            <div
+              className={`flex items-center justify-between px-6 py-4 border-b ${
+                isDarkMode
+                  ? 'border-neutral-800'
+                  : 'border-neutral-100'
+              }`}
+            >
+
+              <h3 className="font-mono text-xs font-bold uppercase tracking-widest">
+                Report Entry
+              </h3>
+
+              <button
+                onClick={() =>
+                  setActiveReportPostId(
+                    null
+                  )
+                }
+                className="text-neutral-400 hover:text-white p-1 rounded-lg"
+              >
+                <Icons.Close />
+              </button>
+
+            </div>
+
+            <form
+              onSubmit={
+                handleReportSubmit
+              }
+              className="p-6 space-y-5"
+            >
+
+              {/* REASON */}
+              <div>
+
+                <label className="block font-mono text-[11px] font-bold text-neutral-400 uppercase tracking-wider mb-2">
+                  Select Reason
+                </label>
+
+                <select
+                  value={
+                    selectedReason
+                  }
+                  onChange={(e) =>
+                    setSelectedReason(
+                      e.target.value
+                    )
+                  }
+                  className={`w-full p-3 border rounded-xl text-xs font-mono focus:outline-none appearance-none cursor-pointer ${
+                    isDarkMode
+                      ? 'bg-neutral-950 border-neutral-800 text-white focus:border-emerald-500'
+                      : 'bg-neutral-50 border-neutral-200 text-neutral-900 focus:border-neutral-900'
+                  }`}
+                >
+
+                  {REPORT_REASONS.map(
+                    (reason) => (
+                      <option
+                        key={reason}
+                        value={
+                          reason
+                        }
+                      >
+                        {
+                          reason
+                        }
+                      </option>
+                    )
+                  )}
+
+                </select>
+
+              </div>
+
+              {/* DETAILS */}
+              <div>
+
+                <label className="block font-mono text-[11px] font-bold text-neutral-400 uppercase tracking-wider mb-2">
+                  Additional Details{' '}
+                  <span className="text-neutral-500 font-normal">
+                    (Optional)
+                  </span>
+                </label>
+
+                <textarea
+                  value={
+                    reportDetails
+                  }
+                  onChange={(e) =>
+                    setReportDetails(
+                      e.target.value
+                    )
+                  }
+                  placeholder="Provide any extra context for moderators..."
+                  rows={3}
+                  className={`w-full p-3 border rounded-xl text-xs placeholder:text-neutral-500 font-mono focus:outline-none resize-none shadow-2xs ${
+                    isDarkMode
+                      ? 'bg-neutral-950 border-neutral-800 text-white focus:border-emerald-500'
+                      : 'bg-neutral-50 border-neutral-200 text-neutral-900 focus:border-neutral-900'
+                  }`}
+                />
+
+              </div>
+
+              {/* BUTTONS */}
+              <div className="flex items-center justify-end gap-3 pt-2">
+
+                <button
+                  type="button"
+                  onClick={() =>
+                    setActiveReportPostId(
+                      null
+                    )
+                  }
+                  className={`px-4 py-2.5 border rounded-xl font-mono text-xs uppercase font-bold tracking-wider ${
+                    isDarkMode
+                      ? 'bg-neutral-800 border-neutral-700 text-neutral-300 hover:bg-neutral-700'
+                      : 'bg-white border-neutral-200 text-neutral-700 hover:bg-neutral-100'
+                  }`}
+                >
+                  Cancel
+                </button>
+
+                <button
+                  type="submit"
+                  disabled={
+                    isSubmittingReport
+                  }
+                  className="px-5 py-2.5 bg-rose-600 hover:bg-rose-700 text-white rounded-xl font-mono text-xs uppercase font-bold tracking-wider disabled:opacity-50 shadow-sm"
+                >
+                  {isSubmittingReport
+                    ? 'Submitting...'
+                    : 'Submit Report'}
+                </button>
+
+              </div>
+
+            </form>
+          </div>
+        </div>
+      )}
+
+    </div>
+  );
+}
