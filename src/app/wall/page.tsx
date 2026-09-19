@@ -154,7 +154,7 @@ const getAnonymousUserId = (): string | null => {
   }
 
   try {
-    return localStorage.getItem(STREAK_STORAGE_KEY);
+    return localStorage.getItem('unsaid_chat_user_id');
   } catch (error) {
     console.error(
       'Failed to get anonymous user ID:',
@@ -162,71 +162,6 @@ const getAnonymousUserId = (): string | null => {
     );
     return null;
   }
-};
-
-const getPhilippineDate = (): string => {
-  return new Intl.DateTimeFormat('en-CA', {
-    timeZone: 'Asia/Manila',
-    year: 'numeric',
-    month: '2-digit',
-    day: '2-digit',
-  }).format(new Date());
-};
-
-const getDateDifference = (
-  date1: string,
-  date2: string
-): number => {
-  const first = new Date(`${date1}T00:00:00`);
-  const second = new Date(`${date2}T00:00:00`);
-
-  return Math.round(
-    (second.getTime() - first.getTime()) /
-      (1000 * 60 * 60 * 24)
-  );
-};
-
-const getEffectiveStreak = (
-  streakData: StreakData
-): number => {
-  if (!streakData.lastActiveDate) {
-    return 0;
-  }
-
-  const today = getPhilippineDate();
-
-  const difference = getDateDifference(
-    streakData.lastActiveDate,
-    today
-  );
-
-  if (difference <= 1) {
-    return streakData.current;
-  }
-
-  return 0;
-};
-
-const getStreakMilestone = (streak: number) => {
-  let currentMilestone = STREAK_MILESTONES[0];
-
-  for (const milestone of STREAK_MILESTONES) {
-    if (streak >= milestone.days) {
-      currentMilestone = milestone;
-    } else {
-      break;
-    }
-  }
-
-  return currentMilestone;
-};
-
-const getNextMilestone = (streak: number) => {
-  return (
-    STREAK_MILESTONES.find(
-      (milestone) => milestone.days > streak
-    ) || null
-  );
 };
 
 const Icons = {
