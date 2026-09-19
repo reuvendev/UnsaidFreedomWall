@@ -672,7 +672,7 @@ export default function PostPage() {
       >
         <div className="max-w-2xl mx-auto px-6 h-16 flex items-center justify-between">
           <Link
-            href="/"
+            href="/wall"
             className={`inline-flex items-center gap-2 font-mono text-xs font-bold transition-colors uppercase tracking-wider ${
               isDarkMode
                 ? 'text-neutral-400 hover:text-white'
