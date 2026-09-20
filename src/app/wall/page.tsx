@@ -807,10 +807,16 @@ useEffect(() => {
     setPinnedPosts([]);
     setLastVisible(null);
 
+    const savedCount = Number(
+      sessionStorage.getItem(
+        'tambayan_wall_loaded_count'
+      ) || '10'
+    );
+
     const fetchLimit =
       debouncedSearch !== ''
         ? 50
-        : 10;
+        : Math.max(10, savedCount);
 
     const postsRef =
       collection(db, 'posts');
@@ -1073,6 +1079,45 @@ useEffect(() => {
     pinnedPosts,
     debouncedSearch,
   ]);
+
+  /* =========================================================
+     RESTORE WALL POSITION
+  ========================================================= */
+
+  useEffect(() => {
+    if (loading) {
+      return;
+    }
+
+    const returnPostId = sessionStorage.getItem(
+      'tambayan_wall_return_post'
+    );
+
+    if (!returnPostId) {
+      return;
+    }
+
+    const timeout = setTimeout(() => {
+      const postElement = document.getElementById(
+        `post-${returnPostId}`
+      );
+
+      if (!postElement) {
+        return;
+      }
+
+      postElement.scrollIntoView({
+        behavior: 'auto',
+        block: 'center',
+      });
+
+      sessionStorage.removeItem(
+        'tambayan_wall_return_post'
+      );
+    }, 100);
+
+    return () => clearTimeout(timeout);
+  }, [loading, posts]);
 
   /* =========================================================
      LOAD MORE
@@ -1714,6 +1759,17 @@ useEffect(() => {
           <Link
             key={post.id}
             href={`/post/${post.id}`}
+            onClick={() => {
+              sessionStorage.setItem(
+                'tambayan_wall_return_post',
+                post.id
+              );
+
+              sessionStorage.setItem(
+                'tambayan_wall_loaded_count',
+                rawPosts.length.toString()
+              );
+            }}
             className={`group relative shrink-0 w-[88%] sm:w-[60%]
               snap-start rounded-2xl border p-5
               transition-all duration-200
@@ -1921,6 +1977,7 @@ useEffect(() => {
 
                 return (
                   <article
+                    id={`post-${post.id}`}
                     key={post.id}
                     className={`p-5 sm:p-6 rounded-2xl relative group transition-all duration-200 hover:-translate-y-1 hover:shadow-xl ${
                       isDev
@@ -2146,9 +2203,18 @@ useEffect(() => {
 
                         {/* REPLIES */}
                         <Link
-                          href={`/post/${post.id}`}
-                          target="_blank"
-                          rel="noopener noreferrer"
+                            href={`/post/${post.id}`}
+                            onClick={() => {
+                              sessionStorage.setItem(
+                                'tambayan_wall_return_post',
+                                post.id
+                              );
+
+                              sessionStorage.setItem(
+                                'tambayan_wall_loaded_count',
+                                rawPosts.length.toString()
+                              );
+                            }}
                           className={`flex items-center gap-2 cursor-pointer ${
                             isDev
                               ? 'text-emerald-600 hover:text-emerald-400'

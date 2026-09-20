@@ -1082,15 +1082,21 @@ export default function PostDetailPage() {
           </Link>
 
           <button
-            onClick={() => window.close()}
-            className={`font-mono text-xs font-semibold uppercase tracking-wider text-left bg-transparent border-none cursor-pointer ${
-              isDarkMode
-                ? 'text-neutral-400 hover:text-white'
-                : 'text-neutral-500 hover:text-neutral-900'
-            }`}
-          >
-            ← Back to Feed
-          </button>
+          onClick={() => {
+            if (window.history.length > 1) {
+              router.back();
+            } else {
+              router.push('/wall');
+            }
+          }}
+          className={`font-mono text-xs font-semibold uppercase tracking-wider text-left bg-transparent border-none cursor-pointer ${
+            isDarkMode
+              ? 'text-neutral-400 hover:text-white'
+              : 'text-neutral-500 hover:text-neutral-900'
+          }`}
+        >
+          ← Back to Feed
+        </button>
         </div>
       </header>
 
