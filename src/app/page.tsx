@@ -624,7 +624,7 @@ export default function HomePage() {
               </p>
 
               <Link
-                href="/chat/setup"
+                href="/wall"
                 className="inline-flex mt-5 font-mono text-[10px] font-bold uppercase tracking-wider text-emerald-600 hover:text-emerald-500"
               >
                 Enter →
@@ -804,6 +804,55 @@ export default function HomePage() {
           </div>
         </section>
 
+
+        {/* FAQ */}
+        <section className="mb-14">
+          <div
+            className={`rounded-2xl border p-6 sm:p-8 ${
+              isDarkMode
+                ? 'bg-neutral-900/50 border-neutral-800'
+                : 'bg-white border-neutral-200/80'
+            }`}
+          >
+            <p
+              className={`font-mono text-[10px] font-bold uppercase tracking-widest mb-3 ${
+                isDarkMode
+                  ? 'text-neutral-500'
+                  : 'text-neutral-400'
+              }`}
+            >
+              Questions?
+            </p>
+
+            <h2
+              className={`text-xl font-bold mb-3 ${
+                isDarkMode
+                  ? 'text-white'
+                  : 'text-neutral-900'
+              }`}
+            >
+              Learn more about Tambayan.
+            </h2>
+
+            <p
+              className={`text-sm leading-relaxed mb-5 ${
+                isDarkMode
+                  ? 'text-neutral-400'
+                  : 'text-neutral-600'
+              }`}
+            >
+              Find answers about anonymity, encrypted chats,
+              moderation, privacy, streaks, and how Tambayan works.
+            </p>
+
+            <Link
+              href="/faq"
+              className="inline-flex font-mono text-[10px] font-bold uppercase tracking-wider text-emerald-600 hover:text-emerald-500"
+            >
+              Frequently Asked Questions →
+            </Link>
+          </div>
+        </section>
       </main>
 
 {/* STREAK DETAILS MODAL */}
