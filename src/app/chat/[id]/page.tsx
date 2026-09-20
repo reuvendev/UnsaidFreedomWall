@@ -26,10 +26,15 @@ interface Message {
   senderId: string;
   senderNickname: string;
   text: string;
+  iv?: string;
+  encryptionVersion?: number;
+  ciphertext?: string;
   replyTo?: {
     id: string;
     senderNickname: string;
     text: string;
+    ciphertext?: string;
+    iv?: string;
   };
   reactions?: Record<string, string[]>;
   createdAt: any;
@@ -46,6 +51,11 @@ interface RoomData {
   guestStreak?: number;
   status?: string;
   blockedBy?: string;
+  encryption?: {
+    version?: number;
+    hostPublicKey?: JsonWebKey;
+    guestPublicKey?: JsonWebKey;
+  };
   [key: string]: any;
 }
 
@@ -65,6 +75,197 @@ const REPORT_REASONS = [
 ];
 
 const AVAILABLE_REACTIONS = ['❤️', '👍', '😂', '🔥', '😮', '😢'];
+
+type EncryptedData = {
+  ciphertext: string;
+  iv: string;
+};
+
+const arrayBufferToBase64 = (buffer: ArrayBuffer) => {
+  const bytes = new Uint8Array(buffer);
+  let binary = '';
+
+  for (let i = 0; i < bytes.length; i++) {
+    binary += String.fromCharCode(bytes[i]);
+  }
+
+  return btoa(binary);
+};
+
+const base64ToArrayBuffer = (base64: string) => {
+  const binary = atob(base64);
+  const bytes = new Uint8Array(binary.length);
+
+  for (let i = 0; i < binary.length; i++) {
+    bytes[i] = binary.charCodeAt(i);
+  }
+
+  return bytes.buffer;
+};
+
+const importRoomKey = async (base64Key: string) => {
+  return crypto.subtle.importKey(
+    'raw',
+    base64ToArrayBuffer(base64Key),
+    { name: 'AES-GCM' },
+    false,
+    ['encrypt', 'decrypt']
+  );
+};
+
+const encryptText = async (
+  text: string,
+  base64Key: string
+): Promise<EncryptedData> => {
+  const key = await importRoomKey(base64Key);
+
+  const iv = crypto.getRandomValues(new Uint8Array(12));
+
+  const encrypted = await crypto.subtle.encrypt(
+    {
+      name: 'AES-GCM',
+      iv,
+    },
+    key,
+    new TextEncoder().encode(text)
+  );
+
+  return {
+    ciphertext: arrayBufferToBase64(encrypted),
+    iv: arrayBufferToBase64(iv.buffer),
+  };
+};
+
+const decryptText = async (
+  ciphertext: string,
+  iv: string,
+  base64Key: string
+) => {
+  const key = await importRoomKey(base64Key);
+
+  const decrypted = await crypto.subtle.decrypt(
+    {
+      name: 'AES-GCM',
+      iv: new Uint8Array(base64ToArrayBuffer(iv)),
+    },
+    key,
+    base64ToArrayBuffer(ciphertext)
+  );
+
+  return new TextDecoder().decode(decrypted);
+};
+
+type StoredECDHKeyPair = {
+  publicKey: JsonWebKey;
+  privateKey: JsonWebKey;
+};
+
+const generateECDHKeyPair = async (): Promise<StoredECDHKeyPair> => {
+  const keyPair = await crypto.subtle.generateKey(
+    {
+      name: 'ECDH',
+      namedCurve: 'P-256',
+    },
+    true,
+    ['deriveBits']
+  );
+
+  const publicKey = await crypto.subtle.exportKey(
+    'jwk',
+    keyPair.publicKey
+  );
+
+  const privateKey = await crypto.subtle.exportKey(
+    'jwk',
+    keyPair.privateKey
+  );
+
+  return {
+    publicKey,
+    privateKey,
+  };
+};
+
+const importECDHPrivateKey = async (
+  jwk: JsonWebKey
+) => {
+  return crypto.subtle.importKey(
+    'jwk',
+    jwk,
+    {
+      name: 'ECDH',
+      namedCurve: 'P-256',
+    },
+    false,
+    ['deriveBits']
+  );
+};
+
+const importECDHPublicKey = async (
+  jwk: JsonWebKey
+) => {
+  return crypto.subtle.importKey(
+    'jwk',
+    jwk,
+    {
+      name: 'ECDH',
+      namedCurve: 'P-256',
+    },
+    false,
+    []
+  );
+};
+
+const deriveSharedRoomKey = async (
+  privateKeyJwk: JsonWebKey,
+  peerPublicKeyJwk: JsonWebKey,
+  roomId: string
+): Promise<string> => {
+  const privateKey = await importECDHPrivateKey(
+    privateKeyJwk
+  );
+
+  const peerPublicKey = await importECDHPublicKey(
+    peerPublicKeyJwk
+  );
+
+  const sharedSecret = await crypto.subtle.deriveBits(
+    {
+      name: 'ECDH',
+      public: peerPublicKey,
+    },
+    privateKey,
+    256
+  );
+
+  // Feed the ECDH secret through HKDF instead of
+  // directly using it as the AES key.
+  const hkdfKey = await crypto.subtle.importKey(
+    'raw',
+    sharedSecret,
+    'HKDF',
+    false,
+    ['deriveBits']
+  );
+
+  const derivedKey = await crypto.subtle.deriveBits(
+    {
+      name: 'HKDF',
+      hash: 'SHA-256',
+
+      // Bind this key to this specific room.
+      salt: new TextEncoder().encode(roomId),
+
+      info: new TextEncoder().encode(
+        'tambayanslu-chat-e2ee-v1'
+      ),
+    },
+    hkdfKey,
+    256
+  );
+
+  return arrayBufferToBase64(derivedKey);
+};
 
 const Icons = {
   Send: () => (
@@ -243,6 +444,7 @@ const Icons = {
 };
 
 export default function ChatRoomPage() {
+  const [roomKey, setRoomKey] = useState<string | null>(null);
   const params = useParams();
   const router = useRouter();
   const roomId = params?.id as string;
@@ -275,6 +477,81 @@ export default function ChatRoomPage() {
   const typingTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const lastTypingUpdateRef = useRef<number>(0);
   const initialScrollDone = useRef(false);
+
+  const decryptFirestoreMessage = async (
+    id: string,
+    data: any
+  ): Promise<Message> => {
+    // Existing plaintext messages
+    if (!data.ciphertext || !data.iv) {
+      return {
+        id,
+        ...data,
+        text: data.text || '',
+      } as Message;
+    }
+
+    if (!roomKey) {
+      return {
+        id,
+        ...data,
+        text: '[Unable to decrypt message]',
+      } as Message;
+    }
+
+    try {
+      const decryptedText = await decryptText(
+        data.ciphertext,
+        data.iv,
+        roomKey
+      );
+
+      let decryptedReply;
+
+      if (data.replyTo) {
+        let replyText = '';
+
+        if (
+          data.replyTo.ciphertext &&
+          data.replyTo.iv
+        ) {
+          replyText = await decryptText(
+            data.replyTo.ciphertext,
+            data.replyTo.iv,
+            roomKey
+          );
+        } else {
+          replyText = data.replyTo.text || '';
+        }
+
+        decryptedReply = {
+          id: data.replyTo.id,
+          senderNickname: data.replyTo.senderNickname,
+          text: replyText,
+          ciphertext: data.replyTo.ciphertext,
+          iv: data.replyTo.iv,
+        };
+      }
+
+      return {
+        id,
+        ...data,
+        text: decryptedText,
+        replyTo: decryptedReply,
+      } as Message;
+    } catch (error) {
+      console.warn(
+        `Could not decrypt message ${id}. The message may have been encrypted with a different room key.`,
+        error
+      );
+
+      return {
+        id,
+        ...data,
+        text: '[Unable to decrypt message]',
+      } as Message;
+    }
+  };
 
   useEffect(() => {
     try {
@@ -325,6 +602,138 @@ export default function ChatRoomPage() {
       router.push('/');
     }
   }, [roomId, router]);
+
+    useEffect(() => {
+      if (!roomId || !userId || !roomData) return;
+
+      let cancelled = false;
+
+      const setupEncryption = async () => {
+        try {
+          const isHost = roomData.hostId === userId;
+
+          const isGuest = roomData.guestId === userId;
+
+          if (!isHost && !isGuest) {
+            return;
+          }
+
+          const storageKey =
+            `tambayan_ecdh_${roomId}_${userId}`;
+
+          let keyPair: StoredECDHKeyPair | null = null;
+
+          /*
+           * Check if this browser already generated
+           * a key pair for this room.
+           */
+          const stored = sessionStorage.getItem(
+            storageKey
+          );
+
+          if (stored) {
+            try {
+              keyPair = JSON.parse(stored);
+            } catch {
+              sessionStorage.removeItem(storageKey);
+            }
+          }
+
+          /*
+           * No existing key pair?
+           * Generate one.
+           */
+          if (!keyPair) {
+            keyPair = await generateECDHKeyPair();
+
+            sessionStorage.setItem(
+              storageKey,
+              JSON.stringify(keyPair)
+            );
+          }
+
+          /*
+           * Determine which Firestore field belongs
+           * to this participant.
+           */
+          const myPublicKeyField = isHost
+            ? 'encryption.hostPublicKey'
+            : 'encryption.guestPublicKey';
+
+          /*
+           * Upload ONLY the public key.
+           *
+           * Private key stays inside this browser.
+           */
+          await updateDoc(
+            doc(db, 'chatRooms', roomId),
+            {
+              [myPublicKeyField]: keyPair.publicKey,
+              'encryption.version': 1,
+            }
+          );
+
+          /*
+           * Get the other participant's public key.
+           */
+          const peerPublicKey = isHost
+            ? roomData.encryption?.guestPublicKey
+            : roomData.encryption?.hostPublicKey;
+
+          /*
+           * Other participant hasn't published their
+           * public key yet.
+           *
+           * The room listener will update roomData
+           * when they do.
+           */
+          if (!peerPublicKey) {
+            return;
+          }
+
+          /*
+           * Derive the exact same AES key on
+           * both devices.
+           */
+          const sharedKey =
+            await deriveSharedRoomKey(
+              keyPair.privateKey,
+              peerPublicKey,
+              roomId
+            );
+
+          if (!cancelled) {
+            setRoomKey(sharedKey);
+
+            console.log(
+              'E2EE room key established.'
+            );
+          }
+        } catch (error) {
+          console.error(
+            'Failed to establish E2EE key:',
+            error
+          );
+
+          if (!cancelled) {
+            setRoomKey(null);
+          }
+        }
+      };
+
+      setupEncryption();
+
+      return () => {
+        cancelled = true;
+      };
+    }, [
+      roomId,
+      userId,
+      roomData?.hostId,
+      roomData?.guestId,
+      roomData?.encryption?.hostPublicKey,
+      roomData?.encryption?.guestPublicKey,
+    ]);
 
   useEffect(() => {
     if (!roomId || !userId) return;
@@ -381,7 +790,7 @@ export default function ChatRoomPage() {
       }
     );
 
-    unsubscribeMsgs = onSnapshot(msgsQuery, (snapshot) => {
+    unsubscribeMsgs = onSnapshot(msgsQuery, async (snapshot) => {
       if (!isMounted) return;
 
       const docs = snapshot.docs;
@@ -393,10 +802,16 @@ export default function ChatRoomPage() {
         setHasMoreMessages(false);
       }
 
-      const msgs: Message[] = docs.map((doc) => ({
-        id: doc.id,
-        ...doc.data(),
-      })) as Message[];
+      const msgs = await Promise.all(
+        docs.map((messageDoc) =>
+          decryptFirestoreMessage(
+            messageDoc.id,
+            messageDoc.data()
+          )
+        )
+      );
+
+      if (!isMounted) return;
 
       setMessages(msgs.reverse());
 
@@ -417,7 +832,7 @@ export default function ChatRoomPage() {
       unsubscribeRoom?.();
       unsubscribeMsgs?.();
     };
-  }, [roomId, userId]);
+  }, [roomId, userId, roomKey]);
 
   const handleLoadMore = async () => {
     if (!lastVisibleDoc || isLoadingMore || !hasMoreMessages) return;
@@ -442,10 +857,14 @@ export default function ChatRoomPage() {
           setHasMoreMessages(false);
         }
 
-        const olderMsgs: Message[] = docs.map((doc) => ({
-          id: doc.id,
-          ...doc.data(),
-        })) as Message[];
+        const olderMsgs = await Promise.all(
+          docs.map((messageDoc) =>
+            decryptFirestoreMessage(
+              messageDoc.id,
+              messageDoc.data()
+            )
+          )
+        );
 
         setMessages((prev) => [
           ...olderMsgs.reverse(),
@@ -550,15 +969,40 @@ export default function ChatRoomPage() {
     }, 50);
 
     try {
+      if (!roomKey) {
+        throw new Error('Encryption key is unavailable.');
+      }
+
+      const encryptedMessage = await encryptText(
+        textToSend,
+        roomKey
+      );
+
       const messagePayload: any = {
         senderId: userId,
         senderNickname: nickname,
-        text: textToSend,
+
+        ciphertext: encryptedMessage.ciphertext,
+        iv: encryptedMessage.iv,
+
+        encryptionVersion: 1,
+
         createdAt: serverTimestamp(),
       };
 
       if (currentReply) {
-        messagePayload.replyTo = currentReply;
+        const encryptedReply = await encryptText(
+          currentReply.text,
+          roomKey
+        );
+
+        messagePayload.replyTo = {
+          id: currentReply.id,
+          senderNickname: currentReply.senderNickname,
+
+          ciphertext: encryptedReply.ciphertext,
+          iv: encryptedReply.iv,
+        };
       }
 
       await addDoc(
@@ -566,7 +1010,7 @@ export default function ChatRoomPage() {
         messagePayload
       );
     } catch (error) {
-      console.error('Failed to send message:', error);
+      console.error('Failed to send encrypted message:', error);
 
       setMessages((prev) =>
         prev.filter((m) => m.id !== tempId)
@@ -575,7 +1019,7 @@ export default function ChatRoomPage() {
       setNewMessage(textToSend);
 
       alert(
-        'Failed to send message. Please check your connection.'
+        'Failed to send encrypted message. Please try again.'
       );
     }
   };
@@ -697,13 +1141,76 @@ export default function ChatRoomPage() {
     }
 
     try {
-      await addDoc(collection(db, 'reports'), {
-        roomId,
-        reporterId: userId,
-        reportedUserId: otherUserId,
-        reason: selectedReason,
-        createdAt: serverTimestamp(),
-      });
+      if (!roomKey) {
+        throw new Error(
+          'Cannot submit report because the encryption key is unavailable.'
+        );
+      }
+
+      /*
+       * Fetch ALL messages directly from Firestore.
+       *
+       * They are still encrypted at this point.
+       */
+      const allMessagesQuery = query(
+        collection(db, 'chatRooms', roomId, 'messages'),
+        orderBy('createdAt', 'asc')
+      );
+
+      const allMessagesSnapshot = await getDocs(
+        allMessagesQuery
+      );
+
+      /*
+       * Decrypt every message locally using this
+       * participant's room key.
+       */
+      const allDecryptedMessages = await Promise.all(
+        allMessagesSnapshot.docs.map((messageDoc) =>
+          decryptFirestoreMessage(
+            messageDoc.id,
+            messageDoc.data()
+          )
+        )
+      );
+
+      /*
+       * Prepare the decrypted moderation evidence.
+       */
+      const reportMessages = allDecryptedMessages
+        .filter(
+          (message) =>
+            message.text !== '[Unable to decrypt message]'
+        )
+        .map((message) => ({
+          messageId: message.id,
+          senderId: message.senderId,
+          senderNickname: message.senderNickname,
+          text: message.text,
+
+          replyTo: message.replyTo
+            ? {
+                messageId: message.replyTo.id,
+                senderNickname:
+                  message.replyTo.senderNickname,
+                text: message.replyTo.text,
+              }
+            : null,
+        }));
+
+    await addDoc(collection(db, 'reports'), {
+      roomId,
+      reporterId: userId,
+      reportedUserId: otherUserId,
+      reason: selectedReason,
+
+      evidence: {
+        messages: reportMessages,
+        messageCount: reportMessages.length,
+      },
+
+      createdAt: serverTimestamp(),
+    });
 
       await updateDoc(doc(db, 'chatRooms', roomId), {
         status: 'blocked',
@@ -1248,7 +1755,11 @@ export default function ChatRoomPage() {
                 type="text"
                 value={newMessage}
                 onChange={handleInputChange}
-                placeholder="Type your anonymous message..."
+                placeholder={
+                  roomKey
+                    ? 'Type your anonymous message...'
+                    : 'Establishing encrypted session...'
+                }
                 className={`flex-1 px-4 py-3 rounded-xl border text-base sm:text-sm outline-none transition-all ${
                   isDarkMode
                     ? 'bg-neutral-950 border-neutral-800 text-white focus:border-emerald-500'
@@ -1258,7 +1769,10 @@ export default function ChatRoomPage() {
 
               <button
                 type="submit"
-                disabled={!newMessage.trim()}
+                disabled={
+                  !newMessage.trim() ||
+                  !roomKey
+                }
                 className={`p-3 rounded-xl flex items-center justify-center font-medium transition-all cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed ${
                   isDarkMode
                     ? 'bg-emerald-600 hover:bg-emerald-500 text-white'

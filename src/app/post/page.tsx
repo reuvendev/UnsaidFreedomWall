@@ -641,7 +641,7 @@ export default function PostPage() {
       setSuccessMessage(true);
 
       setTimeout(() => {
-        router.push('/');
+        router.push('/wall');
       }, 3000);
 
     } catch (err) {
@@ -1196,7 +1196,7 @@ export default function PostPage() {
 
             <div className="flex items-center justify-end gap-4">
               <Link
-                href="/"
+                href="/wall"
                 className={`px-6 py-3 font-mono text-xs font-bold uppercase tracking-wider transition-colors ${
                   isDarkMode
                     ? 'text-neutral-500 hover:text-white'

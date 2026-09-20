@@ -120,7 +120,7 @@ export default function PrivacyPolicyPage() {
                 <li>images or other content you voluntarily attach to a submission;</li>
                 <li>replies, reactions, votes, and reports associated with community content;</li>
                 <li>anonymous identifiers used by the application to distinguish users or devices;</li>
-                <li>anonymous chat messages and information required for chat matching and operation;</li>
+                <li>encrypted anonymous chat messages and information required for chat matching and operation, with readable conversation evidence provided to moderators when a chatroom is reported;</li>
                 <li>timestamps and basic metadata required to operate, moderate, and display content; and</li>
                 <li>preferences stored in your browser, such as dark mode and certain interaction states.</li>
               </ul>
@@ -252,29 +252,48 @@ export default function PrivacyPolicyPage() {
             <h2
               className={`text-2xl font-extrabold tracking-tight mb-4 ${heading}`}
             >
-              Information used for conversations
+              Encrypted and anonymous conversations
             </h2>
 
             <div
               className={`space-y-4 text-sm sm:text-base leading-relaxed ${body}`}
             >
               <p>
-                Anonymous Chat uses an anonymous user ID stored in the user&apos;s
+                Anonymous Chat uses an anonymous user ID stored in the user's
                 browser to distinguish users without requiring a traditional
                 account, real name, email address, or school ID.
               </p>
 
               <p>
-                When using Anonymous Chat, Tambayan may process the anonymous user
-                ID, chatroom information, messages, timestamps, matching
-                information, and other data necessary to connect users and operate
-                the conversation.
+                Chat messages are encrypted so that conversations are not normally
+                readable by administrators. Messages are decrypted on the
+                participants' devices while they are using the chat.
+              </p>
+
+              <p>
+                If a user reports a chatroom, the conversation may be decrypted on
+                the reporting user's device and a copy of the conversation may
+                be submitted as evidence for moderation. Tambayan administrators
+                can then review the reported conversation to investigate possible
+                violations of the Community Guidelines.
+              </p>
+
+              <p>
+                Administrators do not normally have access to the readable contents
+                of private chat conversations. A readable copy becomes available
+                for moderation when a participant chooses to report the chatroom.
+              </p>
+
+              <p>
+                Tambayan may still process information necessary to operate
+                Anonymous Chat, such as anonymous user IDs, encrypted message data,
+                chatroom information, timestamps, and matching information.
               </p>
 
               <p>
                 When a chatroom is closed, the chatroom and its associated
-                conversation data are retained temporarily and are
-                deleted after 24 hours.
+                conversation data are retained temporarily and are deleted after
+                24 hours.
               </p>
 
               <p>

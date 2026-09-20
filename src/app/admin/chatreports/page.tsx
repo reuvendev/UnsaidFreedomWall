@@ -6,6 +6,19 @@ import { collection, getDocs, query, orderBy, doc, deleteDoc, getDoc, setDoc } f
 import { db } from '@/lib/firebase';
 import { loginAdmin, logoutAdmin, checkAdminAuth } from '../actions';
 
+interface ReportMessage {
+  messageId: string;
+  senderId: string;
+  senderNickname: string;
+  text: string;
+
+  replyTo?: {
+    messageId: string;
+    senderNickname: string;
+    text: string;
+  } | null;
+}
+
 interface ChatReportItem {
   id: string;
   roomId: string;
@@ -14,6 +27,12 @@ interface ChatReportItem {
   reportedUserNickname?: string;
   createdAt: string;
   roomStatus?: string;
+  reason?: string;
+
+  evidence?: {
+    messages: ReportMessage[];
+    messageCount: number;
+  };
 }
 
 export default function AdminReportsPage() {
@@ -94,11 +113,22 @@ export default function AdminReportsPage() {
 
         fetchedReports.push({
           id: docSnap.id,
-          roomId: roomId || "",
-          reporterId: data.reporterId || "Anonymous",
+          roomId: roomId || '',
+          reporterId: data.reporterId || 'Anonymous',
           reportedUserId,
           reportedUserNickname,
-          createdAt: data.createdAt ? new Date(data.createdAt.toDate()).toLocaleString() : "Unknown",
+
+          reason: data.reason || 'Unknown',
+
+          evidence: data.evidence || {
+            messages: [],
+            messageCount: 0,
+          },
+
+          createdAt: data.createdAt
+            ? new Date(data.createdAt.toDate()).toLocaleString()
+            : 'Unknown',
+
           roomStatus,
         });
       }
@@ -142,17 +172,48 @@ export default function AdminReportsPage() {
 
   // Action 2: Dismiss Report (False Alarm / Clear)
   const handleDismissReport = async (reportId: string) => {
-    const confirmed = window.confirm("Are you sure you want to dismiss and delete this report?");
-    if (!confirmed) return;
+  const confirmed = window.confirm(
+    "Are you sure you want to dismiss and delete this report?"
+  );
 
-    try {
-      await deleteDoc(doc(db, "reports", reportId));
-      setReports((prev) => prev.filter((r) => r.id !== reportId));
-    } catch (error) {
-      console.error("Error dismissing report:", error);
-      alert("Failed to dismiss report.");
-    }
-  };
+  if (!confirmed) return;
+
+  console.log("1. Dismissing report:", reportId);
+
+  try {
+    const reportRef = doc(db, "reports", reportId);
+
+    console.log("Report path:", reportRef.path);
+    console.log("Firestore app:", db.app.options.projectId);
+
+    const deletePromise = deleteDoc(reportRef);
+
+    console.log("Delete request started");
+
+    await deletePromise;
+
+    console.log("Delete request completed");
+
+    console.log("2. Firestore delete finished");
+
+    setReports((prev) => {
+      console.log("3. Reports before:", prev.length);
+
+      const updated = prev.filter(
+        (report) => report.id !== reportId
+      );
+
+      console.log("4. Reports after:", updated.length);
+
+      return updated;
+    });
+
+    alert("Report dismissed successfully.");
+  } catch (error) {
+    console.error("DISMISS ERROR:", error);
+    alert("Failed to dismiss report.");
+  }
+};
 
   // Loading state while checking auth cookie
   if (isAuthenticated === null) {
@@ -266,6 +327,87 @@ export default function AdminReportsPage() {
                   </div>
                 </div>
 
+                {/* REPORTED CHAT EVIDENCE */}
+                <div className="bg-neutral-900 border border-neutral-800 rounded-lg overflow-hidden">
+                  <div className="px-4 py-3 border-b border-neutral-800 flex items-center justify-between">
+                    <div>
+                      <p className="font-mono text-xs font-bold text-white uppercase tracking-wider">
+                        Reported Conversation
+                      </p>
+
+                      <p className="font-mono text-[10px] text-neutral-500 mt-1">
+                        Reason: {report.reason || 'Unknown'}
+                      </p>
+                    </div>
+
+                    <span className="font-mono text-[10px] text-neutral-500">
+                      {report.evidence?.messageCount || 0} messages
+                    </span>
+                  </div>
+
+                  <div className="p-4 max-h-[400px] overflow-y-auto space-y-3">
+                    {report.evidence?.messages?.length ? (
+                      report.evidence.messages.map((message) => {
+                        const isReportedUser =
+                          message.senderId === report.reportedUserId;
+
+                        return (
+                          <div
+                            key={message.messageId}
+                            className={`flex flex-col ${
+                              isReportedUser
+                                ? 'items-start'
+                                : 'items-end'
+                            }`}
+                          >
+                            <span
+                              className={`font-mono text-[9px] mb-1 ${
+                                isReportedUser
+                                  ? 'text-rose-400'
+                                  : 'text-neutral-500'
+                              }`}
+                            >
+                              {isReportedUser
+                                ? `Reported User · ${message.senderNickname}`
+                                : `Reporter · ${message.senderNickname}`}
+                            </span>
+
+                            <div
+                              className={`max-w-[80%] px-3 py-2 rounded-xl text-sm ${
+                                isReportedUser
+                                  ? 'bg-rose-950/30 border border-rose-900/50 text-neutral-200 rounded-bl-sm'
+                                  : 'bg-neutral-800 text-neutral-200 rounded-br-sm'
+                              }`}
+                            >
+                              {message.replyTo && (
+                                <div className="mb-2 px-2 py-1.5 border-l-2 border-neutral-600 bg-black/20 rounded text-xs text-neutral-400">
+                                  <p className="font-mono text-[9px] font-bold">
+                                    {message.replyTo.senderNickname}
+                                  </p>
+
+                                  <p className="truncate">
+                                    {message.replyTo.text}
+                                  </p>
+                                </div>
+                              )}
+
+                              <p className="whitespace-pre-wrap break-words">
+                                {message.text}
+                              </p>
+                            </div>
+                          </div>
+                        );
+                      })
+                    ) : (
+                      <div className="py-8 text-center">
+                        <p className="font-mono text-xs text-neutral-500">
+                          No conversation evidence was submitted with this report.
+                        </p>
+                      </div>
+                    )}
+                  </div>
+                </div>
+
                 <div className="flex flex-wrap items-center justify-between gap-3 pt-2">
                   <div className="font-mono text-xs text-neutral-500 flex items-center gap-2">
                     <span>Room Reference:</span>
@@ -294,7 +436,7 @@ export default function AdminReportsPage() {
                         target="_blank"
                         className="px-4 py-2 bg-emerald-600/20 hover:bg-emerald-600/30 text-emerald-400 border border-emerald-500/30 font-mono text-xs font-bold uppercase rounded-lg transition-colors inline-flex items-center gap-1.5"
                       >
-                        <span>Visit Room</span>
+                        <span>View Evidence</span>
                       </Link>
                     )}
                     <button

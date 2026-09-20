@@ -1,11 +1,6 @@
 import { initializeApp, getApps, getApp } from "firebase/app";
-import { 
-  initializeFirestore, 
-  persistentLocalCache, 
-  persistentMultipleTabManager 
-} from "firebase/firestore";
+import { getFirestore } from "firebase/firestore";
 
-// Your web app's Firebase configuration (keep your actual keys here)
 const firebaseConfig = {
   apiKey: process.env.NEXT_PUBLIC_FIREBASE_API_KEY,
   authDomain: process.env.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN,
@@ -15,12 +10,8 @@ const firebaseConfig = {
   appId: process.env.NEXT_PUBLIC_FIREBASE_APP_ID,
 };
 
-// Initialize Firebase (prevents duplicate initialization errors in Next.js)
-const app = !getApps().length ? initializeApp(firebaseConfig) : getApp();
+const app = !getApps().length
+  ? initializeApp(firebaseConfig)
+  : getApp();
 
-// Initialize Firestore with persistent caching (Do NOT use getFirestore alongside this)
-export const db = initializeFirestore(app, {
-  localCache: persistentLocalCache({
-    tabManager: persistentMultipleTabManager()
-  })
-});
+export const db = getFirestore(app);
