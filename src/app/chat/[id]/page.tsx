@@ -79,7 +79,7 @@ const AVAILABLE_REACTIONS = ['❤️', '👍', '😂', '🔥', '😮', '😢'];
 const DEVELOPER_USER_IDS = [
   'user_grrbyvw91',
   'user_rtryawgma',
-  'user_r73rv5uu',
+  'user_r73rv75uu',
 ];
 
 const isDeveloperUser = (id?: string | null) => {
