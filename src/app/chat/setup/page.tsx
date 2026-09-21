@@ -1,887 +1,115 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
-import { useRouter } from 'next/navigation';
 import Link from 'next/link';
+import { useEffect, useState } from 'react';
 
-const SLU_SCHOOLS = [
-  {
-    id: 'samcis',
-    name: 'SAMCIS',
-    fullName:
-      'School of Accountancy, Management, Computing and Information Studies',
-    campus: 'Maryheights Campus',
-  },
-  {
-    id: 'sea',
-    name: 'SEA',
-    fullName: 'School of Engineering and Architecture',
-    campus: 'Main Campus',
-  },
-  {
-    id: 'som',
-    name: 'SOM',
-    fullName: 'School of Medicine',
-    campus: 'Main Campus',
-  },
-  {
-    id: 'sonahbs',
-    name: 'SONAHBS',
-    fullName:
-      'School of Nursing, Allied Health and Biological Sciences',
-    campus: 'Main Campus',
-  },
-  {
-    id: 'stela',
-    name: 'STELA',
-    fullName: 'School of Teacher Education and Liberal Arts',
-    campus: 'Main Campus',
-  },
-];
+export default function ChatMaintenancePage() {
+  const [isDarkMode, setIsDarkMode] = useState(false);
 
-// Comprehensive bad word / racist term list (English & Tagalog)
-const BANNED_WORDS = [
-  // English Profanity & Slurs
-  'nigger',
-  'nigga',
-  'dick',
-  'cock',
-  'pussy',
-  'asshole',
-  'motherfucker',
-
-  // Tagalog / Filipino Profanity & Slurs
-  'gago',
-  'putangina',
-  'tangina',
-  'puta',
-  'pota',
-  'putang',
-  'tanga',
-  'bobo',
-  'ulol',
-  'olul',
-  'hayop',
-  'inutil',
-  'puki',
-  'pekpek',
-  'titi',
-  'tite',
-  'burat',
-  'etits',
-  'kantot',
-  'jakol',
-];
-
-/**
- * Normalizes input text to catch leetspeak bypass attempts while
- * preserving word boundaries to prevent false positives.
- */
-function sanitizeAndCheckProfanity(text: string): boolean {
-  if (!text) return false;
-
-  const words = text.toLowerCase().split(/\s+/);
-
-  for (const rawWord of words) {
-    const cleaned = rawWord
-      .replace(/[@4]/g, 'a')
-      .replace(/[3]/g, 'e')
-      .replace(/[1!|]/g, 'i')
-      .replace(/[0]/g, 'o')
-      .replace(/[$5]/g, 's')
-      .replace(/[7]/g, 't')
-      .replace(/[^a-z]/g, '');
-
-    if (!cleaned) continue;
-
-    for (const banned of BANNED_WORDS) {
-      const normBanned = banned
-        .toLowerCase()
-        .replace(/[^a-z]/g, '');
-
-      if (
-        cleaned === normBanned ||
-        cleaned.includes(normBanned)
-      ) {
-        return true;
-      }
-    }
-  }
-
-  return false;
-}
-
-const Icons = {
-  Sun: () => (
-    <svg
-      xmlns="http://www.w3.org/2000/svg"
-      width="15"
-      height="15"
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="2"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-    >
-      <circle cx="12" cy="12" r="4" />
-      <path d="M12 2v2" />
-      <path d="M12 20v2" />
-      <path d="m4.93 4.93 1.41 1.41" />
-      <path d="m17.66 17.66 1.41 1.41" />
-      <path d="M2 12h2" />
-      <path d="M20 12h2" />
-      <path d="m6.34 17.66-1.41 1.41" />
-      <path d="m19.07 4.93-1.41 1.41" />
-    </svg>
-  ),
-
-  Moon: () => (
-    <svg
-      xmlns="http://www.w3.org/2000/svg"
-      width="15"
-      height="15"
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="2"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-    >
-      <path d="M12 3a6 6 0 0 0 9 9 9 9 0 1 1-9-9Z" />
-    </svg>
-  ),
-
-  Copy: () => (
-    <svg
-      xmlns="http://www.w3.org/2000/svg"
-      width="14"
-      height="14"
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="2"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-    >
-      <rect x="9" y="9" width="13" height="13" rx="2" />
-      <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1" />
-    </svg>
-  ),
-
-  Shield: () => (
-    <svg
-      xmlns="http://www.w3.org/2000/svg"
-      width="16"
-      height="16"
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="2"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-    >
-      <path d="M20 13c0 5-3.5 7.5-8 9-4.5-1.5-8-4-8-9V5l8-3 8 3z" />
-    </svg>
-  ),
-};
-
-export default function ChatSetupPage() {
-  const router = useRouter();
-
-  const [nickname, setNickname] = useState('');
-  const [selectedSchool, setSelectedSchool] = useState(
-    SLU_SCHOOLS[0].id
-  );
-
-  const [isSubmitting, setIsSubmitting] = useState(false);
-  const [errorMsg, setErrorMsg] = useState('');
-  const [isDarkMode, setIsDarkMode] =
-    useState<boolean>(false);
-
-  // Chat identity
-  const [userId, setUserId] = useState<string | null>(null);
-  const [copied, setCopied] = useState(false);
-
-  // Blocked users
-  const [blockedUsers, setBlockedUsers] = useState<string[]>(
-    []
-  );
-
-  // Load saved values
   useEffect(() => {
     try {
-      const savedNickname = localStorage.getItem(
-        'unsaid_chat_nickname'
-      );
+      const storedTheme = localStorage.getItem('unsaid_dark_mode');
 
-      const savedSchool = localStorage.getItem(
-        'unsaid_chat_school'
-      );
-
-      const storedTheme = localStorage.getItem(
-        'unsaid_dark_mode'
-      );
-
-      const savedUserId = localStorage.getItem(
-        'unsaid_chat_user_id'
-      );
-
-      const savedBlockedUsers = localStorage.getItem(
-        'unsaid_chat_blocked'
-      );
-
-      if (savedNickname) {
-        setNickname(savedNickname);
-      }
-
-      if (
-        savedSchool &&
-        SLU_SCHOOLS.some(
-          (school) => school.id === savedSchool
-        )
-      ) {
-        setSelectedSchool(savedSchool);
-      }
-
-      if (savedUserId) {
-        setUserId(savedUserId);
-      }
-
-      /*
-       * Expected format:
-       * ["user-id-1", "user-id-2"]
-       */
-      if (savedBlockedUsers) {
-        try {
-          const parsed = JSON.parse(savedBlockedUsers);
-
-          if (Array.isArray(parsed)) {
-            setBlockedUsers(
-              parsed.filter(
-                (item): item is string =>
-                  typeof item === 'string'
-              )
-            );
-          }
-        } catch (error) {
-          console.error(
-            'Failed to parse blocked users:',
-            error
-          );
-        }
-      }
-
-      if (storedTheme !== null) {
+      if (storedTheme) {
         setIsDarkMode(JSON.parse(storedTheme));
       } else if (
         window.matchMedia &&
-        window.matchMedia(
-          '(prefers-color-scheme: dark)'
-        ).matches
+        window.matchMedia('(prefers-color-scheme: dark)').matches
       ) {
         setIsDarkMode(true);
       }
-    } catch (error) {
-      console.error(
-        'Failed to load local settings:',
-        error
-      );
-    }
+    } catch {}
   }, []);
 
-  const toggleDarkMode = () => {
-    const nextMode = !isDarkMode;
-
-    setIsDarkMode(nextMode);
-
-    try {
-      localStorage.setItem(
-        'unsaid_dark_mode',
-        JSON.stringify(nextMode)
-      );
-    } catch (error) {
-      console.error(
-        'Failed to save dark mode:',
-        error
-      );
-    }
-  };
-
-  const handleCopyUserId = async () => {
-    if (!userId) return;
-
-    try {
-      await navigator.clipboard.writeText(userId);
-
-      setCopied(true);
-
-      setTimeout(() => {
-        setCopied(false);
-      }, 2000);
-    } catch (error) {
-      console.error(
-        'Failed to copy user ID:',
-        error
-      );
-    }
-  };
-
-  const handleUnblock = (blockedUserId: string) => {
-    try {
-      const updatedBlockedUsers = blockedUsers.filter(
-        (id) => id !== blockedUserId
-      );
-
-      setBlockedUsers(updatedBlockedUsers);
-
-      localStorage.setItem(
-        'unsaid_chat_blocked',
-        JSON.stringify(updatedBlockedUsers)
-      );
-    } catch (error) {
-      console.error(
-        'Failed to unblock user:',
-        error
-      );
-    }
-  };
-
-  const handleStartChat = (
-    e: React.FormEvent
-  ) => {
-    e.preventDefault();
-    setErrorMsg('');
-
-    const trimmedNickname = nickname.trim();
-
-    if (!trimmedNickname) {
-      setErrorMsg(
-        'Please enter a valid nickname.'
-      );
-      return;
-    }
-
-    if (
-      sanitizeAndCheckProfanity(trimmedNickname)
-    ) {
-      setErrorMsg(
-        'Your nickname contains restricted, offensive, or prohibited words. Please choose another one.'
-      );
-      return;
-    }
-
-    setIsSubmitting(true);
-
-    try {
-      localStorage.setItem(
-        'unsaid_chat_nickname',
-        trimmedNickname
-      );
-
-      localStorage.setItem(
-        'unsaid_chat_school',
-        selectedSchool
-      );
-
-      router.push('/chat/queue');
-    } catch (error) {
-      console.error(error);
-      setIsSubmitting(false);
-    }
-  };
-
   return (
-    <div
-      className={`min-h-screen font-sans flex flex-col justify-between selection:bg-neutral-900 selection:text-white ${
+    <main
+      className={`min-h-[100dvh] flex items-center justify-center px-6 transition-colors ${
         isDarkMode
           ? 'bg-neutral-950 text-neutral-100'
-          : 'bg-neutral-50/50 text-neutral-900'
+          : 'bg-neutral-50 text-neutral-900'
       }`}
     >
-      {/* Header */}
-      <header
-        className={`sticky top-0 z-50 backdrop-blur-md border-b shadow-2xs ${
-          isDarkMode
-            ? 'bg-neutral-900/95 border-neutral-800'
-            : 'bg-white/95 border-neutral-200/80'
-        }`}
-      >
-        <div className="max-w-2xl mx-auto px-6 h-16 flex items-center justify-between">
-          <Link
-            href="/"
-            className="font-mono text-xl font-black tracking-tighter hover:opacity-70"
-          >
-            TAMBAYAN
-            <span className="text-emerald-600">
-              .
-            </span>
-          </Link>
+      <div className="w-full max-w-md text-center">
 
-          <div className="flex items-center gap-4">
-            <span className="font-mono text-[11px] font-bold text-neutral-400 uppercase tracking-widest">
-              Chat
-            </span>
-
-            <button
-              type="button"
-              onClick={toggleDarkMode}
-              aria-label="Toggle Dark Mode"
-              className={`p-2 rounded-xl border cursor-pointer ${
-                isDarkMode
-                  ? 'bg-neutral-800 border-neutral-700 text-amber-400 hover:bg-neutral-700'
-                  : 'bg-neutral-100 border-neutral-200 text-neutral-700 hover:bg-neutral-200'
-              }`}
-            >
-              {isDarkMode ? (
-                <Icons.Sun />
-              ) : (
-                <Icons.Moon />
-              )}
-            </button>
-          </div>
-        </div>
-      </header>
-
-      <main className="max-w-xl mx-auto px-6 py-12 w-full flex-1">
-        {/* Intro */}
-        <div className="mb-8">
-          <p className="font-mono text-[11px] font-bold text-emerald-500 tracking-widest uppercase mb-2">
-            Anonymous Matchmaking
-          </p>
-
-          <h1
-            className={`text-3xl font-extrabold tracking-tight mb-3 ${
-              isDarkMode
-                ? 'text-white'
-                : 'text-neutral-900'
-            }`}
-          >
-            Choose your profile
-          </h1>
-
-          <p
-            className={`text-sm leading-relaxed font-mono ${
-              isDarkMode
-                ? 'text-neutral-400'
-                : 'text-neutral-600'
-            }`}
-          >
-            Set up how other Louisian students
-            will see you during your anonymous
-            conversations.
-          </p>
-        </div>
-
-        {/* Profile Form */}
-        <form
-          onSubmit={handleStartChat}
-          className="space-y-8"
+        {/* Status */}
+        <div
+          className={`mx-auto mb-6 flex h-14 w-14 items-center justify-center rounded-2xl border ${
+            isDarkMode
+              ? 'border-neutral-800 bg-neutral-900'
+              : 'border-neutral-200 bg-white'
+          }`}
         >
-          {/* Nickname */}
-          <div
-            className={`p-6 rounded-2xl border shadow-2xs space-y-4 ${
-              isDarkMode
-                ? 'bg-neutral-900 border-neutral-800'
-                : 'bg-white border-neutral-200/80'
-            }`}
-          >
-            <label
-              className={`block font-mono text-xs font-bold uppercase tracking-wider ${
-                isDarkMode
-                  ? 'text-neutral-300'
-                  : 'text-neutral-700'
-              }`}
-            >
-              Anonymous Nickname
-            </label>
-
-            <input
-              type="text"
-              value={nickname}
-              onChange={(e) => {
-                setNickname(e.target.value);
-
-                if (errorMsg) {
-                  setErrorMsg('');
-                }
-              }}
-              placeholder="e.g. someone"
-              maxLength={25}
-              required
-              className={`w-full px-4 py-3 border rounded-xl text-base sm:text-sm font-mono focus:outline-none shadow-2xs ${
-                isDarkMode
-                  ? 'bg-neutral-950 border-neutral-800 text-white placeholder:text-neutral-600 focus:border-emerald-500'
-                  : 'bg-neutral-50 border-neutral-200 text-neutral-900 placeholder:text-neutral-400 focus:border-neutral-900'
-              }`}
-            />
-
-            {errorMsg && (
-              <p className="text-xs font-mono text-red-600 bg-red-50 dark:bg-red-950/40 dark:text-red-300 p-3 rounded-xl border border-red-200 dark:border-red-900/50">
-                {errorMsg}
-              </p>
-            )}
-          </div>
-
-          {/* School */}
-          <div
-            className={`p-6 rounded-2xl border shadow-2xs space-y-4 ${
-              isDarkMode
-                ? 'bg-neutral-900 border-neutral-800'
-                : 'bg-white border-neutral-200/80'
-            }`}
-          >
-            <label
-              className={`block font-mono text-xs font-bold uppercase tracking-wider ${
-                isDarkMode
-                  ? 'text-neutral-300'
-                  : 'text-neutral-700'
-              }`}
-            >
-              Select Your SLU School
-            </label>
-
-            <div className="space-y-3">
-              {SLU_SCHOOLS.map((school) => {
-                const isSelected =
-                  selectedSchool === school.id;
-
-                return (
-                  <div
-                    key={school.id}
-                    onClick={() =>
-                      setSelectedSchool(school.id)
-                    }
-                    className={`p-4 rounded-xl border cursor-pointer flex items-start gap-3 ${
-                      isSelected
-                        ? isDarkMode
-                          ? 'border-emerald-500 bg-neutral-950 text-white shadow-sm ring-1 ring-emerald-500/20'
-                          : 'border-neutral-900 bg-neutral-900 text-white shadow-sm'
-                        : isDarkMode
-                          ? 'border-neutral-800 bg-neutral-950/50 hover:bg-neutral-800/80 text-neutral-200'
-                          : 'border-neutral-200 bg-neutral-50/50 hover:bg-neutral-100/80 text-neutral-900'
-                    }`}
-                  >
-                    <input
-                      type="radio"
-                      name="slu_school"
-                      value={school.id}
-                      checked={isSelected}
-                      onChange={() =>
-                        setSelectedSchool(
-                          school.id
-                        )
-                      }
-                      className="mt-1 accent-emerald-500 cursor-pointer"
-                    />
-
-                    <div>
-                      <div className="flex items-center gap-2 font-mono text-xs font-bold">
-                        <span>
-                          {school.name}
-                        </span>
-
-                        <span
-                          className={`text-[10px] px-2 py-0.5 rounded ${
-                            isSelected
-                              ? 'bg-neutral-800 text-emerald-400'
-                              : isDarkMode
-                                ? 'bg-neutral-800 text-neutral-400'
-                                : 'bg-neutral-200 text-neutral-700'
-                          }`}
-                        >
-                          {school.campus}
-                        </span>
-                      </div>
-
-                      <p
-                        className={`text-xs mt-1 leading-relaxed ${
-                          isSelected
-                            ? 'text-neutral-300'
-                            : isDarkMode
-                              ? 'text-neutral-400'
-                              : 'text-neutral-500'
-                        }`}
-                      >
-                        {school.fullName}
-                      </p>
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-          </div>
-
-          {/* Submit */}
-          <button
-            type="submit"
-            disabled={isSubmitting}
-            className="w-full py-4 bg-neutral-900 dark:bg-emerald-600 hover:opacity-90 text-white font-mono text-xs font-bold uppercase tracking-wider rounded-xl shadow-sm active:scale-98 disabled:opacity-50 cursor-pointer"
-          >
-            {isSubmitting
-              ? 'Entering Queue...'
-              : 'Find Chatmate Now'}
-          </button>
-        </form>
-
-        {/* Chat Settings */}
-        <div className="mt-14">
-          <div className="mb-5">
-            <p className="font-mono text-[10px] font-bold text-emerald-500 tracking-widest uppercase mb-2">
-              Chat Settings
-            </p>
-
-            <h2
-              className={`text-xl font-bold ${
-                isDarkMode
-                  ? 'text-white'
-                  : 'text-neutral-900'
-              }`}
-            >
-              Your chat identity
-            </h2>
-          </div>
-
-          <div className="space-y-5">
-            {/* User ID */}
-            <section
-              className={`p-6 rounded-2xl border shadow-2xs ${
-                isDarkMode
-                  ? 'bg-neutral-900 border-neutral-800'
-                  : 'bg-white border-neutral-200/80'
-              }`}
-            >
-              <p
-                className={`font-mono text-xs font-bold uppercase tracking-wider mb-2 ${
-                  isDarkMode
-                    ? 'text-neutral-300'
-                    : 'text-neutral-700'
-                }`}
-              >
-                Anonymous User ID
-              </p>
-
-              <p
-                className={`text-xs font-mono leading-relaxed mb-4 ${
-                  isDarkMode
-                    ? 'text-neutral-500'
-                    : 'text-neutral-500'
-                }`}
-              >
-                This ID identifies this browser
-                during anonymous chat without
-                requiring an account.
-              </p>
-
-              {userId ? (
-                <>
-                  <div className="flex items-stretch gap-2">
-                    <div
-                      className={`min-w-0 flex-1 flex items-center px-4 py-3 rounded-xl border font-mono text-xs break-all ${
-                        isDarkMode
-                          ? 'bg-neutral-950 border-neutral-800 text-neutral-300'
-                          : 'bg-neutral-50 border-neutral-200 text-neutral-700'
-                      }`}
-                    >
-                      {userId}
-                    </div>
-
-                    <button
-                      type="button"
-                      onClick={handleCopyUserId}
-                      className={`shrink-0 flex items-center justify-center gap-2 px-4 rounded-xl font-mono text-xs font-bold transition-colors ${
-                        copied
-                          ? 'bg-emerald-600 text-white'
-                          : isDarkMode
-                            ? 'bg-neutral-800 text-neutral-200 hover:bg-neutral-700'
-                            : 'bg-neutral-900 text-white hover:bg-neutral-800'
-                      }`}
-                    >
-                      <Icons.Copy />
-
-                      <span className="hidden sm:inline">
-                        {copied
-                          ? 'Copied!'
-                          : 'Copy'}
-                      </span>
-                    </button>
-                  </div>
-
-                  <p
-                    className={`mt-3 text-[10px] font-mono leading-relaxed ${
-                      isDarkMode
-                        ? 'text-neutral-600'
-                        : 'text-neutral-400'
-                    }`}
-                  >
-                    Stored locally in this browser.
-                    Clearing this site&apos;s browser
-                    data may remove or reset your ID.
-                  </p>
-                </>
-              ) : (
-                <div
-                  className={`p-4 rounded-xl border ${
-                    isDarkMode
-                      ? 'bg-neutral-950 border-neutral-800'
-                      : 'bg-neutral-50 border-neutral-200'
-                  }`}
-                >
-                  <p
-                    className={`font-mono text-xs ${
-                      isDarkMode
-                        ? 'text-neutral-500'
-                        : 'text-neutral-500'
-                    }`}
-                  >
-                    No user ID has been assigned
-                    to this browser yet. Enter the
-                    chat to create your anonymous
-                    identity.
-                  </p>
-                </div>
-              )}
-            </section>
-
-            {/* Blocked Users */}
-            <section
-              className={`p-6 rounded-2xl border shadow-2xs ${
-                isDarkMode
-                  ? 'bg-neutral-900 border-neutral-800'
-                  : 'bg-white border-neutral-200/80'
-              }`}
-            >
-              <div className="flex items-start justify-between gap-4 mb-5">
-                <div>
-                  <div className="flex items-center gap-2 mb-2">
-                    <Icons.Shield />
-
-                    <p
-                      className={`font-mono text-xs font-bold uppercase tracking-wider ${
-                        isDarkMode
-                          ? 'text-neutral-300'
-                          : 'text-neutral-700'
-                      }`}
-                    >
-                      Blocked Users
-                    </p>
-                  </div>
-
-                  <p
-                    className={`text-xs font-mono leading-relaxed ${
-                      isDarkMode
-                        ? 'text-neutral-500'
-                        : 'text-neutral-500'
-                    }`}
-                  >
-                    Users you have blocked from
-                    anonymous chat.
-                  </p>
-                </div>
-
-                {blockedUsers.length > 0 && (
-                  <span
-                    className={`shrink-0 px-2.5 py-1 rounded-full font-mono text-[10px] font-bold ${
-                      isDarkMode
-                        ? 'bg-neutral-800 text-neutral-300'
-                        : 'bg-neutral-100 text-neutral-600'
-                    }`}
-                  >
-                    {blockedUsers.length}
-                  </span>
-                )}
-              </div>
-
-              {blockedUsers.length > 0 ? (
-                <div className="space-y-2">
-                  {blockedUsers.map(
-                    (blockedUserId) => (
-                      <div
-                        key={blockedUserId}
-                        className={`flex items-center gap-3 p-3 rounded-xl border ${
-                          isDarkMode
-                            ? 'bg-neutral-950 border-neutral-800'
-                            : 'bg-neutral-50 border-neutral-200'
-                        }`}
-                      >
-                        <div className="min-w-0 flex-1">
-                          <p
-                            className={`font-mono text-[9px] uppercase tracking-widest mb-1 ${
-                              isDarkMode
-                                ? 'text-neutral-600'
-                                : 'text-neutral-400'
-                            }`}
-                          >
-                            User ID
-                          </p>
-
-                          <p
-                            className={`font-mono text-xs break-all ${
-                              isDarkMode
-                                ? 'text-neutral-300'
-                                : 'text-neutral-700'
-                            }`}
-                          >
-                            {blockedUserId}
-                          </p>
-                        </div>
-
-                        <button
-                          type="button"
-                          onClick={() =>
-                            handleUnblock(
-                              blockedUserId
-                            )
-                          }
-                          className={`shrink-0 px-3 py-2 rounded-lg border font-mono text-[10px] font-bold uppercase tracking-wider transition-colors ${
-                            isDarkMode
-                              ? 'border-neutral-700 text-neutral-300 hover:bg-neutral-800 hover:text-white'
-                              : 'border-neutral-300 text-neutral-600 hover:bg-neutral-900 hover:border-neutral-900 hover:text-white'
-                          }`}
-                        >
-                          Unblock
-                        </button>
-                      </div>
-                    )
-                  )}
-                </div>
-              ) : (
-                <div
-                  className={`p-5 rounded-xl border text-center ${
-                    isDarkMode
-                      ? 'bg-neutral-950 border-neutral-800'
-                      : 'bg-neutral-50 border-neutral-200'
-                  }`}
-                >
-                  <p
-                    className={`font-mono text-xs ${
-                      isDarkMode
-                        ? 'text-neutral-500'
-                        : 'text-neutral-400'
-                    }`}
-                  >
-                    You haven&apos;t blocked
-                    anyone.
-                  </p>
-                </div>
-              )}
-
-              {blockedUsers.length > 0 && (
-                <p
-                  className={`mt-4 text-[10px] font-mono leading-relaxed ${
-                    isDarkMode
-                      ? 'text-neutral-600'
-                      : 'text-neutral-400'
-                  }`}
-                >
-                  Unblocking allows you to be
-                  matched with this user again.
-                </p>
-              )}
-            </section>
-          </div>
+          <span className="text-2xl">🔧</span>
         </div>
-      </main>
-    </div>
+
+        {/* Label */}
+        <div
+          className={`mb-3 font-mono text-[10px] font-bold uppercase tracking-[0.2em] ${
+            isDarkMode
+              ? 'text-amber-400'
+              : 'text-amber-600'
+          }`}
+        >
+          Temporarily Unavailable
+        </div>
+
+        {/* Title */}
+        <h1 className="text-2xl sm:text-3xl font-bold tracking-tight">
+          Anonymous Chat is under maintenance.
+        </h1>
+
+        {/* Description */}
+        <p
+          className={`mt-4 text-sm leading-relaxed ${
+            isDarkMode
+              ? 'text-neutral-400'
+              : 'text-neutral-600'
+          }`}
+        >
+          We&apos;re currently fixing an issue with the chat system
+          to make conversations more stable and reliable.
+        </p>
+
+        <p
+          className={`mt-3 font-mono text-[11px] ${
+            isDarkMode
+              ? 'text-neutral-500'
+              : 'text-neutral-400'
+          }`}
+        >
+          We&apos;ll be back soon. Thanks for your patience!
+        </p>
+
+        {/* Divider */}
+        <div
+          className={`my-7 h-px ${
+            isDarkMode ? 'bg-neutral-800' : 'bg-neutral-200'
+          }`}
+        />
+
+        {/* Back */}
+        <Link
+          href="/"
+          className={`inline-flex items-center justify-center rounded-xl px-5 py-3 font-mono text-[11px] font-bold uppercase tracking-wider transition-all active:scale-95 ${
+            isDarkMode
+              ? 'bg-white text-neutral-900 hover:bg-neutral-200'
+              : 'bg-neutral-900 text-white hover:bg-neutral-800'
+          }`}
+        >
+          ← Back to Tambayan
+        </Link>
+
+        {/* Footer */}
+        <p
+          className={`mt-8 font-mono text-[9px] uppercase tracking-widest ${
+            isDarkMode
+              ? 'text-neutral-700'
+              : 'text-neutral-300'
+          }`}
+        >
+          TambayanSLU.com
+        </p>
+      </div>
+    </main>
   );
 }
