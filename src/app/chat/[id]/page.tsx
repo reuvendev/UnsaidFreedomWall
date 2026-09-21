@@ -49,13 +49,21 @@ interface RoomData {
   guestSchool?: string | null;
   hostStreak?: number;
   guestStreak?: number;
-  status?: string;
+
+  status?: 'waiting' | 'active' | 'ended' | 'blocked' | 'closed';
+
   blockedBy?: string;
+
+  endedBy?: string;
+  endedAt?: any;
+  endReason?: string;
+
   encryption?: {
     version?: number;
     hostPublicKey?: JsonWebKey;
     guestPublicKey?: JsonWebKey;
   };
+
   [key: string]: any;
 }
 
@@ -813,16 +821,38 @@ useEffect(() => {
         return;
       }
 
-      if (
-        data.status === 'closed' ||
-        data.status === 'ended'
-      ) {
-        console.log(
-          'Chat explicitly ended:',
-          data.status
+      if (data.status === 'ended') {
+        const validEndedBy =
+          data.endedBy === data.hostId ||
+          data.endedBy === data.guestId;
+
+        if (validEndedBy) {
+          console.log('Chat manually ended:', {
+            endedBy: data.endedBy,
+            roomId,
+          });
+
+          setChatStatus('closed');
+          return;
+        }
+
+        console.warn(
+          'Ignoring invalid ended state:',
+          data
         );
 
-        setChatStatus('closed');
+        return;
+      }
+
+      if (data.status === 'closed') {
+        console.warn(
+          'LEGACY/UNKNOWN CLOSED STATUS DETECTED:',
+          {
+            roomId,
+            data,
+          }
+        );
+
         return;
       }
 
@@ -1197,20 +1227,32 @@ useEffect(() => {
   };
 
   const handleEndChat = async () => {
-    if (
-      window.confirm(
-        'Are you sure you want to end this conversation?'
-      )
-    ) {
-      try {
-        await updateDoc(doc(db, 'chatRooms', roomId), {
-          status: 'closed',
-        });
+    const confirmed = window.confirm(
+      'Are you sure you want to end this conversation?'
+    );
 
-        setChatStatus('closed');
-      } catch (err) {
-        console.error('Failed to close room:', err);
-      }
+    if (!confirmed) return;
+
+    try {
+      console.log('MANUAL END CHAT:', {
+        roomId,
+        userId,
+      });
+
+      await updateDoc(
+        doc(db, 'chatRooms', roomId),
+        {
+          status: 'ended',
+          endedBy: userId,
+          endedAt: serverTimestamp(),
+          endReason: 'manual',
+        }
+      );
+    } catch (err) {
+      console.error(
+        'Failed to end room:',
+        err
+      );
     }
   };
 
@@ -1469,6 +1511,7 @@ useEffect(() => {
         <div className="flex items-center gap-2 shrink-0">
           {!isInactive && (
             <button
+              type="button"
               onClick={handleEndChat}
               className={`px-2.5 sm:px-4 py-1.5 sm:py-2 border font-mono text-[10px] sm:text-[11px] font-bold uppercase tracking-wider rounded-lg cursor-pointer active:scale-95 ${
                 isDarkMode
