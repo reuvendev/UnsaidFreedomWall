@@ -768,71 +768,129 @@ export default function ChatRoomPage() {
       roomData?.encryption?.guestPublicKey,
     ]);
 
-  useEffect(() => {
-    if (!roomId || !userId) return;
+// ==========================================
+// ROOM STATUS LISTENER
+// ==========================================
+useEffect(() => {
+  if (!roomId || !userId) return;
 
-    let isMounted = true;
+  let isMounted = true;
 
-    const roomRef = doc(db, 'chatRooms', roomId);
+  const roomRef = doc(db, 'chatRooms', roomId);
 
-    const PAGE_LIMIT = 10;
+  const unsubscribeRoom = onSnapshot(
+    roomRef,
+    (docSnap) => {
+      if (!isMounted) return;
 
-    const msgsQuery = query(
-      collection(db, 'chatRooms', roomId, 'messages'),
-      orderBy('createdAt', 'desc'),
-      limit(PAGE_LIMIT)
-    );
+      if (!docSnap.exists()) {
+        console.error(
+          'Room document disappeared:',
+          roomId
+        );
 
-    let unsubscribeRoom: (() => void) | undefined;
-    let unsubscribeMsgs: (() => void) | undefined;
+        setRoomData(null);
+        setLoading(false);
 
-    unsubscribeRoom = onSnapshot(
-      roomRef,
-      (docSnap) => {
-        if (!isMounted) return;
+        // IMPORTANT:
+        // Do not mark the chat as closed just because
+        // the document disappeared.
+        return;
+      }
 
-        if (docSnap.exists()) {
-          const data = docSnap.data() as RoomData;
+      const data = docSnap.data() as RoomData;
 
-          setRoomData(data);
-          setLoading(false);
+      setRoomData(data);
+      setLoading(false);
 
-          if (data.status === 'blocked') {
-            setChatStatus('blocked');
+      if (data.status === 'blocked') {
+        setChatStatus('blocked');
 
-            if (data.blockedBy === userId) {
-              setBlockedByMe(true);
-            }
-          } else if (
-            data.status === 'closed' ||
-            data.status === 'ended'
-          ) {
-            setChatStatus('closed');
-          } else {
-            setChatStatus('active');
-          }
-        } else {
-          setChatStatus('closed');
-          setLoading(false);
+        setBlockedByMe(
+          data.blockedBy === userId
+        );
 
-          unsubscribeRoom?.();
-          unsubscribeMsgs?.();
-        }
-      },
-      (err) => {
-        console.error('Room sync error:', err);
+        return;
+      }
+
+      if (
+        data.status === 'closed' ||
+        data.status === 'ended'
+      ) {
+        console.log(
+          'Chat explicitly ended:',
+          data.status
+        );
+
+        setChatStatus('closed');
+        return;
+      }
+
+      if (data.status === 'active') {
+        setChatStatus('active');
+        setBlockedByMe(false);
+        return;
+      }
+
+      // Don't automatically assume other statuses
+      // mean active or closed.
+      console.warn(
+        'Unknown/intermediate room status:',
+        data.status
+      );
+    },
+    (err) => {
+      console.error('Room sync error:', err);
+
+      if (isMounted) {
         setLoading(false);
       }
-    );
+    }
+  );
 
-    unsubscribeMsgs = onSnapshot(msgsQuery, async (snapshot) => {
+  return () => {
+    isMounted = false;
+    unsubscribeRoom();
+  };
+}, [roomId, userId]);
+
+
+// ==========================================
+// MESSAGE LISTENER
+// ==========================================
+useEffect(() => {
+  if (!roomId || !userId) return;
+
+  let isMounted = true;
+
+  const PAGE_LIMIT = 10;
+
+  const msgsQuery = query(
+    collection(
+      db,
+      'chatRooms',
+      roomId,
+      'messages'
+    ),
+    orderBy('createdAt', 'desc'),
+    limit(PAGE_LIMIT)
+  );
+
+  const unsubscribeMsgs = onSnapshot(
+    msgsQuery,
+    async (snapshot) => {
       if (!isMounted) return;
 
       const docs = snapshot.docs;
 
       if (docs.length > 0) {
-        setLastVisibleDoc(docs[docs.length - 1]);
-        setHasMoreMessages(docs.length >= PAGE_LIMIT);
+        setLastVisibleDoc(
+          docs[docs.length - 1]
+        );
+
+        setHasMoreMessages(
+          docs.length >= PAGE_LIMIT
+        );
       } else {
         setHasMoreMessages(false);
       }
@@ -860,14 +918,20 @@ export default function ChatRoomPage() {
           });
         }, 50);
       }
-    });
+    },
+    (err) => {
+      console.error(
+        'Message sync error:',
+        err
+      );
+    }
+  );
 
-    return () => {
-      isMounted = false;
-      unsubscribeRoom?.();
-      unsubscribeMsgs?.();
-    };
-  }, [roomId, userId, roomKey]);
+  return () => {
+    isMounted = false;
+    unsubscribeMsgs();
+  };
+}, [roomId, userId, roomKey]);
 
   const handleLoadMore = async () => {
     if (!lastVisibleDoc || isLoadingMore || !hasMoreMessages) return;
