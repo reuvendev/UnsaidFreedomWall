@@ -122,60 +122,6 @@ function getAnonymousUserId(): string {
   return userId;
 }
 
-// Component to handle third-party ad banner injection safely
-function BannerAd({ isDarkMode }: { isDarkMode: boolean }) {
-  const bannerRef = useRef<HTMLDivElement>(null);
-
-  useEffect(() => {
-    if (!bannerRef.current) return;
-
-    bannerRef.current.innerHTML = '';
-
-    const confScript = document.createElement('script');
-
-    confScript.text = `
-      atOptions = {
-        'key' : '2c7e18080e4e82b954dd29fff1dc3355',
-        'format' : 'iframe',
-        'height' : 50,
-        'width' : 320,
-        'params' : {}
-      };
-    `;
-
-    const invokeScript = document.createElement('script');
-
-    invokeScript.src =
-      'https://plentyhelium.com/2c7e18080e4e82b954dd29fff1dc3355/invoke.js';
-
-    invokeScript.async = true;
-
-    bannerRef.current.appendChild(confScript);
-    bannerRef.current.appendChild(invokeScript);
-  }, []);
-
-  return (
-    <div className="my-6 w-full flex flex-col items-center">
-      <div
-        className={`font-mono text-[9px] uppercase tracking-widest mb-1.5 ${
-          isDarkMode
-            ? 'text-neutral-600'
-            : 'text-neutral-400'
-        }`}
-      >
-        Advertisement
-      </div>
-
-      <div className="overflow-hidden w-full flex justify-center">
-        <div
-          ref={bannerRef}
-          className="min-w-[320px] min-h-[50px] flex items-center justify-center"
-        />
-      </div>
-    </div>
-  );
-}
-
 export default function PostDetailPage() {
   const params = useParams();
   const router = useRouter();
@@ -1101,14 +1047,6 @@ export default function PostDetailPage() {
       </header>
 
       <main className="max-w-2xl mx-auto px-6 pt-8 pb-24">
-
-        {/* ===================================================
-            OPTIONAL AD
-        =================================================== */}
-
-        {/* 
-        <BannerAd isDarkMode={isDarkMode} />
-        */}
 
         {/* ===================================================
             MAIN POST
