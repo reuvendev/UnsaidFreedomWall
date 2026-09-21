@@ -190,6 +190,7 @@ export default function ChatQueuePage() {
   const [currentRoomId, setCurrentRoomId] = useState<string | null>(null);
   const [isDarkMode, setIsDarkMode] = useState<boolean>(false);
   const [retryKey, setRetryKey] = useState<number>(0);
+  const [showShareModal, setShowShareModal] = useState(false);
 
   useEffect(() => {
     try {
@@ -224,6 +225,7 @@ export default function ChatQueuePage() {
     let unsubscribeRoom: (() => void) | null = null;
     let cleanupTimeout: NodeJS.Timeout | null = null;
     let countdownInterval: NodeJS.Timeout | null = null;
+    let shareModalTimeout: NodeJS.Timeout | null = null;
 
     const setupMatchmaking = async () => {
       let userId = localStorage.getItem(STREAK_USER_KEY);
@@ -458,6 +460,12 @@ export default function ChatQueuePage() {
             newRoomRef.id
           );
 
+          shareModalTimeout = setTimeout(() => {
+            if (isMounted) {
+              setShowShareModal(true);
+            }
+          }, 60000);
+
           unsubscribeRoom = onSnapshot(
             newRoomRef,
             async (docSnap) => {
@@ -535,6 +543,8 @@ export default function ChatQueuePage() {
                   setStatusText(
                     'Peer connected! Entering chat...'
                   );
+
+                  setShowShareModal(false);
 
                   router.push(
                     `/chat/${newRoomRef.id}`
@@ -662,8 +672,31 @@ export default function ChatQueuePage() {
           countdownInterval
         );
       }
+
+      if (shareModalTimeout) {
+        clearTimeout(shareModalTimeout);
+      }
     };
   }, [router, retryKey]);
+
+  const handleShare = async () => {
+    const shareData = {
+      title: 'Tambayan SLU',
+      text: 'Tara sa Tambayan! Join the anonymous chat for Louisians.',
+      url: 'https://tambayanslu.com/',
+    };
+
+    try {
+      if (navigator.share) {
+        await navigator.share(shareData);
+      } else {
+        await navigator.clipboard.writeText(shareData.url);
+        alert('Link copied!');
+      }
+    } catch (error) {
+      // User cancelled sharing
+    }
+  };
 
   const handleCancel = async () => {
     if (currentRoomId) {
@@ -782,6 +815,66 @@ export default function ChatQueuePage() {
           </button>
         </div>
       </main>
+      {showShareModal && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/50 px-5 backdrop-blur-sm">
+          <div
+            className={`w-full max-w-sm rounded-2xl border p-6 text-left shadow-2xl ${
+              isDarkMode
+                ? 'bg-neutral-900 border-neutral-800'
+                : 'bg-white border-neutral-200'
+            }`}
+          >
+            <p className="mb-2 font-mono text-[10px] font-bold uppercase tracking-widest text-emerald-600">
+              Still queueing...
+            </p>
+
+            <h2
+              className={`text-xl font-extrabold ${
+                isDarkMode ? 'text-white' : 'text-neutral-900'
+              }`}
+            >
+              How about sharing Tambayan?
+            </h2>
+
+            <p
+              className={`mt-2 text-sm leading-relaxed ${
+                isDarkMode ? 'text-neutral-400' : 'text-neutral-500'
+              }`}
+            >
+              While waiting, invite your friends or share Tambayan to your groups.
+              More people online means more chances to find a chatmate.
+            </p>
+
+            <div className="mt-5 space-y-2">
+              <button
+                onClick={handleShare}
+                className="w-full rounded-xl bg-emerald-600 px-4 py-3.5 font-mono text-xs font-bold uppercase tracking-wider text-white hover:bg-emerald-700 active:scale-[0.98]"
+              >
+                Share Tambayan
+              </button>
+
+              <button
+                onClick={() => setShowShareModal(false)}
+                className={`w-full rounded-xl px-4 py-3 font-mono text-xs font-bold ${
+                  isDarkMode
+                    ? 'text-neutral-400 hover:bg-neutral-800'
+                    : 'text-neutral-500 hover:bg-neutral-100'
+                }`}
+              >
+                Maybe later
+              </button>
+            </div>
+
+            <p
+              className={`mt-4 text-center font-mono text-[10px] ${
+                isDarkMode ? 'text-neutral-600' : 'text-neutral-400'
+              }`}
+            >
+              You're still in the queue while this is open.
+            </p>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
