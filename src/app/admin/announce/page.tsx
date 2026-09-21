@@ -601,19 +601,29 @@ export default function AdminPostPortal() {
         replyAliases[postId]?.trim() ||
         'Lead Developer [ADMIN]';
 
+      const normalizedAlias = alias.toLowerCase();
+
+      const isDeveloperReply =
+        normalizedAlias.includes('lead developer') ||
+        normalizedAlias === 'nevz';
+
       await addDoc(
-        collection(
-          db,
-          'posts',
-          postId,
-          'replies'
-        ),
-        {
-          content: replyText.trim(),
-          authorAlias: alias,
-          createdAt: serverTimestamp(),
-        }
-      );
+      collection(
+        db,
+        'posts',
+        postId,
+        'replies'
+      ),
+      {
+        content: replyText.trim(),
+        authorAlias: alias,
+
+        isDeveloperReply:
+          isDeveloperReply,
+
+        createdAt: serverTimestamp(),
+      }
+    );
 
       const postRef = doc(
         db,

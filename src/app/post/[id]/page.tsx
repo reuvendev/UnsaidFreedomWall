@@ -44,6 +44,7 @@ interface ReplyData {
   content: string;
   createdAt: string;
   imageUrl?: string;
+  isDeveloperReply?: boolean;
 }
 
 const Icons = {
@@ -553,16 +554,24 @@ export default function PostDetailPage() {
 
               fetchedReplies.push({
                 id: rSnap.id,
+
                 authorAlias:
                   rData.authorAlias ||
                   'Louisian #99999',
+
                 content:
                   rData.content || '',
+
                 createdAt:
                   formattedReplyDate,
+
                 imageUrl:
                   rData.imageUrl ||
                   undefined,
+
+                isDeveloperReply:
+                  rData.isDeveloperReply ||
+                  false,
               });
             }
           );
@@ -1405,18 +1414,17 @@ export default function PostDetailPage() {
           </h3>
 
           {replies.map((reply) => {
+            const normalizedAlias =
+              reply.authorAlias
+                .trim()
+                .toLowerCase();
+
             const isReplyAdminOrDev =
-              reply.authorAlias
-                .toLowerCase()
-                .includes('admin') ||
-              reply.authorAlias
-                .toLowerCase()
-                .includes(
-                  'developer'
-                ) ||
-              reply.authorAlias
-                .toLowerCase()
-                .includes('dev');
+              reply.isDeveloperReply ||
+              normalizedAlias.includes('admin') ||
+              normalizedAlias.includes('developer') ||
+              normalizedAlias.includes('dev') ||
+              normalizedAlias === 'nevz';
 
             return (
               <div
