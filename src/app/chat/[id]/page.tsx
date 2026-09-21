@@ -76,6 +76,16 @@ const REPORT_REASONS = [
 
 const AVAILABLE_REACTIONS = ['❤️', '👍', '😂', '🔥', '😮', '😢'];
 
+const DEVELOPER_USER_IDS = [
+  'user_grrbyvw91',
+  'user_rtryawgma',
+  'user_r73rv5uu',
+];
+
+const isDeveloperUser = (id?: string | null) => {
+  return !!id && DEVELOPER_USER_IDS.includes(id);
+};
+
 type EncryptedData = {
   ciphertext: string;
   iv: string;
@@ -268,6 +278,20 @@ const deriveSharedRoomKey = async (
 };
 
 const Icons = {
+
+  Verified: () => (
+    <svg
+      xmlns="http://www.w3.org/2000/svg"
+      width="12"
+      height="12"
+      viewBox="0 0 24 24"
+      fill="currentColor"
+      aria-label="Verified Developer"
+    >
+      <path d="M23 12l-2.44-2.79.34-3.69-3.61-.82L15.4 1.5 12 2.96 8.6 1.5 6.71 4.69l-3.61.81.34 3.7L1 12l2.44 2.79-.34 3.7 3.61.81L8.6 22.5l3.4-1.47 3.4 1.46 1.89-3.19 3.61-.82-.34-3.69L23 12zm-12.91 4.72l-3.8-3.81 1.48-1.48 2.32 2.33 5.85-5.87 1.48 1.48-7.33 7.35z" />
+    </svg>
+  ),
+
   Send: () => (
     <svg
       xmlns="http://www.w3.org/2000/svg"
@@ -775,6 +799,8 @@ export default function ChatRoomPage() {
             data.status === 'ended'
           ) {
             setChatStatus('closed');
+          } else {
+            setChatStatus('active');
           }
         } else {
           setChatStatus('closed');
@@ -1245,6 +1271,8 @@ export default function ChatRoomPage() {
     ? roomData?.guestId
     : roomData?.hostId;
 
+  const isPeerDeveloper = isDeveloperUser(peerUserId);
+
   const peerNickname = isHost
     ? roomData?.guestNickname || 'Waiting...'
     : roomData?.hostNickname;
@@ -1313,6 +1341,14 @@ export default function ChatRoomPage() {
                   }
                 >
                   {peerNickname}
+                  {isPeerDeveloper && (
+                    <span
+                      className="inline-flex items-center text-blue-500 shrink-0 ml-1"
+                      title="Official TambayanSLU Developer"
+                    >
+                      <Icons.Verified />
+                    </span>
+                  )}
                 </span>
               </h2>
 
@@ -1458,6 +1494,8 @@ export default function ChatRoomPage() {
 
           {messages.map((msg) => {
             const isMe = msg.senderId === userId;
+            const isDeveloper = isDeveloperUser(msg.senderId);
+
             const isPickerOpen =
               activeReactionPickerId === msg.id;
 
@@ -1506,15 +1544,26 @@ export default function ChatRoomPage() {
                   isMe ? 'items-end' : 'items-start'
                 }`}
               >
-                <span
-                  className={`font-mono text-[10px] mb-1 px-1 ${
+                <div
+                  className={`flex items-center gap-1.5 font-mono text-[10px] mb-1 px-1 ${
                     isDarkMode
                       ? 'text-neutral-500'
                       : 'text-neutral-400'
                   }`}
                 >
-                  {isMe ? 'You' : msg.senderNickname}
-                </span>
+                  <span>
+                    {isMe ? 'You' : msg.senderNickname}
+                  </span>
+
+                  {isDeveloper && (
+                    <span
+                      className="inline-flex items-center text-blue-500 shrink-0"
+                      title="Official TambayanSLU Developer"
+                    >
+                      <Icons.Verified />
+                    </span>
+                  )}
+                </div>
 
                 <div className="relative group max-w-[88%] sm:max-w-[80%]">
                   <div
