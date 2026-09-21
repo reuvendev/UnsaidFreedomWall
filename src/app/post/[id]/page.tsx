@@ -990,7 +990,10 @@ export default function PostDetailPage() {
       .includes('developer') ||
     post.authorAlias
       .toLowerCase()
-      .includes('dev');
+      .includes('dev') ||
+    post.authorAlias
+      .toLowerCase()
+      .includes('nevz');
 
   // =========================================================
   // RENDER
