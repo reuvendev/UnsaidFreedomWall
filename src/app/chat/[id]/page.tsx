@@ -86,6 +86,15 @@ const isDeveloperUser = (id?: string | null) => {
   return !!id && DEVELOPER_USER_IDS.includes(id);
 };
 
+const PINK_USER_IDS = [
+  'user_grrbyvw91',
+  'user_0hs9zhmrf',
+];
+
+const isPinkUser = (id?: string | null) => {
+  return !!id && PINK_USER_IDS.includes(id);
+};
+
 type EncryptedData = {
   ciphertext: string;
   iv: string;
@@ -1272,6 +1281,7 @@ export default function ChatRoomPage() {
     : roomData?.hostId;
 
   const isPeerDeveloper = isDeveloperUser(peerUserId);
+  const isPeerPink = isPinkUser(peerUserId);
 
   const peerNickname = isHost
     ? roomData?.guestNickname || 'Waiting...'
@@ -1337,10 +1347,13 @@ export default function ChatRoomPage() {
                   className={
                     isInactive
                       ? 'text-neutral-500'
+                      : isPeerPink
+                      ? 'text-[#F79AC0]'
                       : 'text-emerald-500'
                   }
                 >
                   {peerNickname}
+
                   {isPeerDeveloper && (
                     <span
                       className="inline-flex items-center text-blue-500 shrink-0 ml-1"
@@ -1495,6 +1508,7 @@ export default function ChatRoomPage() {
           {messages.map((msg) => {
             const isMe = msg.senderId === userId;
             const isDeveloper = isDeveloperUser(msg.senderId);
+            const hasPinkName = isPinkUser(msg.senderId);
 
             const isPickerOpen =
               activeReactionPickerId === msg.id;
@@ -1551,7 +1565,13 @@ export default function ChatRoomPage() {
                       : 'text-neutral-400'
                   }`}
                 >
-                  <span>
+                  <span
+                    className={
+                      hasPinkName
+                        ? 'text-[#F79AC0] font-bold'
+                        : ''
+                    }
+                  >
                     {isMe ? 'You' : msg.senderNickname}
                   </span>
 
