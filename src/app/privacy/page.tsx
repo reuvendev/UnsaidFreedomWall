@@ -82,7 +82,7 @@ export default function PrivacyPolicyPage() {
             Privacy Policy
           </h1>
           <p className="font-mono text-[11px] text-neutral-500 mb-6">
-            Last updated: September 20, 2026
+            Last updated: September 23, 2026
           </p>
 
           <div className={`space-y-4 text-base leading-relaxed ${body}`}>
@@ -398,13 +398,60 @@ export default function PrivacyPolicyPage() {
           </section>
 
           <section className={`rounded-2xl border p-6 sm:p-8 ${card}`}>
-            <p className="font-mono text-[10px] font-bold uppercase tracking-widest text-emerald-600 mb-3">12 · Policy Updates</p>
-            <h2 className={`text-2xl font-extrabold tracking-tight mb-4 ${heading}`}>Changes to this Privacy Policy</h2>
-            <p className={`text-sm sm:text-base leading-relaxed ${body}`}>
-              Tambayan may update this Privacy Policy when features, service providers, data practices,
-              legal requirements, or advertising practices change. The date at the top of this page
-              will be updated when material revisions are published.
+            <p className="font-mono text-[10px] font-bold uppercase tracking-widest text-emerald-600 mb-3">
+              12 · Philippine Data Privacy Act
             </p>
+
+            <h2 className={`text-2xl font-extrabold tracking-tight mb-4 ${heading}`}>
+              Your rights under Philippine data privacy law
+            </h2>
+
+            <div className={`space-y-4 text-sm sm:text-base leading-relaxed ${body}`}>
+              <p>
+                Tambayan recognizes the principles and requirements of Republic Act
+                No. 10173, also known as the Data Privacy Act of 2012, its Implementing
+                Rules and Regulations, and applicable issuances of the National Privacy
+                Commission (NPC).
+              </p>
+
+              <p>
+                Personal data processed through Tambayan is handled in accordance with
+                the principles of transparency, legitimate purpose, and proportionality.
+                Tambayan aims to process only information reasonably necessary to
+                operate, moderate, secure, and improve the service.
+              </p>
+
+              <p>
+                Where applicable under Philippine data privacy law, data subjects may
+                exercise rights including the right to be informed, access personal
+                data, object to certain processing, request correction, request erasure
+                or blocking, obtain data portability where applicable, claim damages,
+                and file a complaint with the National Privacy Commission.
+              </p>
+
+              <p>
+                Because Tambayan primarily operates through anonymous identifiers rather
+                than traditional user accounts, fulfilling certain requests may require
+                enough information to reasonably identify the relevant data without
+                compromising the privacy of other users.
+              </p>
+
+              <p>
+                Tambayan takes reasonable organizational and technical measures to
+                protect personal data against unauthorized access, disclosure,
+                alteration, loss, or other unlawful processing. However, no online
+                service or method of electronic storage can guarantee absolute security.
+              </p>
+            </div>
+
+            <a
+              href="https://privacy.gov.ph/data-privacy-act/"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex mt-5 font-mono text-[10px] font-bold uppercase tracking-wider text-emerald-600 hover:text-emerald-500"
+            >
+              Learn about the Data Privacy Act →
+            </a>
           </section>
 
           <section className={`rounded-2xl border p-6 sm:p-8 ${card}`}>
