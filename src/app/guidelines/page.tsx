@@ -296,6 +296,9 @@ export default function GuidelinesPage() {
           <h1 className={`text-4xl sm:text-5xl font-extrabold tracking-tight leading-tight mb-6 ${heading}`}>
             Community Guidelines
           </h1>
+          <p className="font-mono text-[11px] text-neutral-500 mb-6">
+            Last updated: September 23, 2026
+          </p>
 
           <div className={`space-y-4 text-base leading-relaxed ${body}`}>
             <p>
