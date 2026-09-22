@@ -87,6 +87,7 @@ export function Footer() {
             >
               Appeal
             </Link>
+            <Link href="/about" className={`transition-colors ${isDarkMode ? 'hover:text-white' : 'hover:text-neutral-900'}`}>FAQ</Link>
             <Link href="/post" className={`transition-opacity ${isDarkMode ? 'text-white hover:opacity-70' : 'text-neutral-900 hover:opacity-70'}`}>Submit +</Link>
           </div>
         </div>
