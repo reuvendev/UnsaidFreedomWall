@@ -126,6 +126,83 @@ const rules = [
       </>
     ),
   },
+    {
+    number: '09',
+    title: 'Share Responsibly',
+    content: (
+      <>
+        Tambayan welcomes campus experiences, academic struggles, questions,
+        confessions, relationships, opinions, stories, and everyday thoughts.
+        Before submitting something, consider whether it unnecessarily exposes,
+        targets, or harms another person. You are responsible for the content
+        you choose to submit.
+      </>
+    ),
+  },
+  {
+    number: '10',
+    title: 'No Sexual Harassment',
+    content: (
+      <>
+        Do not use Tambayan to make targeted unwanted sexual remarks, sexual
+        threats, repeated sexual advances, or other forms of sexual harassment
+        toward another person. Discussions about relationships, attraction,
+        dating, or sexual topics may be allowed when they do not target,
+        exploit, or harass another person.
+      </>
+    ),
+  },
+  {
+    number: '11',
+    title: 'No Illegal or Harmful Activity',
+    content: (
+      <>
+        Do not use Tambayan to facilitate scams, exploitation, unauthorized
+        access to accounts or systems, distribution of unlawfully obtained
+        private information, or other unlawful activities. Content may be
+        rejected or removed when there is a reasonable basis to believe that
+        its publication would violate applicable law or create a serious safety
+        risk.
+      </>
+    ),
+  },
+  {
+    number: '12',
+    title: 'Zero Tolerance for Sexual Exploitation of Minors',
+    content: (
+      <>
+        Sexual content involving anyone under 18, including sexual images,
+        videos, solicitation, grooming, exploitation, or attempts to obtain or
+        distribute such material, is strictly prohibited. Tambayan may remove
+        such content and take appropriate action when necessary to protect users
+        or comply with applicable law.
+      </>
+    ),
+  },
+  {
+    number: '13',
+    title: 'Respect Copyright & Other People’s Content',
+    content: (
+      <>
+        Do not upload or distribute content that you do not have the right or
+        permission to share. Tambayan may remove material when appropriate,
+        including following a legitimate complaint from a rights holder.
+      </>
+    ),
+  },
+  {
+    number: '14',
+    title: 'Philippine Law Still Applies',
+    content: (
+      <>
+        Tambayan is an anonymous community, but anonymity does not exempt users
+        from applicable Philippine law. Content may be restricted, preserved,
+        or removed when reasonably necessary to protect users, enforce these
+        guidelines, comply with applicable legal obligations, or respond to
+        valid lawful requests from competent authorities.
+      </>
+    ),
+  },
 ];
 
 export default function GuidelinesPage() {
@@ -305,6 +382,56 @@ export default function GuidelinesPage() {
             </section>
           ))}
         </div>
+
+        {/* PHILIPPINE LAW & SAFETY */}
+        <section
+          className={`rounded-2xl border p-6 sm:p-8 mt-5 ${
+            isDarkMode
+              ? 'bg-blue-950/20 border-blue-900/50'
+              : 'bg-blue-50 border-blue-200'
+          }`}
+        >
+          <p className="font-mono text-[10px] font-bold uppercase tracking-widest text-blue-600 mb-3">
+            Philippine Law & Safety
+          </p>
+
+          <h2
+            className={`text-2xl font-extrabold tracking-tight mb-4 ${heading}`}
+          >
+            These guidelines work alongside applicable Philippine laws.
+          </h2>
+
+          <div
+            className={`space-y-4 text-sm sm:text-base leading-relaxed ${body}`}
+          >
+            <p>
+              Depending on the circumstances, relevant laws may include the
+              Data Privacy Act of 2012 (RA 10173), Cybercrime Prevention Act
+              of 2012 (RA 10175), Safe Spaces Act (RA 11313), Anti-Photo and
+              Video Voyeurism Act of 2009 (RA 9995), and laws protecting
+              children from online sexual abuse and exploitation.
+            </p>
+
+            <p>
+              Tambayan may remove, restrict, or preserve content when reasonably
+              necessary to enforce these guidelines, protect the community,
+              comply with applicable legal obligations, or respond to valid
+              lawful requests from competent authorities.
+            </p>
+
+            <p className={`font-semibold ${heading}`}>
+              Being anonymous on Tambayan does not provide immunity from
+              applicable law.
+            </p>
+          </div>
+
+          <Link
+            href="/privacy"
+            className="inline-flex mt-5 font-mono text-[10px] font-bold uppercase tracking-wider text-blue-600 hover:text-blue-500"
+          >
+            Read Privacy Policy →
+          </Link>
+        </section>
 
         <section className={`rounded-2xl border p-6 sm:p-8 mt-5 ${card}`}>
           <p className="font-mono text-[10px] font-bold uppercase tracking-widest text-emerald-600 mb-3">
