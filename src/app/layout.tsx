@@ -17,8 +17,59 @@ const jetbrainsMono = JetBrains_Mono({
 export const metadata: Metadata = {
   title: "TambayanEselyu — Freedom Wall & Anonymous Chat",
   description: "A safe, uninhibited anonymous space to share your thoughts, and rants.",
+
+  keywords: [
+      "TambayanEselyu",
+      "Tambayan SLU",
+      "TambayanSLU",
+      "SLU Freedom Wall",
+      "Saint Louis University Freedom Wall",
+      "SLU Anonymous Chat",
+      "Louisian Freedom Wall",
+      "Louisian Anonymous Chat",
+      "SLU Baguio",
+      "Saint Louis University Baguio",
+      "Louisians",
+    ],
+
+  authors: [
+    {
+      name: "TambayanEselyu",
+    },
+  ],
+
+  creator: "TambayanEselyu",
+  publisher: "TambayanEselyu",
+
+  robots: {
+    index: true,
+    follow: true,
+    googleBot: {
+      index: true,
+      follow: true,
+    },
+  },
+
   icons: {
     icon: "https://cdn.tambayanslu.com/icon/TAMBAYAN_IC.png", 
+  },
+
+  openGraph: {
+    title: "TambayanEselyu — Freedom Wall & Anonymous Chat",
+    description:
+      "An independent anonymous community for Louisians to share thoughts, stories, questions, and conversations.",
+    url: "https://tambayanslu.com",
+    siteName: "TambayanEselyu",
+    type: "website",
+    locale: "en_PH",
+    images: [
+      {
+        url: "https://cdn.tambayanslu.com/icon/TAMBAYAN_IC.png",
+        width: 512,
+        height: 512,
+        alt: "TambayanEselyu",
+      },
+    ],
   },
 };
 
