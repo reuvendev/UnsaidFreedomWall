@@ -20,6 +20,10 @@ import {
 } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 
+
+const QUEUE_HEARTBEAT_INTERVAL = 10_000;
+const QUEUE_OFFLINE_TIMEOUT = 30_000;
+
 const STREAK_USER_KEY = 'unsaid_chat_user_id';
 
 const Icons = {
@@ -227,6 +231,7 @@ export default function ChatQueuePage() {
     let cleanupTimeout: NodeJS.Timeout | null = null;
     let countdownInterval: NodeJS.Timeout | null = null;
     let shareModalTimeout: NodeJS.Timeout | null = null;
+    let heartbeatInterval: NodeJS.Timeout | null = null;
 
     const setupMatchmaking = async () => {
       let userId = localStorage.getItem(STREAK_USER_KEY);
@@ -337,6 +342,7 @@ export default function ChatQueuePage() {
         for (const roomData of waitingRooms) {
           const hostId = roomData.hostId;
 
+          // Skip yourself, blocked users, and recent matches
           if (
             hostId === userId ||
             blockedUsers.includes(hostId) ||
@@ -345,16 +351,20 @@ export default function ChatQueuePage() {
             continue;
           }
 
-          const createdAt =
-            roomData.createdAt?.toDate
-              ? roomData.createdAt.toDate()
-              : new Date();
+          // ==========================================
+          // CHECK IF HOST IS ACTUALLY STILL ONLINE
+          // ==========================================
+          const hostLastSeenMs =
+            roomData.hostLastSeenAt?.toMillis?.() ?? 0;
 
-          const isStale =
-            Date.now() - createdAt.getTime() >
-            180000;
+          const hostIsOffline =
+            !hostLastSeenMs ||
+            Date.now() - hostLastSeenMs >
+              QUEUE_OFFLINE_TIMEOUT;
 
-          if (isStale) {
+          // Host stopped sending heartbeat.
+          // Clean up the abandoned waiting room.
+          if (hostIsOffline) {
             const staleRoomRef = doc(
               db,
               'chatRooms',
@@ -372,9 +382,20 @@ export default function ChatQueuePage() {
 
                   const latestData = latest.data();
 
+                  // Check heartbeat AGAIN inside transaction
+                  // in case the host came back.
+                  const latestHeartbeat =
+                    latestData.hostLastSeenAt?.toMillis?.() ?? 0;
+
+                  const stillOffline =
+                    !latestHeartbeat ||
+                    Date.now() - latestHeartbeat >
+                      QUEUE_OFFLINE_TIMEOUT;
+
                   if (
                     latestData.status === 'waiting' &&
-                    !latestData.guestId
+                    !latestData.guestId &&
+                    stillOffline
                   ) {
                     transaction.delete(staleRoomRef);
                   }
@@ -382,14 +403,16 @@ export default function ChatQueuePage() {
               );
             } catch (error) {
               console.error(
-                'Stale cleanup failed:',
+                'Offline waiting room cleanup failed:',
                 error
               );
             }
 
+            // Don't match with this room
             continue;
           }
 
+          // Host is alive, so this room can be matched.
           matchedRoomId = roomData.id;
           matchedHostId = hostId;
 
@@ -445,6 +468,31 @@ export default function ChatQueuePage() {
                 ) {
                   return false;
                 }
+
+                const hostLastSeenMs =
+                  roomData.hostLastSeenAt?.toMillis?.() ?? 0;
+
+                const hostIsOffline =
+                  !hostLastSeenMs ||
+                  Date.now() - hostLastSeenMs >
+                    QUEUE_OFFLINE_TIMEOUT;
+
+                if (hostIsOffline) {
+                  return false;
+                }
+
+                transaction.update(roomRef, {
+                  guestId: userId,
+                  guestNickname: nickname,
+                  guestSchool: school,
+                  guestStreak: currentStreak,
+
+                  guestLastSeenAt: serverTimestamp(),
+
+                  status: 'active',
+                });
+
+                return true;
 
                 transaction.update(roomRef, {
                   guestId: userId,
@@ -531,6 +579,16 @@ export default function ChatQueuePage() {
             newRoomRef.id
           );
 
+          heartbeatInterval = setInterval(() => {
+            if (!isMounted) return;
+
+            updateDoc(newRoomRef, {
+              hostLastSeenAt: serverTimestamp(),
+            }).catch((error) => {
+              console.warn('Queue heartbeat failed:', error);
+            });
+          }, QUEUE_HEARTBEAT_INTERVAL);
+
           shareModalTimeout = setTimeout(() => {
             if (isMounted) {
               setShowShareModal(true);
@@ -553,6 +611,11 @@ export default function ChatQueuePage() {
                   if (hasHandledMatch) return;
 
                   hasHandledMatch = true;
+
+                  if (heartbeatInterval) {
+                    clearInterval(heartbeatInterval);
+                    heartbeatInterval = null;
+                  }
 
                   if (cleanupTimeout) {
                     clearTimeout(cleanupTimeout);
@@ -759,6 +822,11 @@ export default function ChatQueuePage() {
 
       if (shareModalTimeout) {
         clearTimeout(shareModalTimeout);
+      }
+
+      if (heartbeatInterval) {
+        clearInterval(heartbeatInterval);
+        heartbeatInterval = null;
       }
     };
   }, [router, retryKey]);

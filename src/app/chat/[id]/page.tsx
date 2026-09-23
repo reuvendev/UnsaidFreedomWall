@@ -44,11 +44,16 @@ interface RoomData {
   hostId: string;
   hostNickname: string;
   hostSchool?: string;
+
   guestId?: string | null;
   guestNickname?: string | null;
   guestSchool?: string | null;
+
   hostStreak?: number;
   guestStreak?: number;
+
+  hostLastSeenAt?: any;
+  guestLastSeenAt?: any;
 
   status?: 'waiting' | 'active' | 'ended' | 'blocked' | 'closed';
 
@@ -493,6 +498,7 @@ export default function ChatRoomPage() {
   const [roomData, setRoomData] = useState<RoomData | null>(null);
   const [messages, setMessages] = useState<Message[]>([]);
   const [newMessage, setNewMessage] = useState('');
+  const [isPeerOnline, setIsPeerOnline] = useState(false);
   const [replyingTo, setReplyingTo] = useState<Message | null>(null);
   const [activeReactionPickerId, setActiveReactionPickerId] = useState<
     string | null
@@ -643,6 +649,104 @@ export default function ChatRoomPage() {
       router.push('/');
     }
   }, [roomId, router]);
+
+// ==========================================
+// ACTIVE CHAT PRESENCE HEARTBEAT
+// ==========================================
+useEffect(() => {
+  if (!roomId || !userId || !roomData) return;
+
+  if (roomData.status !== 'active') return;
+
+  const isHost = roomData.hostId === userId;
+  const isGuest = roomData.guestId === userId;
+
+  // User doesn't belong to this room
+  if (!isHost && !isGuest) return;
+
+  const presenceField = isHost
+    ? 'hostLastSeenAt'
+    : 'guestLastSeenAt';
+
+  const roomRef = doc(db, 'chatRooms', roomId);
+
+  const sendHeartbeat = () => {
+    updateDoc(roomRef, {
+      [presenceField]: serverTimestamp(),
+    }).catch((error) => {
+      console.warn(
+        'Chat heartbeat failed:',
+        error
+      );
+    });
+  };
+
+  // Mark online immediately
+  sendHeartbeat();
+
+  // Continue heartbeat while chat is open
+  const interval = setInterval(
+    sendHeartbeat,
+    10_000
+  );
+
+  return () => {
+    clearInterval(interval);
+  };
+}, [
+  roomId,
+  userId,
+  roomData?.hostId,
+  roomData?.guestId,
+  roomData?.status,
+]);
+
+// ==========================================
+// PEER ONLINE STATUS
+// ==========================================
+useEffect(() => {
+  if (!roomData || !userId) {
+    setIsPeerOnline(false);
+    return;
+  }
+
+  const isHost = roomData.hostId === userId;
+
+  const peerLastSeen = isHost
+    ? roomData.guestLastSeenAt
+    : roomData.hostLastSeenAt;
+
+  const checkPresence = () => {
+    const lastSeenMs =
+      peerLastSeen?.toMillis?.() ?? 0;
+
+    const online =
+      chatStatus === 'active' &&
+      lastSeenMs > 0 &&
+      Date.now() - lastSeenMs < 30_000;
+
+    setIsPeerOnline(online);
+  };
+
+  // Check immediately
+  checkPresence();
+
+  // Recheck every 5 seconds
+  const interval = setInterval(
+    checkPresence,
+    5_000
+  );
+
+  return () => {
+    clearInterval(interval);
+  };
+}, [
+  roomData?.hostLastSeenAt,
+  roomData?.guestLastSeenAt,
+  roomData?.hostId,
+  userId,
+  chatStatus,
+]);
 
     useEffect(() => {
       if (!roomId || !userId || !roomData) return;
@@ -1430,9 +1534,9 @@ useEffect(() => {
         <div className="flex items-center gap-2.5 min-w-0 flex-1">
           <div
             className={`w-2.5 h-2.5 rounded-full shrink-0 ${
-              isInactive
-                ? 'bg-neutral-400'
-                : 'bg-emerald-500 animate-pulse'
+              isPeerOnline
+                ? 'bg-emerald-500 animate-pulse'
+                : 'bg-neutral-400'
             }`}
           ></div>
 
@@ -1498,12 +1602,18 @@ useEffect(() => {
 
             <p
               className={`font-mono text-[9px] sm:text-[10px] ${
-                isDarkMode
+                isPeerOnline
+                  ? 'text-emerald-500'
+                  : isDarkMode
                   ? 'text-neutral-500'
                   : 'text-neutral-400'
               }`}
             >
-              Tambayanslu.com
+              {isInactive
+                ? 'Chat ended'
+                : isPeerOnline
+                ? 'Online'
+                : 'Offline'}
             </p>
           </div>
         </div>
