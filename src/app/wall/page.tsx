@@ -1706,7 +1706,7 @@ useEffect(() => {
         </div>
 
 
-{/* ₱1 BILLION COMMUNITY BUDGET */}
+{/* ₱1 BILLION COMMUNITY BUDGET 
 <Link
   href="/budget"
   className={`group relative block mb-10 overflow-hidden rounded-2xl border transition-all duration-300 hover:-translate-y-1 hover:shadow-xl ${
@@ -1715,14 +1715,12 @@ useEffect(() => {
       : 'bg-white border-neutral-200'
   }`}
 >
-  {/* PH-INSPIRED TOP ACCENT */}
   <div className="absolute top-0 left-0 right-0 h-1 flex">
     <div className="flex-1 bg-blue-600" />
     <div className="w-14 bg-yellow-400" />
     <div className="flex-1 bg-red-600" />
   </div>
 
-  {/* DECORATIVE PESO */}
   <div
     className={`absolute -right-5 -top-5 text-[120px] font-black leading-none select-none pointer-events-none transition-transform duration-500 group-hover:rotate-6 group-hover:scale-110 ${
       isDarkMode
@@ -1735,7 +1733,6 @@ useEffect(() => {
 
   <div className="relative p-5 pt-7 sm:p-6 sm:pt-8">
 
-    {/* LABEL */}
     <div className="flex items-center gap-3 mb-5">
       <div
         className={`w-9 h-9 rounded-xl flex items-center justify-center border ${
@@ -1744,7 +1741,7 @@ useEffect(() => {
             : 'bg-yellow-50 border-yellow-200 text-yellow-600'
         }`}
       >
-        {/* PESO ICON */}
+
         <svg
           xmlns="http://www.w3.org/2000/svg"
           viewBox="0 0 24 24"
@@ -1785,7 +1782,6 @@ useEffect(() => {
       </div>
     </div>
 
-    {/* TITLE */}
     <h2
       className={`text-2xl sm:text-3xl font-black tracking-tight leading-tight max-w-md ${
         isDarkMode
@@ -1797,8 +1793,6 @@ useEffect(() => {
       <br />
       Saan mo gagastusin?
     </h2>
-
-    {/* DESCRIPTION */}
     <p
       className={`mt-4 text-sm leading-relaxed max-w-md ${
         isDarkMode
@@ -1821,14 +1815,12 @@ useEffect(() => {
       ₱1 billion community budget.
     </p>
 
-    {/* MINI PH COLOR DIVIDER */}
     <div className="flex items-center gap-1 mt-6">
       <div className="w-8 h-0.5 rounded-full bg-blue-600" />
       <div className="w-3 h-0.5 rounded-full bg-yellow-400" />
       <div className="w-8 h-0.5 rounded-full bg-red-600" />
     </div>
 
-    {/* FOOTER */}
     <div
       className={`mt-5 pt-4 border-t flex items-center justify-between gap-4 ${
         isDarkMode
@@ -1884,7 +1876,7 @@ useEffect(() => {
     </div>
 
   </div>
-</Link>
+</Link> */}
 
         {/* TOP 5 MOST UPVOTED */}
 {topPosts.length > 0 && (
