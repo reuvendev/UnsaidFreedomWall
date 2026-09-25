@@ -79,7 +79,7 @@ export default function PrivacyPolicyPage() {
             Privacy & Transparency
           </p>
           <h1 className={`text-4xl sm:text-5xl font-extrabold tracking-tight leading-tight mb-4 ${heading}`}>
-            Privacy Policy
+            Privacy & Cookie Policy
           </h1>
           <p className="font-mono text-[11px] text-neutral-500 mb-6">
             Last updated: September 23, 2026

@@ -1705,6 +1705,187 @@ useEffect(() => {
 </Link>
         </div>
 
+
+{/* ₱1 BILLION COMMUNITY BUDGET */}
+<Link
+  href="/budget"
+  className={`group relative block mb-10 overflow-hidden rounded-2xl border transition-all duration-300 hover:-translate-y-1 hover:shadow-xl ${
+    isDarkMode
+      ? 'bg-neutral-900 border-neutral-800'
+      : 'bg-white border-neutral-200'
+  }`}
+>
+  {/* PH-INSPIRED TOP ACCENT */}
+  <div className="absolute top-0 left-0 right-0 h-1 flex">
+    <div className="flex-1 bg-blue-600" />
+    <div className="w-14 bg-yellow-400" />
+    <div className="flex-1 bg-red-600" />
+  </div>
+
+  {/* DECORATIVE PESO */}
+  <div
+    className={`absolute -right-5 -top-5 text-[120px] font-black leading-none select-none pointer-events-none transition-transform duration-500 group-hover:rotate-6 group-hover:scale-110 ${
+      isDarkMode
+        ? 'text-white/[0.025]'
+        : 'text-neutral-900/[0.025]'
+    }`}
+  >
+    ₱
+  </div>
+
+  <div className="relative p-5 pt-7 sm:p-6 sm:pt-8">
+
+    {/* LABEL */}
+    <div className="flex items-center gap-3 mb-5">
+      <div
+        className={`w-9 h-9 rounded-xl flex items-center justify-center border ${
+          isDarkMode
+            ? 'bg-neutral-800 border-neutral-700 text-yellow-400'
+            : 'bg-yellow-50 border-yellow-200 text-yellow-600'
+        }`}
+      >
+        {/* PESO ICON */}
+        <svg
+          xmlns="http://www.w3.org/2000/svg"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="2"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+          className="w-5 h-5"
+        >
+          <path d="M7 21V3" />
+          <path d="M7 4h6a5 5 0 0 1 0 10H7" />
+          <path d="M4 8h13" />
+          <path d="M4 11h13" />
+        </svg>
+      </div>
+
+      <div>
+        <p
+          className={`font-mono text-[9px] font-bold uppercase tracking-[0.18em] ${
+            isDarkMode
+              ? 'text-neutral-500'
+              : 'text-neutral-400'
+          }`}
+        >
+          Tambayan Experiment #001
+        </p>
+
+        <p
+          className={`font-mono text-[10px] font-bold uppercase tracking-wider mt-0.5 ${
+            isDarkMode
+              ? 'text-yellow-400'
+              : 'text-yellow-600'
+          }`}
+        >
+          Public Budget Challenge
+        </p>
+      </div>
+    </div>
+
+    {/* TITLE */}
+    <h2
+      className={`text-2xl sm:text-3xl font-black tracking-tight leading-tight max-w-md ${
+        isDarkMode
+          ? 'text-white'
+          : 'text-neutral-900'
+      }`}
+    >
+      May ₱1 Billion ka.
+      <br />
+      Saan mo gagastusin?
+    </h2>
+
+    {/* DESCRIPTION */}
+    <p
+      className={`mt-4 text-sm leading-relaxed max-w-md ${
+        isDarkMode
+          ? 'text-neutral-400'
+          : 'text-neutral-600'
+      }`}
+    >
+      Education? Healthcare? Agriculture?
+      Transport? Ikaw ang mag-budget.
+    </p>
+
+    <p
+      className={`mt-2 text-xs leading-relaxed max-w-md ${
+        isDarkMode
+          ? 'text-neutral-500'
+          : 'text-neutral-500'
+      }`}
+    >
+      Join other Louisians in building a fictional
+      ₱1 billion community budget.
+    </p>
+
+    {/* MINI PH COLOR DIVIDER */}
+    <div className="flex items-center gap-1 mt-6">
+      <div className="w-8 h-0.5 rounded-full bg-blue-600" />
+      <div className="w-3 h-0.5 rounded-full bg-yellow-400" />
+      <div className="w-8 h-0.5 rounded-full bg-red-600" />
+    </div>
+
+    {/* FOOTER */}
+    <div
+      className={`mt-5 pt-4 border-t flex items-center justify-between gap-4 ${
+        isDarkMode
+          ? 'border-neutral-800'
+          : 'border-neutral-100'
+      }`}
+    >
+      <div>
+        <p
+          className={`font-mono text-[9px] uppercase tracking-widest ${
+            isDarkMode
+              ? 'text-neutral-600'
+              : 'text-neutral-400'
+          }`}
+        >
+          Fictional Budget
+        </p>
+
+        <p
+          className={`mt-0.5 text-[11px] font-medium ${
+            isDarkMode
+              ? 'text-neutral-400'
+              : 'text-neutral-600'
+          }`}
+        >
+          Real choices. Real conversation.
+        </p>
+      </div>
+
+      <div
+        className={`shrink-0 inline-flex items-center gap-2 font-mono text-[10px] sm:text-xs font-black uppercase tracking-wider transition-transform duration-200 group-hover:translate-x-1 ${
+          isDarkMode
+            ? 'text-yellow-400'
+            : 'text-blue-700'
+        }`}
+      >
+        Makialam
+
+        <svg
+          xmlns="http://www.w3.org/2000/svg"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="2"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+          className="w-4 h-4"
+        >
+          <path d="M5 12h14" />
+          <path d="m12 5 7 7-7 7" />
+        </svg>
+      </div>
+    </div>
+
+  </div>
+</Link>
+
         {/* TOP 5 MOST UPVOTED */}
 {topPosts.length > 0 && (
   <section className="mb-10">
