@@ -867,15 +867,6 @@ export default function BudgetPage() {
       );
 
       setHasSubmitted(true);
-
-      requestAnimationFrame(() => {
-        document
-          .getElementById('submission-success')
-          ?.scrollIntoView({
-            behavior: 'smooth',
-            block: 'start',
-          });
-      });
         } catch (err: unknown) {
           console.error(
             'Budget submission failed:',
@@ -1534,25 +1525,23 @@ export default function BudgetPage() {
           </span>
         </div>
 
-        {!hasSubmitted && (
-          <p
-            className={`font-mono text-[9px] leading-relaxed mt-2 ${
-              isDarkMode
-                ? 'text-neutral-600'
-                : 'text-neutral-400'
-            }`}
-          >
-            Based on allocations from{' '}
-            {communityTotals.participants.toLocaleString(
-              'en-PH'
-            )}{' '}
-            Louisian
-            {communityTotals.participants === 1
-              ? ''
-              : 's'}
-            .
-          </p>
-        )}
+        <p
+          className={`font-mono text-[9px] leading-relaxed mt-2 ${
+            isDarkMode
+              ? 'text-neutral-600'
+              : 'text-neutral-400'
+          }`}
+        >
+          Based on allocations from{' '}
+          {communityTotals.participants.toLocaleString(
+            'en-PH'
+          )}{' '}
+          Louisian
+          {communityTotals.participants === 1
+            ? ''
+            : 's'}
+          .
+        </p>
       </div>
     </>
   )}
@@ -1617,8 +1606,6 @@ export default function BudgetPage() {
 
         {/* YOUR BUDGET */}
 
-        {!hasSubmitted && (
-          <>
         <div
           id="your-budget"
           className="scroll-mt-24 flex items-end justify-between mb-4"
@@ -1878,13 +1865,9 @@ export default function BudgetPage() {
   </section>
 )}
 
-          </>
-        )}
-
         {hasSubmitted && (
           <section
-  id="submission-success"
-  className={`scroll-mt-24 mt-6 relative overflow-hidden rounded-2xl border ${
+  className={`mt-6 relative overflow-hidden rounded-2xl border ${
     isDarkMode
       ? 'bg-neutral-900 border-neutral-800'
       : 'bg-white border-neutral-200'
@@ -1899,195 +1882,46 @@ export default function BudgetPage() {
 
   <div className="p-6 sm:p-8">
     {/* Success */}
-    <div className="text-center py-3">
+    <div className="flex items-start gap-4">
       <div
-        className={`w-16 h-16 mx-auto rounded-full flex items-center justify-center ${
+        className={`w-11 h-11 shrink-0 rounded-full flex items-center justify-center ${
           isDarkMode
-            ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20'
-            : 'bg-emerald-50 text-emerald-700 border border-emerald-100'
+            ? 'bg-emerald-500/10 text-emerald-400'
+            : 'bg-emerald-50 text-emerald-700'
         }`}
       >
         <UIIcon
           name="check"
-          className="w-8 h-8"
+          className="w-5 h-5"
         />
       </div>
 
-      <p className="font-mono text-[10px] font-black uppercase tracking-[0.18em] text-emerald-600 mt-5">
-        Budget Locked
-      </p>
-
-      <h3 className="text-3xl sm:text-4xl font-black tracking-tight mt-2 leading-tight">
-        Your voice is now
-        <br />
-        part of the ₱1B.
-      </h3>
-
-      <p
-        className={`text-sm leading-relaxed mt-4 max-w-sm mx-auto ${
-          isDarkMode
-            ? 'text-neutral-400'
-            : 'text-neutral-600'
-        }`}
-      >
-        Your ₱10 million allocation is now
-        included in Tambayan&apos;s live
-        community budget.
-      </p>
-
-      <div
-        className={`mt-6 rounded-xl px-5 py-4 ${
-          isDarkMode
-            ? 'bg-emerald-500/10 border border-emerald-500/20'
-            : 'bg-emerald-50 border border-emerald-100'
-        }`}
-      >
-        <p className="text-xl font-black">
-          ₱10,000,000 allocated.
+      <div>
+        <p className="font-mono text-[9px] font-bold uppercase tracking-widest text-emerald-600">
+          Allocation Submitted
         </p>
+
+        <h3 className="text-xl sm:text-2xl font-black tracking-tight mt-1">
+          Your ₱10M is locked in.
+        </h3>
 
         <p
-          className={`text-xs mt-1 ${
-            isDarkMode
-              ? 'text-emerald-300/70'
-              : 'text-emerald-700/70'
-          }`}
-        >
-          Your decision is now reflected in
-          the live results above.
-        </p>
-      </div>
-    </div>
-
-    {/* Main civic takeaway */}
-    <div
-      className={`mt-8 relative overflow-hidden rounded-2xl border ${
-        isDarkMode
-          ? 'bg-neutral-950 border-neutral-800'
-          : 'bg-white border-neutral-200'
-      }`}
-    >
-      <div className="h-1 flex">
-        <div className="flex-1 bg-blue-600" />
-        <div className="w-12 bg-yellow-400" />
-        <div className="flex-1 bg-red-600" />
-      </div>
-
-      <div className="p-6 sm:p-8">
-        <p className="font-mono text-[9px] font-black uppercase tracking-[0.2em] text-emerald-600">
-          The Point of the Experiment
-        </p>
-
-        <h2 className="text-3xl sm:text-4xl font-black tracking-tight leading-[1.05] mt-3">
-          Every peso
-          <br />
-          reflects a priority.
-        </h2>
-
-        <p
-          className={`text-base leading-relaxed mt-6 ${
-            isDarkMode
-              ? 'text-neutral-300'
-              : 'text-neutral-700'
-          }`}
-        >
-          Dito,{' '}
-          <strong
-            className={
-              isDarkMode
-                ? 'text-white'
-                : 'text-neutral-950'
-            }
-          >
-            ₱10 million lang
-          </strong>{' '}
-          ang hinati mo.
-        </p>
-
-        <p
-          className={`text-base leading-relaxed mt-4 ${
+          className={`text-sm leading-relaxed mt-2 ${
             isDarkMode
               ? 'text-neutral-400'
               : 'text-neutral-600'
           }`}
         >
-          Sa totoong buhay, bawat desisyon sa
-          public budget may tunay na epekto — sa
-          classrooms, ospital, pagkain,
-          transportasyon, pabahay, imprastraktura,
-          at paghahanda sa sakuna.
+          Your choices are now part of
+          Tambayan&apos;s ₱1 billion community
+          budget.
         </p>
-
-        <div
-          className={`mt-7 rounded-xl p-5 ${
-            isDarkMode
-              ? 'bg-neutral-900 border border-neutral-800'
-              : 'bg-neutral-50 border border-neutral-200'
-          }`}
-        >
-          <p className="text-lg sm:text-xl font-black leading-snug">
-            Hindi sapat na malaman kung gaano
-            kalaki ang budget.
-          </p>
-
-          <div className="mt-5 space-y-3">
-            <p className="text-base font-black">
-              Tanungin kung saan napunta.
-            </p>
-
-            <p className="text-base font-black">
-              Tanungin kung sino ang nakinabang.
-            </p>
-
-            <p className="text-base font-black">
-              Tanungin kung ano ang na-deliver.
-            </p>
-          </div>
-        </div>
-
-        <p
-          className={`text-base leading-relaxed mt-7 ${
-            isDarkMode
-              ? 'text-neutral-300'
-              : 'text-neutral-700'
-          }`}
-        >
-          Dahil ang public money ay hindi lang
-          numero sa isang dokumento.
-        </p>
-
-        <p className="text-xl sm:text-2xl font-black leading-snug mt-3">
-          Pera ito na dapat bumalik sa tao bilang
-          serbisyo, oportunidad, at resulta.
-        </p>
-
-        <div
-          className={`mt-8 pt-5 border-t ${
-            isDarkMode
-              ? 'border-neutral-800'
-              : 'border-neutral-200'
-          }`}
-        >
-          <p className="font-mono text-[10px] font-black uppercase tracking-widest text-emerald-600">
-            Stay curious. Ask where every peso goes.
-          </p>
-
-          <p
-            className={`font-mono text-[9px] mt-1 ${
-              isDarkMode
-                ? 'text-neutral-600'
-                : 'text-neutral-400'
-            }`}
-          >
-            Public money deserves public attention.
-          </p>
-        </div>
       </div>
     </div>
 
     {/* Allocation receipt */}
     <div
-      className={`mt-8 pt-6 border-t ${
+      className={`mt-6 pt-5 border-t ${
         isDarkMode
           ? 'border-neutral-800'
           : 'border-neutral-100'
@@ -2178,6 +2012,87 @@ export default function BudgetPage() {
         <span className="font-mono text-sm font-black">
           ₱10,000,000
         </span>
+      </div>
+    </div>
+
+    {/* Strong message */}
+    <div
+      className={`mt-6 rounded-xl p-5 ${
+        isDarkMode
+          ? 'bg-neutral-950 border border-neutral-800'
+          : 'bg-neutral-50 border border-neutral-100'
+      }`}
+    >
+      <p className="text-lg sm:text-xl font-black tracking-tight leading-snug">
+        You just decided where public money
+        should go.
+      </p>
+
+      <p
+        className={`text-sm leading-relaxed mt-3 ${
+          isDarkMode
+            ? 'text-neutral-400'
+            : 'text-neutral-600'
+        }`}
+      >
+        Sa game, ₱10 million lang ang
+        pinagdesisyunan mo. In real life,
+        public budgets affect millions of
+        people.
+      </p>
+
+      <p
+        className={`text-sm leading-relaxed mt-3 ${
+          isDarkMode
+            ? 'text-neutral-400'
+            : 'text-neutral-600'
+        }`}
+      >
+        Kaya huwag lang tanungin kung
+        <strong
+          className={
+            isDarkMode
+              ? 'text-white'
+              : 'text-neutral-900'
+          }
+        >
+          {' '}
+          magkano ang ginastos
+        </strong>
+        . Tanungin din kung
+        <strong
+          className={
+            isDarkMode
+              ? 'text-white'
+              : 'text-neutral-900'
+          }
+        >
+          {' '}
+          saan napunta, bakit doon napunta,
+          at ano ang naging resulta.
+        </strong>
+      </p>
+
+      <div
+        className={`mt-5 pt-4 border-t ${
+          isDarkMode
+            ? 'border-neutral-800'
+            : 'border-neutral-200'
+        }`}
+      >
+        <p className="font-mono text-[10px] font-black uppercase tracking-widest text-emerald-600">
+          Budget locked. Stay curious.
+        </p>
+
+        <p
+          className={`font-mono text-[9px] mt-1 ${
+            isDarkMode
+              ? 'text-neutral-600'
+              : 'text-neutral-400'
+          }`}
+        >
+          Sana may resibo lahat.
+        </p>
       </div>
     </div>
   </div>
