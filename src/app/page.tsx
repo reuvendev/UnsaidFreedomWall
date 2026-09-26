@@ -223,6 +223,30 @@ export default function HomePage() {
   const [streakLoading, setStreakLoading] = useState<boolean>(true);
   const [streakDetailsOpen, setStreakDetailsOpen] = useState<boolean>(false);
 
+  // temp here
+  const [appreciationOpen, setAppreciationOpen] = useState(false);
+
+  {/* TEMP: SPECIAL USER APPRECIATION */}
+  useEffect(() => {
+    const SPECIAL_USER_ID = 'user_8y6qod1pq';
+    const APPRECIATION_SEEN_KEY = 'tambayan_appreciation_user_8y6qod1pq';
+
+    try {
+      const currentUserId = getAnonymousUserId();
+      const alreadySeen = localStorage.getItem(APPRECIATION_SEEN_KEY);
+
+      if (currentUserId === SPECIAL_USER_ID && !alreadySeen) {
+        const timer = setTimeout(() => {
+          setAppreciationOpen(true);
+        }, 1200);
+
+        return () => clearTimeout(timer);
+      }
+    } catch (error) {
+      console.error('Failed to load appreciation modal:', error);
+    }
+  }, []);
+
   useEffect(() => {
     try {
       const storedTheme = localStorage.getItem('unsaid_dark_mode');
@@ -1116,6 +1140,128 @@ export default function HomePage() {
           </div>
         </section>
       </main>
+
+
+{/* TEMP: SPECIAL USER APPRECIATION MODAL */}
+{appreciationOpen && (
+  <div
+    className="fixed inset-0 z-[100] flex items-end sm:items-center justify-center bg-neutral-950/60 backdrop-blur-sm sm:px-4"
+    onClick={() => {
+      localStorage.setItem(
+        'tambayan_appreciation_user_8y6qod1pq',
+        'seen'
+      );
+      setAppreciationOpen(false);
+    }}
+  >
+    <div
+      onClick={(e) => e.stopPropagation()}
+      className={`relative w-full sm:max-w-md max-h-[92dvh] sm:max-h-[85vh] flex flex-col rounded-t-3xl sm:rounded-3xl border shadow-2xl overflow-hidden ${
+        isDarkMode
+          ? 'bg-neutral-900 border-neutral-800 text-white'
+          : 'bg-white border-neutral-200 text-neutral-900'
+      }`}
+    >
+      {/* TOP ACCENT */}
+      <div className="shrink-0 h-1.5 bg-emerald-500" />
+
+      {/* SCROLLABLE CONTENT */}
+      <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain">
+        <div className="px-5 pt-5 pb-4 sm:p-8 text-center">
+
+          {/* ICON */}
+          <div
+            className={`mx-auto mb-4 sm:mb-5 flex h-12 w-12 sm:h-14 sm:w-14 items-center justify-center rounded-full border ${
+              isDarkMode
+                ? 'bg-emerald-950/40 border-emerald-900/60'
+                : 'bg-emerald-50 border-emerald-200'
+            }`}
+          >
+            <span className="text-xl sm:text-2xl">💚</span>
+          </div>
+
+          <p className="font-mono text-[8px] sm:text-[9px] font-bold uppercase tracking-[0.2em] text-emerald-600 mb-2.5 sm:mb-3">
+            A little thank you
+          </p>
+
+          <h2 className="text-xl sm:text-3xl font-extrabold tracking-tight leading-tight mb-4">
+            We noticed you.
+            <br />
+            And we appreciate you. :)
+          </h2>
+
+          <div
+            className={`space-y-3 sm:space-y-4 text-[13px] sm:text-base leading-relaxed ${
+              isDarkMode
+                ? 'text-neutral-400'
+                : 'text-neutral-600'
+            }`}
+          >
+            <p>
+              Hi, thank you for always being here sa Tambayan.
+            </p>
+
+            <p>
+              You may not realize it, but your presence means a lot.
+              Every time you come back, interact, or simply stay around,
+              you make Tambayan feel more alive.
+            </p>
+
+            <p>
+              I’m really glad you became part of this little community.
+            </p>
+          </div>
+
+          <div
+            className={`mt-5 sm:mt-6 rounded-xl sm:rounded-2xl border px-3 py-3.5 sm:p-4 ${
+              isDarkMode
+                ? 'bg-neutral-950 border-neutral-800'
+                : 'bg-neutral-50 border-neutral-200'
+            }`}
+          >
+            <p className="font-mono text-[10px] sm:text-sm font-bold leading-relaxed">
+              We appreciate you more than you know. :)
+            </p>
+          </div>
+
+          <p
+            className={`mt-4 sm:mt-5 font-mono text-[8px] sm:text-[9px] ${
+              isDarkMode
+                ? 'text-neutral-600'
+                : 'text-neutral-400'
+            }`}
+          >
+            — TambayanSLU
+          </p>
+        </div>
+      </div>
+
+      {/* FIXED BOTTOM BUTTON */}
+      <div
+        className={`shrink-0 px-4 pt-3 pb-[calc(12px+env(safe-area-inset-bottom))] sm:px-6 sm:py-4 border-t ${
+          isDarkMode
+            ? 'bg-neutral-900 border-neutral-800'
+            : 'bg-white border-neutral-100'
+        }`}
+      >
+        <button
+          type="button"
+          onClick={() => {
+            localStorage.setItem(
+              'tambayan_appreciation_user_8y6qod1pq',
+              'seen'
+            );
+
+            setAppreciationOpen(false);
+          }}
+          className="w-full rounded-xl bg-emerald-600 px-4 py-3 font-mono text-[10px] sm:text-xs font-bold uppercase tracking-wider text-white transition hover:bg-emerald-500 active:scale-[0.98]"
+        >
+          Close this message
+        </button>
+      </div>
+    </div>
+  </div>
+)}
 
 {/* STREAK DETAILS MODAL */}
 {streakDetailsOpen && (
