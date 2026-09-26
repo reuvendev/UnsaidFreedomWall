@@ -382,35 +382,6 @@ export default function HomePage() {
       {/* MAIN */}
       <main className="max-w-2xl mx-auto px-6 pt-16 pb-24">
 
-{/* WORLD PHARMACISTS DAY */}
-<div
-  className={`mb-8 rounded-xl border p-4 text-center ${
-    isDarkMode
-      ? 'bg-emerald-950/20 border-emerald-900/50'
-      : 'bg-emerald-50 border-emerald-200'
-  }`}
->
-  <p className="font-mono text-[10px] font-bold uppercase tracking-widest text-emerald-600">
-    💊 World Pharmacists Day
-  </p>
-
-  <h2
-    className={`mt-2 text-xl font-bold ${
-      isDarkMode ? 'text-white' : 'text-neutral-900'
-    }`}
-  >
-    Happy World Pharmacists Day!
-  </h2>
-
-  <p
-    className={`mt-2 text-sm ${
-      isDarkMode ? 'text-neutral-400' : 'text-neutral-600'
-    }`}
-  >
-    Celebrating our future pharmacists and their commitment to healthier communities. 💚
-  </p>
-</div>
-
         {/* HERO */}
         <div className="mb-10">
 
@@ -627,52 +598,6 @@ export default function HomePage() {
             }
           `}
         />
-
-{/* PHARMACIST CAP - TEMP */}
-<div
-  className={`
-    absolute
-    left-1/2
-    -top-[12px]
-    z-20
-    -translate-x-1/2
-    w-[52px]
-    h-[22px]
-    rounded-t-lg
-    border
-    ${
-      isDarkMode
-        ? 'bg-neutral-100 border-neutral-300'
-        : 'bg-white border-neutral-200'
-    }
-  `}
->
-  {/* GREEN CROSS */}
-  <div className="absolute left-1/2 top-[9px] -translate-x-1/2 -translate-y-1/2">
-    <span className="absolute left-1/2 top-1/2 h-[4px] w-[14px] -translate-x-1/2 -translate-y-1/2 rounded-[1px] bg-emerald-600" />
-
-    <span className="absolute left-1/2 top-1/2 h-[14px] w-[4px] -translate-x-1/2 -translate-y-1/2 rounded-[1px] bg-emerald-600" />
-  </div>
-
-  {/* CAP BOTTOM */}
-  <div
-    className={`
-      absolute
-      left-1/2
-      -bottom-[4px]
-      h-[6px]
-      w-[62px]
-      -translate-x-1/2
-      rounded-full
-      border
-      ${
-        isDarkMode
-          ? 'bg-neutral-200 border-neutral-300'
-          : 'bg-white border-neutral-200'
-      }
-    `}
-  />
-</div>
 
         {/* LEFT EYE */}
         <div className="absolute left-[22px] top-[25px] w-[8px] h-[10px] rounded-full bg-neutral-900">

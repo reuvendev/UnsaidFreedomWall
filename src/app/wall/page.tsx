@@ -513,6 +513,56 @@ export default function HomePage() {
   const [isDarkMode, setIsDarkMode] =
   useState<boolean>(false);
 
+/* =========================================================
+   TEMP UNSENT LETTER — START
+   Remove this entire feature after the event/experiment.
+========================================================= */
+
+const [letterOpen, setLetterOpen] =
+  useState<boolean>(false);
+
+/* TEMP UNSENT LETTER — END */
+
+/* =========================================================
+   TEMP UNSENT LETTER — START
+========================================================= */
+
+useEffect(() => {
+  if (!letterOpen) {
+    return;
+  }
+
+  const previousOverflow =
+    document.body.style.overflow;
+
+  document.body.style.overflow = 'hidden';
+
+  const handleEscape = (
+    event: KeyboardEvent
+  ) => {
+    if (event.key === 'Escape') {
+      setLetterOpen(false);
+    }
+  };
+
+  window.addEventListener(
+    'keydown',
+    handleEscape
+  );
+
+  return () => {
+    document.body.style.overflow =
+      previousOverflow;
+
+    window.removeEventListener(
+      'keydown',
+      handleEscape
+    );
+  };
+}, [letterOpen]);
+
+/* TEMP UNSENT LETTER — END */
+
 useEffect(() => {
   try {
     const storedTheme =
@@ -2511,6 +2561,758 @@ useEffect(() => {
           </div>
         )}
       </main>
+
+{/* =========================================================
+    TEMP UNSENT LETTER — START
+    Letter popup styled like a real letter
+========================================================= */}
+
+{letterOpen && (
+  <div
+    className="
+      fixed
+      inset-0
+      z-[100]
+      flex
+      items-center
+      justify-center
+      bg-black/70
+      backdrop-blur-sm
+      p-4
+      sm:p-6
+    "
+    onClick={() => setLetterOpen(false)}
+  >
+    <div
+      onClick={(e) => e.stopPropagation()}
+      className="
+        relative
+        w-full
+        max-w-2xl
+        max-h-[92vh]
+        overflow-y-auto
+        shadow-2xl
+        rotate-[-0.4deg]
+      "
+    >
+      {/* LETTER PAPER */}
+      <div
+        className={`
+          relative
+          px-7
+          py-10
+          sm:px-12
+          sm:py-14
+          rounded-[3px]
+          overflow-hidden
+          ${
+            isDarkMode
+              ? 'bg-[#2b2722] text-[#e8dfd2]'
+              : 'bg-[#fffaf0] text-[#443b32]'
+          }
+        `}
+        style={{
+          boxShadow: isDarkMode
+            ? '0 25px 80px rgba(0,0,0,0.65)'
+            : '0 25px 80px rgba(0,0,0,0.35)',
+        }}
+      >
+        {/* PAPER TEXTURE */}
+        <div
+          className="absolute inset-0 pointer-events-none opacity-[0.06]"
+          style={{
+            backgroundImage: `
+              repeating-linear-gradient(
+                0deg,
+                rgba(90,70,50,0.15),
+                rgba(90,70,50,0.15) 1px,
+                transparent 1px,
+                transparent 28px
+              )
+            `,
+          }}
+        />
+
+        {/* subtle paper stains */}
+        <div
+          className="
+            absolute
+            -top-20
+            -left-16
+            w-52
+            h-52
+            rounded-full
+            bg-amber-800/5
+            blur-3xl
+            pointer-events-none
+          "
+        />
+
+        <div
+          className="
+            absolute
+            bottom-0
+            right-0
+            w-44
+            h-44
+            rounded-full
+            bg-rose-800/5
+            blur-3xl
+            pointer-events-none
+          "
+        />
+
+        {/* CLOSE */}
+        <button
+          type="button"
+          onClick={() => setLetterOpen(false)}
+          aria-label="Close letter"
+          className={`
+            absolute
+            top-4
+            right-4
+            z-20
+            p-2
+            rounded-full
+            transition-opacity
+            hover:opacity-60
+            ${
+              isDarkMode
+                ? 'text-neutral-500'
+                : 'text-neutral-400'
+            }
+          `}
+        >
+          <Icons.Close />
+        </button>
+
+        {/* DATE / NOTE */}
+        <div className="relative z-10 mb-10">
+          <p
+            className={`
+              text-right
+              font-serif
+              italic
+              text-xs
+              ${
+                isDarkMode
+                  ? 'text-neutral-500'
+                  : 'text-neutral-400'
+              }
+            `}
+          >
+            a letter that was never sent
+          </p>
+        </div>
+
+        {/* LETTER */}
+        <div
+          className="
+            relative
+            z-10
+            font-serif
+            text-[16px]
+            sm:text-[17px]
+            leading-[2]
+            tracking-[0.01em]
+          "
+        >
+          <p className="mb-8">
+            Dear you,
+          </p>
+
+          <p className="mb-6">
+            It&apos;s been three years.
+          </p>
+
+          <p className="mb-6">
+            Three years since I first noticed you.
+            Three years since you became someone I
+            quietly looked forward to seeing.
+          </p>
+
+          <p className="mb-6">
+            I don&apos;t even remember the exact
+            moment it started.
+          </p>
+
+          <p className="mb-6">
+            I just remember that one day,
+            you weren&apos;t just another person
+            anymore.
+          </p>
+
+          <p className="mb-6">
+            I started noticing the little things.
+          </p>
+
+          <p className="mb-6">
+            Your smile when you&apos;re genuinely
+            happy. The way you talk about something
+            you care about. The way you keep going,
+            even when I know things aren&apos;t
+            always easy for you.
+          </p>
+
+          <p className="mb-6">
+            Somewhere between all those little
+            moments, I started admiring you.
+          </p>
+
+          <p className="mb-6">
+            And then I started liking you.
+          </p>
+
+          <p className="mb-6">
+            More than I probably should have.
+          </p>
+
+          <p className="mb-6">
+            I told you once.
+          </p>
+
+          <p className="mb-6">
+            I finally said the thing I had been
+            keeping to myself for so long.
+          </p>
+
+          <p className="mb-6">
+            But I never really got an answer.
+          </p>
+
+          <p className="mb-6">
+            Not a yes.
+            <br />
+            Not a no.
+          </p>
+
+          <p className="mb-6">
+            Just something in between.
+          </p>
+
+          <p className="mb-6">
+            And for a while, I kept wondering
+            what that meant.
+          </p>
+
+          <p className="mb-6">
+            Maybe you needed time.
+            <br />
+            Maybe I confessed at the wrong moment.
+            <br />
+            Maybe someday you&apos;d see me
+            differently.
+          </p>
+
+          <p className="mb-6">
+            I kept finding reasons to wait.
+          </p>
+
+          <p className="mb-6">
+            Until eventually, I realised that
+            maybe I wasn&apos;t supposed to wait
+            for an answer anymore.
+          </p>
+
+          <p className="mb-6">
+            So I stopped asking.
+          </p>
+
+          <p className="mb-6">
+            I stopped hoping that every message
+            meant something.
+          </p>
+
+          <p className="mb-6">
+            I stopped imagining what we could
+            have been.
+          </p>
+
+          <p className="mb-6">
+            But there&apos;s one thing I never
+            really learned how to stop doing.
+          </p>
+
+          <p
+            className={`
+              mb-8
+              text-lg
+              ${
+                isDarkMode
+                  ? 'text-[#f4ece2]'
+                  : 'text-[#302820]'
+              }
+            `}
+          >
+            I never stopped rooting for you.
+          </p>
+
+          <p className="mb-6">
+            Now I just admire you quietly.
+          </p>
+
+          <p className="mb-6">
+            From a distance.
+          </p>
+
+          <p className="mb-6">
+            Sometimes you post something you
+            achieved, and I&apos;ll see it on
+            my screen.
+          </p>
+
+          <p className="mb-6">
+            Maybe it&apos;s something small.
+            Maybe it&apos;s something you&apos;ve
+            worked months for.
+          </p>
+
+          <p className="mb-6">
+            And without you knowing,
+            I smile.
+          </p>
+
+          <p
+            className={`
+              my-9
+              pl-6
+              border-l
+              italic
+              ${
+                isDarkMode
+                  ? 'border-[#756858] text-[#d8cabc]'
+                  : 'border-[#c7b39a] text-[#6e5d4c]'
+              }
+            `}
+          >
+            &ldquo;Congratulations.&rdquo;
+            <br />
+            &ldquo;You did it.&rdquo;
+            <br />
+            &ldquo;I&apos;m proud of you.&rdquo;
+          </p>
+
+          <p className="mb-6">
+            Sometimes I even type it.
+          </p>
+
+          <p className="mb-6">
+            Then I stare at the message for a
+            few seconds.
+          </p>
+
+          <p className="mb-6">
+            And delete it.
+          </p>
+
+          <p className="mb-6">
+            Not because I don&apos;t want you
+            to know.
+          </p>
+
+          <p className="mb-6">
+            But because I don&apos;t want my
+            feelings to turn your happy moments
+            into something complicated.
+          </p>
+
+          <p className="mb-6">
+            So I celebrate you quietly instead.
+          </p>
+
+          <p className="mb-6">
+            Maybe you&apos;ll never know that
+            someone out here has been watching
+            you slowly become the person you
+            once dreamed of becoming.
+          </p>
+
+          <p className="mb-6">
+            And maybe you don&apos;t need to know.
+          </p>
+
+          <p className="mb-6">
+            I just hope you make it.
+          </p>
+
+          <p className="mb-6">
+            I hope you get the opportunities
+            you&apos;ve been praying for.
+          </p>
+
+          <p className="mb-6">
+            I hope you walk into places you
+            once thought were impossible for you.
+          </p>
+
+          <p className="mb-6">
+            I hope you become so successful that
+            one day you look back at the person
+            you used to be and realise that all
+            those difficult days were worth it.
+          </p>
+
+          <p className="mb-6">
+            And when that happens,
+          </p>
+
+          <p className="mb-6">
+            I don&apos;t need to be beside you.
+          </p>
+
+          <p className="mb-6">
+            I don&apos;t need to be part of
+            the picture.
+          </p>
+
+          <p className="mb-6">
+            I&apos;ll be happy just knowing
+            that you made it.
+          </p>
+
+          <p className="mb-6">
+            Maybe someday someone else will be
+            the person standing beside you.
+          </p>
+
+          <p className="mb-6">
+            And if that happens,
+            I hope they love you loudly.
+          </p>
+
+          <p className="mb-6">
+            I hope they tell you they&apos;re
+            proud of you instead of only saying
+            it inside their head.
+          </p>
+
+          <p className="mb-6">
+            I hope they&apos;re there for the
+            moments I could only watch from afar.
+          </p>
+
+          <p className="mb-6">
+            And I hope they understand how lucky
+            they are.
+          </p>
+
+          <p className="mb-6">
+            As for me,
+          </p>
+
+          <p className="mb-6">
+            I&apos;ll keep moving too.
+          </p>
+
+          <p className="mb-6">
+            I&apos;ll keep building my own life,
+            chasing my own dreams, and becoming
+            someone I&apos;m proud of.
+          </p>
+
+          <p className="mb-6">
+            And maybe years from now,
+            when we&apos;re both completely
+            different people,
+          </p>
+
+          <p className="mb-6">
+            life might let us meet again.
+          </p>
+
+          <p className="mb-6">
+            No expectations.
+          </p>
+
+          <p className="mb-6">
+            No old confession waiting to be
+            answered.
+          </p>
+
+          <p className="mb-6">
+            Just you and me,
+            meeting again for the first time.
+          </p>
+
+          <p className="mb-6">
+            And maybe I&apos;ll look at you,
+            smile,
+            and finally say—
+          </p>
+
+          <p
+            className={`
+              text-center
+              my-12
+              text-3xl
+              sm:text-4xl
+              italic
+              ${
+                isDarkMode
+                  ? 'text-[#e7b8b8]'
+                  : 'text-[#8f4d4d]'
+              }
+            `}
+          >
+            &ldquo;Hi.&rdquo;
+          </p>
+
+          <p className="mb-6">
+            Maybe something begins again.
+          </p>
+
+          <p className="mb-6">
+            Maybe nothing does.
+          </p>
+
+          <p className="mb-6">
+            Either way,
+            I think I&apos;ll be okay.
+          </p>
+
+          <p className="mb-6">
+            Because I finally understand something
+            I didn&apos;t understand three years ago.
+          </p>
+
+          <p className="mb-6">
+            Caring about you doesn&apos;t mean
+            you have to choose me.
+          </p>
+
+          <p className="mb-6">
+            Sometimes loving someone is simply
+            wanting them to have a beautiful life,
+            even if you&apos;re only watching that
+            life from somewhere far away.
+          </p>
+
+          <p className="mb-6">
+            So keep going.
+          </p>
+
+          <p className="mb-6">
+            Chase everything you&apos;ve ever
+            wanted.
+          </p>
+
+          <p className="mb-6">
+            Become everything you&apos;re meant
+            to become.
+          </p>
+
+          <p className="mb-3">
+            You don&apos;t have to look back.
+          </p>
+
+          <p
+            className={`
+              text-xl
+              sm:text-2xl
+              italic
+              mb-12
+              ${
+                isDarkMode
+                  ? 'text-[#f0ded0]'
+                  : 'text-[#5c4939]'
+              }
+            `}
+          >
+            I&apos;ll be proud of you anyway.
+          </p>
+
+          {/* SIGNATURE */}
+          <div className="mt-14">
+            <p>
+              Always quietly cheering for you,
+            </p>
+
+            <p
+              className={`
+                mt-3
+                text-xl
+                italic
+                ${
+                  isDarkMode
+                    ? 'text-[#d8c3ad]'
+                    : 'text-[#725d49]'
+                }
+              `}
+            >
+              someone from afar
+            </p>
+          </div>
+
+        </div>
+
+        {/* FOLD BACK */}
+        <div
+          className={`
+            relative
+            z-10
+            mt-14
+            pt-7
+            border-t
+            text-center
+            ${
+              isDarkMode
+                ? 'border-[#4a4239]'
+                : 'border-[#e5d8c4]'
+            }
+          `}
+        >
+          <button
+            type="button"
+            onClick={() => setLetterOpen(false)}
+            className={`
+              font-serif
+              italic
+              text-sm
+              transition-opacity
+              hover:opacity-60
+              ${
+                isDarkMode
+                  ? 'text-neutral-400'
+                  : 'text-neutral-500'
+              }
+            `}
+          >
+            fold the letter back
+          </button>
+        </div>
+
+      </div>
+    </div>
+  </div>
+)}
+
+{/* TEMP UNSENT LETTER — END */}
+
+{/* =========================================================
+    TEMP UNSENT LETTER — START
+    Floating unsent-letter Easter egg.
+========================================================= */}
+
+{!letterOpen && (
+  <button
+    type="button"
+    onClick={() =>
+      setLetterOpen(true)
+    }
+    aria-label="Open an unsent letter"
+    className="
+      fixed
+      z-40
+      right-5
+      bottom-6
+      sm:right-8
+      sm:bottom-8
+      group
+      cursor-pointer
+      animate-[letterFloat_4s_ease-in-out_infinite]
+    "
+  >
+    <div className="relative">
+
+      {/* little floating text */}
+      <div
+        className={`absolute right-0 bottom-[68px] whitespace-nowrap px-3 py-2 rounded-xl border shadow-sm transition-all duration-300 group-hover:-translate-y-1 ${
+          isDarkMode
+            ? 'bg-neutral-900 border-neutral-700 text-neutral-300'
+            : 'bg-white border-neutral-200 text-neutral-700'
+        }`}
+      >
+        <p className="font-mono text-[9px] sm:text-[10px] font-bold tracking-wide">
+          A letter that was never sent...
+        </p>
+
+        {/* tooltip arrow */}
+        <div
+          className={`absolute -bottom-[5px] right-7 w-2.5 h-2.5 rotate-45 border-r border-b ${
+            isDarkMode
+              ? 'bg-neutral-900 border-neutral-700'
+              : 'bg-white border-neutral-200'
+          }`}
+        />
+      </div>
+
+      {/* ENVELOPE */}
+      <div
+        className={`relative w-[70px] h-[50px] sm:w-[78px] sm:h-[55px] rounded-md border-2 shadow-xl transition-all duration-300 group-hover:-translate-y-1 group-hover:-rotate-3 group-hover:shadow-2xl ${
+          isDarkMode
+            ? 'bg-[#28231e] border-amber-800/70'
+            : 'bg-[#fff8e7] border-amber-300'
+        }`}
+      >
+
+        {/* envelope flap */}
+        <div className="absolute inset-0 overflow-hidden rounded-md">
+          <div
+            className={`absolute -top-[29px] left-1/2 w-[55px] h-[55px] -translate-x-1/2 rotate-45 border-r-2 border-b-2 ${
+              isDarkMode
+                ? 'bg-[#28231e] border-amber-800/70'
+                : 'bg-[#fff8e7] border-amber-300'
+            }`}
+          />
+        </div>
+
+        {/* seal */}
+        <div
+          className="
+            absolute
+            z-10
+            left-1/2
+            top-[58%]
+            -translate-x-1/2
+            -translate-y-1/2
+            w-7
+            h-7
+            rounded-full
+            bg-rose-500
+            text-white
+            flex
+            items-center
+            justify-center
+            shadow-md
+            transition-transform
+            duration-300
+            group-hover:scale-110
+          "
+        >
+          <span className="text-xs">
+            ♥
+          </span>
+        </div>
+
+      </div>
+
+    </div>
+  </button>
+)}
+
+{/* TEMP UNSENT LETTER — END */}
+
+
+{/* =========================================================
+    TEMP UNSENT LETTER — START
+========================================================= */}
+
+<style jsx global>{`
+  @keyframes letterFloat {
+    0%,
+    100% {
+      transform: translateY(0px)
+        rotate(0deg);
+    }
+
+    50% {
+      transform: translateY(-8px)
+        rotate(1deg);
+    }
+  }
+`}</style>
+
+{/* TEMP UNSENT LETTER — END */}
 
       {/* REPORT MODAL */}
       {activeReportPostId && (
