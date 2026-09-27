@@ -1323,15 +1323,19 @@ export default function HomePage() {
                   : 'text-neutral-500'
               }`}
             >
-              Your streak goes up when you{' '}
+              Keep your streak alive by{' '}
               <span className="font-bold text-emerald-600">
-                post
+                posting
               </span>{' '}
-              on the Freedom Wall or{' '}
+              on the Freedom Wall,{' '}
               <span className="font-bold text-emerald-600">
-                get matched
+                getting matched
               </span>{' '}
-              in the anonymous chat.
+              in anonymous chat, or{' '}
+              <span className="font-bold text-emerald-600">
+                caring for your pet
+              </span>
+              .
             </p>
           </div>
 
