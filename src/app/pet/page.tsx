@@ -4519,6 +4519,15 @@ export default function PetPage() {
   const [petName, setPetName] =
     useState('');
 
+  const [renameOpen, setRenameOpen] =
+    useState(false);
+
+  const [renameValue, setRenameValue] =
+    useState('');
+
+  const [renaming, setRenaming] =
+    useState(false);
+
   const [creating, setCreating] =
     useState(false);
 
@@ -7005,6 +7014,110 @@ export default function PetPage() {
     };
 
   /* =========================================================
+     RENAME PET
+  ========================================================= */
+
+  const renamePet =
+    async () => {
+      if (
+        !ownerId ||
+        !pet ||
+        renaming
+      ) {
+        return;
+      }
+
+      const cleanName =
+        renameValue.trim();
+
+      if (cleanName.length < 2) {
+        setMessage(
+          'Give your pet a nickname with at least 2 characters.'
+        );
+        return;
+      }
+
+      if (cleanName.length > 20) {
+        setMessage(
+          'Pet nicknames can only be up to 20 characters.'
+        );
+        return;
+      }
+
+      if (cleanName === pet.name) {
+        setRenameOpen(false);
+        return;
+      }
+
+      setRenaming(true);
+      setMessage('');
+
+      try {
+        await updateDoc(
+          doc(
+            db,
+            'pets',
+            ownerId
+          ),
+          {
+            name: cleanName,
+            updatedAt:
+              serverTimestamp(),
+          }
+        );
+
+        /*
+         * Keep the public Pet Park presence in sync too.
+         * merge:true is safe even if the user has not entered
+         * the park yet.
+         */
+        await setDoc(
+          doc(
+            db,
+            'petParkPresence',
+            ownerId
+          ),
+          {
+            petName: cleanName,
+          },
+          {
+            merge: true,
+          }
+        );
+
+        setPet(
+          (previous) => {
+            if (!previous) {
+              return previous;
+            }
+
+            return {
+              ...previous,
+              name: cleanName,
+            };
+          }
+        );
+
+        setRenameOpen(false);
+
+        setMessage(
+          `Your pet is now called ${cleanName}.`
+        );
+      } catch (error) {
+        console.error(
+          'Failed to rename pet:',
+          error
+        );
+
+        setMessage(
+          'Could not change your pet nickname. Please try again.'
+        );
+      } finally {
+        setRenaming(false);
+      }
+    };
+
+  /* =========================================================
      COOLDOWN
   ========================================================= */
 
@@ -8460,9 +8573,41 @@ const performAction =
 
               <div className="relative text-center mt-2">
 
-                <h1 className="text-3xl font-black tracking-tight">
-                  {pet.name}
-                </h1>
+                <div className="flex flex-wrap items-center justify-center gap-2">
+                  <h1 className="text-3xl font-black tracking-tight">
+                    {pet.name}
+                  </h1>
+
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setRenameValue(
+                        pet.name
+                      );
+                      setRenameOpen(
+                        true
+                      );
+                    }}
+                    className="
+                      rounded-lg
+                      px-2
+                      py-1
+                      font-mono
+                      text-[9px]
+                      font-bold
+                      uppercase
+                      tracking-wider
+                      text-neutral-400
+                      transition-colors
+                      hover:bg-neutral-100
+                      hover:text-emerald-600
+                      dark:hover:bg-neutral-800
+                      dark:hover:text-emerald-400
+                    "
+                  >
+                    Edit
+                  </button>
+                </div>
 
                 <div className="mt-2 flex flex-wrap items-center justify-center gap-2 font-mono text-[9px] uppercase tracking-wider">
 
@@ -9614,6 +9759,193 @@ const performAction =
 {/* =========================================================
     SHOP + INVENTORY
 ========================================================= */}
+
+{/* RENAME PET MODAL */}
+{renameOpen && (
+  <div
+    className="
+      fixed
+      inset-0
+      z-[350]
+      flex
+      items-end
+      sm:items-center
+      justify-center
+      bg-neutral-950/60
+      backdrop-blur-sm
+      px-0
+      sm:px-4
+    "
+    onClick={() => {
+      if (!renaming) {
+        setRenameOpen(false);
+      }
+    }}
+  >
+    <div
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="rename-pet-title"
+      onClick={(event) =>
+        event.stopPropagation()
+      }
+      className="
+        w-full
+        sm:max-w-sm
+        rounded-t-3xl
+        sm:rounded-3xl
+        border
+        border-neutral-200
+        dark:border-neutral-800
+        bg-white
+        dark:bg-neutral-900
+        p-5
+        sm:p-6
+        shadow-2xl
+        pb-[max(1.25rem,env(safe-area-inset-bottom))]
+      "
+    >
+      <div className="flex items-start justify-between gap-4">
+        <div>
+          <p className="font-mono text-[9px] font-bold uppercase tracking-[0.18em] text-emerald-600">
+            Tambayan Pet
+          </p>
+
+          <h2
+            id="rename-pet-title"
+            className="mt-1 text-xl font-black"
+          >
+            Change nickname
+          </h2>
+
+          <p className="mt-1 text-xs text-neutral-500">
+            Give your pet a new name.
+          </p>
+        </div>
+
+        <button
+          type="button"
+          disabled={renaming}
+          onClick={() =>
+            setRenameOpen(false)
+          }
+          className="
+            flex
+            h-9
+            w-9
+            shrink-0
+            items-center
+            justify-center
+            rounded-full
+            bg-neutral-100
+            text-lg
+            text-neutral-500
+            hover:text-neutral-900
+            disabled:opacity-50
+            dark:bg-neutral-800
+            dark:hover:text-white
+          "
+          aria-label="Close nickname editor"
+        >
+          ×
+        </button>
+      </div>
+
+      <form
+        className="mt-5"
+        onSubmit={(event) => {
+          event.preventDefault();
+          renamePet();
+        }}
+      >
+        <label
+          htmlFor="pet-nickname"
+          className="font-mono text-[9px] font-bold uppercase tracking-wider text-neutral-500"
+        >
+          Pet nickname
+        </label>
+
+        <input
+          id="pet-nickname"
+          type="text"
+          value={renameValue}
+          maxLength={20}
+          autoFocus
+          disabled={renaming}
+          onChange={(event) =>
+            setRenameValue(
+              event.target.value
+            )
+          }
+          className="
+            mt-2
+            w-full
+            rounded-xl
+            border
+            border-neutral-200
+            bg-neutral-50
+            px-4
+            py-3
+            text-base
+            font-bold
+            outline-none
+            transition
+            focus:border-emerald-500
+            focus:ring-2
+            focus:ring-emerald-500/10
+            disabled:opacity-60
+            dark:border-neutral-700
+            dark:bg-neutral-950
+          "
+          placeholder="Pet nickname"
+        />
+
+        <div className="mt-2 flex items-center justify-between gap-3">
+          <p className="text-[10px] text-neutral-400">
+            2–20 characters
+          </p>
+
+          <p className="font-mono text-[9px] text-neutral-400">
+            {renameValue.trim().length}/20
+          </p>
+        </div>
+
+        <button
+          type="submit"
+          disabled={
+            renaming ||
+            renameValue.trim().length < 2 ||
+            renameValue.trim().length > 20 ||
+            renameValue.trim() === pet.name
+          }
+          className="
+            mt-5
+            w-full
+            rounded-xl
+            bg-emerald-600
+            px-4
+            py-3
+            font-mono
+            text-[10px]
+            font-bold
+            uppercase
+            tracking-wider
+            text-white
+            transition
+            hover:bg-emerald-500
+            active:scale-[0.99]
+            disabled:cursor-not-allowed
+            disabled:opacity-40
+          "
+        >
+          {renaming
+            ? 'Saving...'
+            : 'Save nickname'}
+        </button>
+      </form>
+    </div>
+  </div>
+)}
 
 <section
   className="
