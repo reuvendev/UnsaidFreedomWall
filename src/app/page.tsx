@@ -781,6 +781,69 @@ export default function HomePage() {
           </div>
         </div>
 
+        {/* TAMBAYAN PET */}
+<section className="mb-14">
+  <Link
+    href="/pet"
+    className={`
+      group
+      block
+      rounded-2xl
+      border
+      p-5
+      sm:p-6
+      transition
+      active:scale-[0.99]
+      ${
+        isDarkMode
+          ? 'bg-neutral-900 border-neutral-800 hover:border-emerald-900'
+          : 'bg-white border-neutral-200 hover:border-emerald-300'
+      }
+    `}
+  >
+    <div className="flex items-center justify-between gap-5">
+      <div>
+        <p className="font-mono text-[9px] font-bold uppercase tracking-widest text-emerald-600">
+          Tambayan Pet
+        </p>
+
+        <h2
+          className={`mt-2 text-xl font-extrabold tracking-tight ${
+            isDarkMode
+              ? 'text-white'
+              : 'text-neutral-900'
+          }`}
+        >
+          Meet your little tambay.
+        </h2>
+
+        <p
+          className={`mt-2 text-sm leading-relaxed ${
+            isDarkMode
+              ? 'text-neutral-400'
+              : 'text-neutral-500'
+          }`}
+        >
+          Adopt, feed, play, and hang out with other pets.
+        </p>
+      </div>
+
+      <span
+        className="
+          shrink-0
+          font-mono
+          text-lg
+          text-emerald-600
+          transition-transform
+          group-hover:translate-x-1
+        "
+      >
+        →
+      </span>
+    </div>
+  </Link>
+</section>
+
         {/* ABOUT TAMBAYAN */}
         <section className="mb-14">
           <div

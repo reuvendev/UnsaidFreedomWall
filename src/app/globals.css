@@ -33,3 +33,1046 @@
   animation: burningFlame 1s ease-in-out infinite;
   transform-origin: center bottom;
 }
+
+/* =========================================================
+   PET ANIMATIONS
+========================================================= */
+
+@keyframes pet-idle-float {
+  0%,
+  100% {
+    transform: translateY(0px) scale(1);
+  }
+  50% {
+    transform: translateY(-6px) scale(1.01);
+  }
+}
+
+@keyframes pet-feed-bounce {
+  0%,
+  100% {
+    transform: translateY(0) scale(1);
+  }
+  15% {
+    transform: translateY(-4px) scale(1.02, 0.98);
+  }
+  30% {
+    transform: translateY(0px) scale(0.99, 1.02);
+  }
+  45% {
+    transform: translateY(-3px) scale(1.01);
+  }
+  60% {
+    transform: translateY(0px) scale(1);
+  }
+}
+
+@keyframes pet-play-hop {
+  0%,
+  100% {
+    transform: translateY(0) rotate(0deg);
+  }
+  20% {
+    transform: translateY(-14px) rotate(-5deg);
+  }
+  40% {
+    transform: translateY(0) rotate(4deg);
+  }
+  60% {
+    transform: translateY(-10px) rotate(-3deg);
+  }
+  80% {
+    transform: translateY(0) rotate(2deg);
+  }
+}
+
+@keyframes pet-study-focus {
+  0%,
+  100% {
+    transform: translateY(0) rotate(0deg);
+  }
+  25% {
+    transform: translateY(-2px) rotate(-1deg);
+  }
+  50% {
+    transform: translateY(0px) rotate(1deg);
+  }
+  75% {
+    transform: translateY(-1px) rotate(0deg);
+  }
+}
+
+@keyframes pet-sleep-rest {
+  0%,
+  100% {
+    transform: translateY(8px) scale(1, 0.98);
+  }
+  50% {
+    transform: translateY(11px) scale(1.01, 0.97);
+  }
+}
+
+@keyframes pet-feed-bit-1 {
+  0% {
+    transform: translateY(0) scale(0.8);
+    opacity: 0;
+  }
+  20% {
+    opacity: 1;
+  }
+  100% {
+    transform: translateY(-22px) scale(1);
+    opacity: 0;
+  }
+}
+
+@keyframes pet-feed-bit-2 {
+  0% {
+    transform: translateY(0) scale(0.8);
+    opacity: 0;
+  }
+  15% {
+    opacity: 1;
+  }
+  100% {
+    transform: translateY(-28px) scale(1);
+    opacity: 0;
+  }
+}
+
+@keyframes pet-feed-bit-3 {
+  0% {
+    transform: translateY(0) scale(0.8);
+    opacity: 0;
+  }
+  25% {
+    opacity: 1;
+  }
+  100% {
+    transform: translateY(-21px) scale(1);
+    opacity: 0;
+  }
+}
+
+@keyframes pet-play-ball {
+  0%,
+  100% {
+    transform: translate(0, 0);
+  }
+  20% {
+    transform: translate(-12px, -18px);
+  }
+  40% {
+    transform: translate(-20px, 0px);
+  }
+  60% {
+    transform: translate(-10px, -10px);
+  }
+  80% {
+    transform: translate(0px, 0px);
+  }
+}
+
+@keyframes pet-play-spark {
+  0%,
+  100% {
+    transform: scale(0.7);
+    opacity: 0;
+  }
+  35%,
+  60% {
+    transform: scale(1);
+    opacity: 1;
+  }
+}
+
+@keyframes pet-study-book {
+  0%,
+  100% {
+    transform: translateY(0px);
+  }
+  50% {
+    transform: translateY(-2px);
+  }
+}
+
+@keyframes pet-study-line {
+  0%,
+  100% {
+    transform: translateY(0);
+    opacity: 0.4;
+  }
+  50% {
+    transform: translateY(-4px);
+    opacity: 1;
+  }
+}
+
+@keyframes pet-sleep-z-1 {
+  0% {
+    transform: translateY(0) scale(0.8);
+    opacity: 0;
+  }
+  20% {
+    opacity: 1;
+  }
+  100% {
+    transform: translateY(-18px) scale(1);
+    opacity: 0;
+  }
+}
+
+@keyframes pet-sleep-z-2 {
+  0% {
+    transform: translateY(0) scale(0.8);
+    opacity: 0;
+  }
+  20% {
+    opacity: 1;
+  }
+  100% {
+    transform: translateY(-24px) scale(1);
+    opacity: 0;
+  }
+}
+
+@keyframes pet-sleep-z-3 {
+  0% {
+    transform: translateY(0) scale(0.8);
+    opacity: 0;
+  }
+  20% {
+    opacity: 1;
+  }
+  100% {
+    transform: translateY(-30px) scale(1);
+    opacity: 0;
+  }
+}
+
+.pet-idle-float {
+  animation: pet-idle-float 3.2s ease-in-out infinite;
+}
+
+.pet-feed-bounce {
+  animation: pet-feed-bounce 0.9s ease-in-out infinite;
+}
+
+.pet-play-hop {
+  animation: pet-play-hop 0.95s ease-in-out infinite;
+}
+
+.pet-study-focus {
+  animation: pet-study-focus 1.2s ease-in-out infinite;
+}
+
+.pet-sleep-rest {
+  animation: pet-sleep-rest 2.4s ease-in-out infinite;
+}
+
+.pet-feed-bit-1 {
+  animation: pet-feed-bit-1 0.9s ease-in-out infinite;
+}
+
+.pet-feed-bit-2 {
+  animation: pet-feed-bit-2 1s ease-in-out infinite;
+}
+
+.pet-feed-bit-3 {
+  animation: pet-feed-bit-3 0.95s ease-in-out infinite;
+}
+
+.pet-play-ball {
+  animation: pet-play-ball 1s ease-in-out infinite;
+}
+
+.pet-play-spark-1,
+.pet-play-spark-2,
+.pet-play-spark-3 {
+  animation: pet-play-spark 0.8s ease-in-out infinite;
+}
+
+.pet-study-book {
+  animation: pet-study-book 1.3s ease-in-out infinite;
+}
+
+.pet-study-line-1,
+.pet-study-line-2,
+.pet-study-line-3 {
+  animation: pet-study-line 0.9s ease-in-out infinite;
+}
+
+.pet-sleep-z-1 {
+  animation: pet-sleep-z-1 1.6s linear infinite;
+}
+
+.pet-sleep-z-2 {
+  animation: pet-sleep-z-2 1.8s linear infinite;
+}
+
+.pet-sleep-z-3 {
+  animation: pet-sleep-z-3 2s linear infinite;
+}
+
+/* =========================================================
+   TAMBAYAN PET — LIVING PETS
+========================================================= */
+
+.pet-character {
+  transform-origin: 50% 85%;
+}
+
+/* =========================================================
+   NATURAL BLINKING
+========================================================= */
+
+@keyframes tambayan-pet-blink {
+  0%,
+  31%,
+  34%,
+  72%,
+  75%,
+  100% {
+    scale: 1 1;
+  }
+
+  32%,
+  33%,
+  73%,
+  74% {
+    scale: 1 0.08;
+  }
+}
+
+.pet-eye-blink {
+  transform-origin: center;
+  animation:
+    tambayan-pet-blink
+    6.2s
+    ease-in-out
+    infinite;
+}
+
+/*
+  During sleep:
+  stop normal blinking and
+  leave the eyes closed.
+*/
+.pet-action-sleep
+.pet-eye-blink {
+  animation: none;
+  scale: 1 0.08;
+}
+
+/* =========================================================
+   DIALOGUE
+========================================================= */
+
+@keyframes pet-dialogue-in {
+  from {
+    opacity: 0;
+    transform:
+      translateX(-50%)
+      translateY(8px)
+      scale(0.92);
+  }
+
+  to {
+    opacity: 1;
+    transform:
+      translateX(-50%)
+      translateY(0)
+      scale(1);
+  }
+}
+
+.pet-dialogue {
+  animation:
+    pet-dialogue-in
+    180ms
+    ease-out
+    both;
+}
+
+/* =========================================================
+   IDLE
+========================================================= */
+
+@keyframes pet-idle-breathe {
+  0%,
+  100% {
+    transform:
+      translateY(0)
+      scaleX(1)
+      scaleY(1);
+  }
+
+  50% {
+    transform:
+      translateY(-4px)
+      scaleX(1.01)
+      scaleY(0.99);
+  }
+}
+
+.pet-action-idle {
+  animation:
+    pet-idle-breathe
+    3.2s
+    ease-in-out
+    infinite;
+}
+
+/* =========================================================
+   FEED — ALL PETS
+========================================================= */
+
+@keyframes pet-feed-action {
+  0%,
+  100% {
+    transform:
+      translateY(0)
+      rotate(0deg)
+      scale(1);
+  }
+
+  20% {
+    transform:
+      translateY(5px)
+      rotate(-2deg)
+      scaleX(1.02)
+      scaleY(0.97);
+  }
+
+  40% {
+    transform:
+      translateY(1px)
+      rotate(2deg);
+  }
+
+  60% {
+    transform:
+      translateY(5px)
+      rotate(-1deg)
+      scaleX(1.02)
+      scaleY(0.97);
+  }
+
+  80% {
+    transform:
+      translateY(1px)
+      rotate(1deg);
+  }
+}
+
+.pet-action-feed {
+  animation:
+    pet-feed-action
+    700ms
+    ease-in-out
+    infinite;
+}
+
+/* Hamster paws while eating */
+
+@keyframes hamster-feed-left {
+  from {
+    transform:
+      rotate(14deg)
+      translateY(0);
+  }
+
+  to {
+    transform:
+      rotate(28deg)
+      translateY(-6px);
+  }
+}
+
+@keyframes hamster-feed-right {
+  from {
+    transform:
+      rotate(-14deg)
+      translateY(0);
+  }
+
+  to {
+    transform:
+      rotate(-28deg)
+      translateY(-6px);
+  }
+}
+
+.pet-hamster.pet-action-feed
+.pet-hamster-paw-left {
+  transform-origin:
+    right center;
+
+  animation:
+    hamster-feed-left
+    240ms
+    ease-in-out
+    infinite
+    alternate;
+}
+
+.pet-hamster.pet-action-feed
+.pet-hamster-paw-right {
+  transform-origin:
+    left center;
+
+  animation:
+    hamster-feed-right
+    240ms
+    ease-in-out
+    infinite
+    alternate;
+}
+
+/* =========================================================
+   STUDY
+========================================================= */
+
+@keyframes pet-study-action {
+  0%,
+  100% {
+    transform:
+      translateY(0)
+      rotate(0deg);
+  }
+
+  25% {
+    transform:
+      translateY(1px)
+      rotate(-1deg);
+  }
+
+  50% {
+    transform:
+      translateY(2px)
+      rotate(0deg);
+  }
+
+  75% {
+    transform:
+      translateY(1px)
+      rotate(1deg);
+  }
+}
+
+.pet-action-study {
+  animation:
+    pet-study-action
+    1.4s
+    ease-in-out
+    infinite;
+}
+
+/* =========================================================
+   SLEEP
+========================================================= */
+
+@keyframes pet-sleep-action {
+  0%,
+  100% {
+    transform:
+      translateY(9px)
+      scaleX(1.025)
+      scaleY(0.96);
+  }
+
+  50% {
+    transform:
+      translateY(11px)
+      scaleX(1.035)
+      scaleY(0.945);
+  }
+}
+
+.pet-action-sleep {
+  animation:
+    pet-sleep-action
+    2.5s
+    ease-in-out
+    infinite;
+}
+
+/* =========================================================
+   PLAY — DEFAULT
+========================================================= */
+
+@keyframes pet-play-default {
+  0%,
+  100% {
+    transform:
+      translateY(0)
+      rotate(0deg);
+  }
+
+  30% {
+    transform:
+      translateY(-10px)
+      rotate(-3deg);
+  }
+
+  60% {
+    transform:
+      translateY(0)
+      rotate(3deg);
+  }
+}
+
+.pet-action-play {
+  animation:
+    pet-play-default
+    700ms
+    ease-in-out
+    infinite;
+}
+
+/* =========================================================
+   SEAL — BOB + CLAP
+========================================================= */
+
+@keyframes seal-play {
+  0%,
+  100% {
+    transform:
+      translateY(0)
+      rotate(0deg);
+  }
+
+  30% {
+    transform:
+      translateY(-10px)
+      rotate(-3deg);
+  }
+
+  65% {
+    transform:
+      translateY(-3px)
+      rotate(3deg);
+  }
+}
+
+.pet-seal.pet-action-play {
+  animation:
+    seal-play
+    650ms
+    ease-in-out
+    infinite;
+}
+
+@keyframes seal-flipper-left {
+  from {
+    transform:
+      rotate(-30deg);
+  }
+
+  to {
+    transform:
+      rotate(-72deg)
+      translateY(-7px);
+  }
+}
+
+@keyframes seal-flipper-right {
+  from {
+    transform:
+      rotate(30deg);
+  }
+
+  to {
+    transform:
+      rotate(72deg)
+      translateY(-7px);
+  }
+}
+
+.pet-seal.pet-action-play
+.pet-seal-flipper-left {
+  transform-origin:
+    right center;
+
+  animation:
+    seal-flipper-left
+    280ms
+    ease-in-out
+    infinite
+    alternate;
+}
+
+.pet-seal.pet-action-play
+.pet-seal-flipper-right {
+  transform-origin:
+    left center;
+
+  animation:
+    seal-flipper-right
+    280ms
+    ease-in-out
+    infinite
+    alternate;
+}
+
+/* =========================================================
+   CAT — BOUNCE + TAIL
+========================================================= */
+
+@keyframes cat-play {
+  0%,
+  100% {
+    transform:
+      translateY(0)
+      rotate(0deg);
+  }
+
+  25% {
+    transform:
+      translateY(-12px)
+      rotate(-4deg);
+  }
+
+  50% {
+    transform:
+      translateY(0)
+      rotate(2deg);
+  }
+
+  75% {
+    transform:
+      translateY(-7px)
+      rotate(4deg);
+  }
+}
+
+.pet-cat.pet-action-play {
+  animation:
+    cat-play
+    720ms
+    ease-in-out
+    infinite;
+}
+
+@keyframes cat-tail-idle {
+  0%,
+  100% {
+    transform:
+      rotate(18deg);
+  }
+
+  50% {
+    transform:
+      rotate(40deg);
+  }
+}
+
+@keyframes cat-tail-play {
+  0%,
+  100% {
+    transform:
+      rotate(5deg);
+  }
+
+  50% {
+    transform:
+      rotate(58deg);
+  }
+}
+
+.pet-cat
+.pet-cat-tail {
+  transform-origin:
+    left center;
+
+  animation:
+    cat-tail-idle
+    2.2s
+    ease-in-out
+    infinite;
+}
+
+.pet-cat.pet-action-play
+.pet-cat-tail {
+  animation:
+    cat-tail-play
+    380ms
+    ease-in-out
+    infinite;
+}
+
+/* =========================================================
+   DOG — HAPPY BOUNCE + EAR FLOP
+========================================================= */
+
+@keyframes dog-play {
+  0%,
+  100% {
+    transform:
+      translateY(0)
+      rotate(0deg);
+  }
+
+  25% {
+    transform:
+      translateY(-9px)
+      rotate(-4deg);
+  }
+
+  50% {
+    transform:
+      translateY(0)
+      rotate(4deg);
+  }
+
+  75% {
+    transform:
+      translateY(-8px)
+      rotate(-3deg);
+  }
+}
+
+.pet-dog.pet-action-play {
+  animation:
+    dog-play
+    600ms
+    ease-in-out
+    infinite;
+}
+
+@keyframes dog-ear-left {
+  from {
+    transform:
+      rotate(15deg);
+  }
+
+  to {
+    transform:
+      rotate(34deg);
+  }
+}
+
+@keyframes dog-ear-right {
+  from {
+    transform:
+      rotate(-15deg);
+  }
+
+  to {
+    transform:
+      rotate(-34deg);
+  }
+}
+
+.pet-dog.pet-action-play
+.pet-dog-ear-left {
+  transform-origin:
+    top right;
+
+  animation:
+    dog-ear-left
+    260ms
+    ease-in-out
+    infinite
+    alternate;
+}
+
+.pet-dog.pet-action-play
+.pet-dog-ear-right {
+  transform-origin:
+    top left;
+
+  animation:
+    dog-ear-right
+    260ms
+    ease-in-out
+    infinite
+    alternate;
+}
+
+/* =========================================================
+   HAMSTER — QUICK LITTLE HOPS
+========================================================= */
+
+@keyframes hamster-play {
+  0%,
+  100% {
+    transform:
+      translateY(0)
+      scaleX(1)
+      scaleY(1);
+  }
+
+  25% {
+    transform:
+      translateY(-9px)
+      scaleX(0.96)
+      scaleY(1.05);
+  }
+
+  50% {
+    transform:
+      translateY(0)
+      scaleX(1.05)
+      scaleY(0.95);
+  }
+
+  75% {
+    transform:
+      translateY(-5px)
+      scaleX(0.98)
+      scaleY(1.02);
+  }
+}
+
+.pet-hamster.pet-action-play {
+  animation:
+    hamster-play
+    520ms
+    ease-in-out
+    infinite;
+}
+
+/* =========================================================
+   FROG — SQUISH + JUMP
+========================================================= */
+
+@keyframes frog-play {
+  0%,
+  100% {
+    transform:
+      translateY(0)
+      scaleX(1)
+      scaleY(1);
+  }
+
+  20% {
+    transform:
+      translateY(5px)
+      scaleX(1.1)
+      scaleY(0.9);
+  }
+
+  45% {
+    transform:
+      translateY(-17px)
+      scaleX(0.92)
+      scaleY(1.1);
+  }
+
+  70% {
+    transform:
+      translateY(4px)
+      scaleX(1.08)
+      scaleY(0.92);
+  }
+}
+
+.pet-frog.pet-action-play {
+  animation:
+    frog-play
+    680ms
+    ease-in-out
+    infinite;
+}
+
+/* =========================================================
+   CHICK — HOP + FLAP
+========================================================= */
+
+@keyframes chick-play {
+  0%,
+  100% {
+    transform:
+      translateY(0);
+  }
+
+  50% {
+    transform:
+      translateY(-11px);
+  }
+}
+
+.pet-chick.pet-action-play {
+  animation:
+    chick-play
+    500ms
+    ease-in-out
+    infinite;
+}
+
+@keyframes chick-wing-left {
+  from {
+    transform:
+      rotate(-20deg);
+  }
+
+  to {
+    transform:
+      rotate(-67deg)
+      translateY(-5px);
+  }
+}
+
+@keyframes chick-wing-right {
+  from {
+    transform:
+      rotate(20deg);
+  }
+
+  to {
+    transform:
+      rotate(67deg)
+      translateY(-5px);
+  }
+}
+
+.pet-chick.pet-action-play
+.pet-chick-wing-left {
+  transform-origin:
+    right center;
+
+  animation:
+    chick-wing-left
+    210ms
+    ease-in-out
+    infinite
+    alternate;
+}
+
+.pet-chick.pet-action-play
+.pet-chick-wing-right {
+  transform-origin:
+    left center;
+
+  animation:
+    chick-wing-right
+    210ms
+    ease-in-out
+    infinite
+    alternate;
+}
+
+/* =========================================================
+   ACCESSIBILITY
+========================================================= */
+
+@media (
+  prefers-reduced-motion:
+    reduce
+) {
+  .pet-character,
+  .pet-eye-blink,
+  .pet-dialogue,
+  .pet-cat-tail,
+  .pet-seal-flipper-left,
+  .pet-seal-flipper-right,
+  .pet-dog-ear-left,
+  .pet-dog-ear-right,
+  .pet-hamster-paw-left,
+  .pet-hamster-paw-right,
+  .pet-chick-wing-left,
+  .pet-chick-wing-right {
+    animation: none !important;
+  }
+}
