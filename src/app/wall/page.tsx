@@ -5,7 +5,9 @@ import React, {
   useEffect,
   useMemo,
   useCallback,
+  useRef,
 } from 'react';
+import { toBlob } from 'html-to-image';
 import Link from 'next/link';
 import {
   collection,
@@ -485,6 +487,18 @@ export default function HomePage() {
 
   const [copiedId, setCopiedId] =
     useState<string | null>(null);
+
+  const [shareCardPost, setShareCardPost] =
+  useState<PostProps | null>(null);
+
+  const [shareCardBusy, setShareCardBusy] =
+    useState<boolean>(false);
+
+  const [shareCardMessage, setShareCardMessage] =
+    useState<string>('');
+
+  const shareCardRef =
+    useRef<HTMLDivElement | null>(null);
 
   const [votedPosts, setVotedPosts] =
     useState<Record<string, boolean>>({});
@@ -1432,46 +1446,302 @@ useEffect(() => {
       }
     };
 
-  /* =========================================================
-     SHARE
-  ========================================================= */
+/* =========================================================
+   SHARE CARD
+========================================================= */
 
-  const handleShare =
-    async (id: string) => {
-      const postUrl =
-        `${window.location.origin}/post/${id}`;
+const getCategoryLabel = (
+  categoryId: string
+): string => {
+  return (
+    CATEGORIES.find(
+      (category) =>
+        category.id === categoryId
+    )?.label || categoryId
+  );
+};
 
-      if (navigator.share) {
-        try {
-          await navigator.share({
-            title:
-              'Tambayan Eselyu Entry',
-            url: postUrl,
-          });
+const openShareCard = (
+  post: PostProps
+) => {
+  setShareCardMessage('');
+  setShareCardPost(post);
+};
 
-          return;
-        } catch (err) {}
+const closeShareCard = () => {
+  if (shareCardBusy) {
+    return;
+  }
+
+  setShareCardPost(null);
+  setShareCardMessage('');
+};
+
+const createShareCardBlob =
+  async (): Promise<Blob> => {
+    if (!shareCardRef.current) {
+      throw new Error(
+        'Share card is not ready.'
+      );
+    }
+
+    /*
+     * Wait for the website fonts to finish loading.
+     * This helps make the exported image match
+     * the preview exactly.
+     */
+    if (document.fonts?.ready) {
+      await document.fonts.ready;
+    }
+
+    const node =
+      shareCardRef.current;
+
+    /*
+     * Automatically calculate the pixel ratio
+     * required to export the card at 1080px wide.
+     *
+     * Since the card is 4:5, this also gives us
+     * 1080 × 1350.
+     */
+    const pixelRatio =
+      1080 /
+      node.getBoundingClientRect().width;
+
+    const blob =
+      await toBlob(node, {
+        pixelRatio,
+        cacheBust: true,
+
+        /*
+         * Don't let browser scaling alter
+         * the appearance of the card.
+         */
+        width:
+          node.getBoundingClientRect().width,
+
+        height:
+          node.getBoundingClientRect().height,
+      });
+
+    if (!blob) {
+      throw new Error(
+        'Failed to create share card.'
+      );
+    }
+
+    return blob;
+  };
+
+const downloadShareCard =
+  async (
+    post: PostProps
+  ) => {
+    if (shareCardBusy) {
+      return;
+    }
+
+    setShareCardBusy(true);
+
+    setShareCardMessage(
+      'Creating your story...'
+    );
+
+    try {
+      const blob =
+        await createShareCardBlob();
+
+      const objectUrl =
+        URL.createObjectURL(
+          blob
+        );
+
+      const anchor =
+        document.createElement(
+          'a'
+        );
+
+      anchor.href =
+        objectUrl;
+
+      anchor.download =
+        `tambayanslu-${post.id}.png`;
+
+      document.body.appendChild(
+        anchor
+      );
+
+      anchor.click();
+
+      anchor.remove();
+
+      URL.revokeObjectURL(
+        objectUrl
+      );
+
+      setShareCardMessage(
+        'Story downloaded! You can now upload it to IG, Facebook, or Messenger.'
+      );
+    } catch (error) {
+      console.error(
+        'Failed to download share card:',
+        error
+      );
+
+      setShareCardMessage(
+        'Could not create the story. Please try again.'
+      );
+    } finally {
+      setShareCardBusy(false);
+    }
+  };
+
+const shareCardImage =
+  async (
+    post: PostProps
+  ) => {
+    if (shareCardBusy) {
+      return;
+    }
+
+    setShareCardBusy(true);
+
+    setShareCardMessage(
+      'Creating your story...'
+    );
+
+    try {
+      const blob = 
+        await createShareCardBlob();
+
+      const file =
+        new File(
+          [blob],
+          `tambayanslu-${post.id}.png`,
+          {
+            type: 'image/png',
+          }
+        );
+
+      /*
+       * Mobile browsers can usually send this
+       * directly to the native share sheet.
+       */
+      if (
+        navigator.share &&
+        navigator.canShare &&
+        navigator.canShare({
+          files: [file],
+        })
+      ) {
+        await navigator.share({
+          files: [file],
+          title:
+            'TambayanSLU Entry',
+          text:
+            'Shared from TambayanSLU',
+        });
+
+        setShareCardMessage(
+          'Shared!'
+        );
+
+        return;
       }
 
-      try {
-        await navigator.clipboard.writeText(
-          postUrl
+      /*
+       * Desktop/fallback:
+       * automatically download the image.
+       */
+      const objectUrl =
+        URL.createObjectURL(
+          blob
         );
 
-        setCopiedId(id);
-
-        setTimeout(
-          () =>
-            setCopiedId(null),
-          2000
+      const anchor =
+        document.createElement(
+          'a'
         );
-      } catch (error) {
+
+      anchor.href =
+        objectUrl;
+
+      anchor.download =
+        `tambayanslu-${post.id}.png`;
+
+      document.body.appendChild(
+        anchor
+      );
+
+      anchor.click();
+
+      anchor.remove();
+
+      URL.revokeObjectURL(
+        objectUrl
+      );
+
+      setShareCardMessage(
+        'Your browser cannot share images directly, so the story was downloaded instead.'
+      );
+    } catch (error: any) {
+      /*
+       * Don't show an error when the user simply
+       * closes the native share sheet.
+       */
+      if (
+        error?.name !==
+        'AbortError'
+      ) {
         console.error(
-          'Failed to copy:',
+          'Failed to share card:',
           error
         );
+
+        setShareCardMessage(
+          'Could not share the story. Please try again.'
+        );
       }
-    };
+    } finally {
+      setShareCardBusy(false);
+    }
+  };
+
+const copyPostLink =
+  async (
+    id: string
+  ) => {
+    const postUrl =
+      `${window.location.origin}/post/${id}`;
+
+    try {
+      await navigator.clipboard.writeText(
+        postUrl
+      );
+
+      setCopiedId(id);
+
+      setShareCardMessage(
+        'Post link copied!'
+      );
+
+      setTimeout(
+        () => {
+          setCopiedId(null);
+        },
+        2000
+      );
+    } catch (error) {
+      console.error(
+        'Failed to copy post link:',
+        error
+      );
+
+      setShareCardMessage(
+        'Could not copy the link.'
+      );
+    }
+  };
 
   /* =========================================================
      EXPAND POST
@@ -2485,26 +2755,22 @@ useEffect(() => {
 
                         {/* SHARE */}
                         <button
+                          type="button"
                           onClick={() =>
-                            handleShare(
-                              post.id
-                            )
+                            openShareCard(post)
                           }
-                          className={`flex items-center gap-1.5 font-mono text-[11px] font-semibold uppercase tracking-wider ${
+                          className={`flex items-center gap-1.5 font-mono text-[11px] font-semibold uppercase tracking-wider transition-opacity hover:opacity-70 ${
                             isDev
-                              ? 'text-emerald-600 hover:text-emerald-400'
+                              ? 'text-emerald-600'
                               : isDarkMode
-                                ? 'text-white/80 hover:text-white'
-                                : 'text-neutral-800 hover:text-neutral-950'
+                                ? 'text-white/80'
+                                : 'text-neutral-800'
                           }`}
                         >
                           <Icons.Share />
 
                           <span>
-                            {copiedId ===
-                            post.id
-                              ? 'Copied!'
-                              : 'Share'}
+                            Share
                           </span>
                         </button>
 
@@ -2561,6 +2827,388 @@ useEffect(() => {
           </div>
         )}
       </main>
+
+
+{/* =========================================================
+    SHARE CARD MODAL
+========================================================= */}
+
+{shareCardPost && (
+  <div
+    className="
+      fixed inset-0 z-[100]
+      bg-neutral-950/80
+      backdrop-blur-md
+      flex items-end sm:items-center
+      justify-center
+      p-0 sm:p-6
+    "
+    onClick={closeShareCard}
+  >
+    <div
+      onClick={(event) =>
+        event.stopPropagation()
+      }
+      className={`w-full sm:max-w-lg max-h-[95vh] overflow-y-auto rounded-t-3xl sm:rounded-3xl border shadow-2xl ${
+        isDarkMode
+          ? 'bg-neutral-900 border-neutral-800'
+          : 'bg-white border-neutral-200'
+      }`}
+    >
+
+      {/* HEADER */}
+      <div
+        className={`sticky top-0 z-10 flex items-center justify-between gap-4 px-5 sm:px-6 py-4 border-b backdrop-blur-xl ${
+          isDarkMode
+            ? 'bg-neutral-900/95 border-neutral-800'
+            : 'bg-white/95 border-neutral-100'
+        }`}
+      >
+        <div>
+          <p
+            className={`font-mono text-[9px] font-bold uppercase tracking-[0.18em] ${
+              isDarkMode
+                ? 'text-emerald-400'
+                : 'text-emerald-600'
+            }`}
+          >
+            Share outside Tambayan
+          </p>
+
+          <h3
+            className={`mt-1 text-lg font-black tracking-tight ${
+              isDarkMode
+                ? 'text-white'
+                : 'text-neutral-900'
+            }`}
+          >
+            Share as Post
+          </h3>
+        </div>
+
+        <button
+          type="button"
+          onClick={
+            closeShareCard
+          }
+          disabled={
+            shareCardBusy
+          }
+          aria-label="Close share card"
+          className={`p-2 rounded-xl transition-colors disabled:opacity-40 ${
+            isDarkMode
+              ? 'text-neutral-400 hover:text-white hover:bg-neutral-800'
+              : 'text-neutral-500 hover:text-neutral-900 hover:bg-neutral-100'
+          }`}
+        >
+          <Icons.Close />
+        </button>
+      </div>
+
+      <div className="p-5 sm:p-6">
+
+        {/* STORY PREVIEW */}
+        <div className="mx-auto w-full max-w-[380px]">
+
+          <div
+            ref={shareCardRef}
+            className="
+              relative
+              aspect-[4/5]
+              overflow-hidden
+              rounded-[28px]
+              border border-white/10
+              bg-neutral-950
+              shadow-2xl
+            "
+          >
+
+            {/* GLOWS */}
+            <div className="absolute -top-20 -right-20 w-64 h-64 bg-emerald-500/20 blur-3xl rounded-full" />
+
+            <div className="absolute -bottom-20 -left-20 w-64 h-64 bg-emerald-500/10 blur-3xl rounded-full" />
+
+            <div className="relative h-full flex flex-col p-7">
+
+              {/* BRAND */}
+              <div>
+                <p className="text-white text-lg font-black tracking-tight">
+                  TAMBAYAN
+                  <span className="text-emerald-500">
+                    .
+                  </span>
+                </p>
+
+                <p className="mt-0.5 text-[9px] text-neutral-500 font-mono">
+                  SLU Freedom Wall
+                </p>
+              </div>
+
+{/* POST */}
+<div
+  className="
+    flex-1
+    min-h-0
+    flex
+    flex-col
+    justify-center
+    py-6
+    overflow-hidden
+  "
+>
+  <div>
+    <span
+      className="
+        inline-flex
+        px-2.5 py-1
+        rounded-lg
+        border
+        border-emerald-500/20
+        bg-emerald-500/10
+        text-emerald-400
+        font-mono
+        text-[8px]
+        font-bold
+        uppercase
+        tracking-wider
+      "
+    >
+      {getCategoryLabel(
+        shareCardPost.category
+      )}
+    </span>
+
+    <p className="mt-4 text-[9px] font-mono font-semibold text-neutral-500">
+      {shareCardPost.authorAlias}
+    </p>
+  </div>
+
+  {(() => {
+    const length =
+      shareCardPost.content.length;
+
+    let textClass =
+      'text-[22px] leading-[1.45]';
+
+    const maxCharacters = 300;
+
+    if (length <= 70) {
+      textClass =
+        'text-[25px] leading-[1.4]';
+    } else if (length <= 140) {
+      textClass =
+        'text-[21px] leading-[1.45]';
+    } else if (length <= 220) {
+      textClass =
+        'text-[18px] leading-[1.5]';
+    } else if (length <= 320) {
+      textClass =
+        'text-[16px] leading-[1.5]';
+    } else {
+      textClass =
+        'text-[14px] leading-[1.55]';
+    }
+
+    const isTruncated =
+      length > maxCharacters;
+
+    const displayContent =
+      isTruncated
+        ? `${shareCardPost.content
+            .slice(0, maxCharacters)
+            .trim()}…`
+        : shareCardPost.content;
+
+    return (
+      <div className="mt-6">
+        <p
+          className={`
+            ${textClass}
+            font-semibold
+            text-neutral-50
+            whitespace-pre-wrap
+            break-words
+            [overflow-wrap:anywhere]
+          `}
+        >
+          {displayContent}
+        </p>
+
+        {isTruncated && (
+          <p className="mt-3 font-mono text-[7px] uppercase tracking-wider text-neutral-600">
+            Continue reading on tambayanslu.com
+          </p>
+        )}
+      </div>
+    );
+  })()}
+</div>
+
+              {/* FOOTER */}
+              <div className="border-t border-white/10 pt-5">
+
+                <p className="text-[10px] font-semibold text-neutral-300">
+                  Got something to say?
+                </p>
+
+                <p className="mt-1 text-[8px] leading-relaxed text-neutral-500">
+                  Share it anonymously with fellow Louisians.
+                </p>
+
+                <div className="mt-5 flex items-end justify-between gap-3">
+
+                  <p className="text-[11px] font-black text-emerald-500">
+                    tambayanslu.com
+                  </p>
+
+                  <p className="text-[6px] text-neutral-600 text-right">
+                    Anonymous.
+                    <br />
+                    Louisian.
+                    <br />
+                    Tambayan.
+                  </p>
+
+                </div>
+
+              </div>
+
+            </div>
+          </div>
+
+          <p
+            className={`mt-3 text-center font-mono text-[9px] leading-relaxed ${
+              isDarkMode
+                ? 'text-neutral-600'
+                : 'text-neutral-400'
+            }`}
+          >
+            1080 × 1350 • Share Card
+          </p>
+
+        </div>
+
+        {/* ACTIONS */}
+        <div className="mt-6 grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+
+          {/* SHARE IMAGE */}
+          <button
+            type="button"
+            onClick={() =>
+              shareCardImage(
+                shareCardPost
+              )
+            }
+            disabled={
+              shareCardBusy
+            }
+            className="
+              sm:col-span-2
+              w-full
+              flex items-center
+              justify-center
+              gap-2
+              rounded-xl
+              bg-emerald-600
+              hover:bg-emerald-500
+              active:scale-[0.98]
+              disabled:opacity-50
+              disabled:cursor-not-allowed
+              px-4 py-3.5
+              text-white
+              font-mono
+              text-[11px]
+              font-black
+              uppercase
+              tracking-wider
+              transition-all
+            "
+          >
+            <Icons.Share />
+
+            {shareCardBusy
+              ? 'Creating Card...'
+              : 'Share Card'}
+          </button>
+
+          {/* DOWNLOAD */}
+          <button
+            type="button"
+            onClick={() =>
+              downloadShareCard(
+                shareCardPost
+              )
+            }
+            disabled={
+              shareCardBusy
+            }
+            className={`w-full rounded-xl border px-4 py-3 font-mono text-[10px] font-bold uppercase tracking-wider transition-colors disabled:opacity-50 ${
+              isDarkMode
+                ? 'bg-neutral-800 border-neutral-700 text-neutral-200 hover:bg-neutral-700'
+                : 'bg-neutral-50 border-neutral-200 text-neutral-700 hover:bg-neutral-100'
+            }`}
+          >
+            Download Card
+          </button>
+
+          {/* COPY LINK */}
+          <button
+            type="button"
+            onClick={() =>
+              copyPostLink(
+                shareCardPost.id
+              )
+            }
+            disabled={
+              shareCardBusy
+            }
+            className={`w-full rounded-xl border px-4 py-3 font-mono text-[10px] font-bold uppercase tracking-wider transition-colors disabled:opacity-50 ${
+              copiedId ===
+              shareCardPost.id
+                ? 'bg-emerald-500/10 border-emerald-500/30 text-emerald-500'
+                : isDarkMode
+                  ? 'bg-neutral-800 border-neutral-700 text-neutral-200 hover:bg-neutral-700'
+                  : 'bg-neutral-50 border-neutral-200 text-neutral-700 hover:bg-neutral-100'
+            }`}
+          >
+            {copiedId ===
+            shareCardPost.id
+              ? 'Link Copied!'
+              : 'Copy Post Link'}
+          </button>
+
+        </div>
+
+        {/* STATUS */}
+        {shareCardMessage && (
+          <div
+            className={`mt-4 px-4 py-3 rounded-xl border text-center font-mono text-[10px] leading-relaxed ${
+              isDarkMode
+                ? 'bg-neutral-950 border-neutral-800 text-neutral-400'
+                : 'bg-neutral-50 border-neutral-200 text-neutral-500'
+            }`}
+          >
+            {shareCardMessage}
+          </div>
+        )}
+
+        {/* NOTE */}
+        <p
+          className={`mt-4 text-center text-[10px] leading-relaxed ${
+            isDarkMode
+              ? 'text-neutral-600'
+              : 'text-neutral-400'
+          }`}
+        >
+          On supported phones, Share Image opens your
+          device&apos;s share menu. Otherwise, the image
+          will be downloaded automatically.
+        </p>
+
+      </div>
+    </div>
+  </div>
+)}
 
       {/* REPORT MODAL */}
       {activeReportPostId && (
