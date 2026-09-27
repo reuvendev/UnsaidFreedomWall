@@ -533,6 +533,14 @@ const ACCESSORIES: AccessoryItem[] = [
     price: 350,
   },
   {
+    id: 'matcha_cup',
+    name: 'Matcha',
+    description: 'A cozy little matcha break.',
+    slot: 'prop',
+    rarity: 'Rare',
+    price: 350,
+  },
+  {
     id: 'graduation_cap',
     name: 'Graduation Cap',
     description: 'A long-term Tambayan flex.',
@@ -790,6 +798,157 @@ const getEffectiveStreak = (
   }
 
   return 0;
+};
+
+/* =========================================================
+   SHARED TAMBAYAN STREAK
+
+   A successful Feed / Play / Study / Sleep interaction counts
+   as the user's activity for the current Philippine calendar day.
+   Multiple pet interactions on the same day do NOT add multiple
+   streak days.
+========================================================= */
+
+const updateUserStreakFromPetInteraction = async (
+  userId: string
+) => {
+  const userRef =
+    doc(
+      db,
+      'users',
+      userId
+    );
+
+  const today =
+    getPhilippineDate();
+
+  return runTransaction(
+    db,
+    async (transaction) => {
+      const userSnapshot =
+        await transaction.get(
+          userRef
+        );
+
+      if (
+        !userSnapshot.exists()
+      ) {
+        transaction.set(
+          userRef,
+          {
+            streak: {
+              current: 1,
+              longest: 1,
+              lastActiveDate:
+                today,
+            },
+          },
+          { merge: true }
+        );
+
+        return 1;
+      }
+
+      const userData =
+        userSnapshot.data();
+
+      const existingStreak =
+        userData.streak as
+          | {
+              current?: number;
+              longest?: number;
+              lastActiveDate?:
+                string | null;
+            }
+          | undefined;
+
+      if (!existingStreak) {
+        transaction.set(
+          userRef,
+          {
+            streak: {
+              current: 1,
+              longest: 1,
+              lastActiveDate:
+                today,
+            },
+          },
+          { merge: true }
+        );
+
+        return 1;
+      }
+
+      const current =
+        Number(
+          existingStreak.current ||
+            0
+        );
+
+      const longest =
+        Number(
+          existingStreak.longest ||
+            0
+        );
+
+      const lastActiveDate =
+        existingStreak.lastActiveDate ||
+        null;
+
+      /*
+       * Already active today.
+       * Keep the same streak instead of
+       * adding another day.
+       */
+      if (
+        lastActiveDate === today
+      ) {
+        return current;
+      }
+
+      let nextCurrent = 1;
+
+      if (lastActiveDate) {
+        const difference =
+          getDateDifference(
+            lastActiveDate,
+            today
+          );
+
+        /*
+         * Yesterday -> continue streak.
+         * Older gap -> restart at 1.
+         */
+        if (difference === 1) {
+          nextCurrent =
+            current + 1;
+        }
+      }
+
+      const nextLongest =
+        Math.max(
+          longest,
+          nextCurrent
+        );
+
+      transaction.set(
+        userRef,
+        {
+          streak: {
+            current:
+              nextCurrent,
+            longest:
+              nextLongest,
+            lastActiveDate:
+              today,
+          },
+        },
+        { merge: true }
+      );
+
+      return nextCurrent;
+    }
+  );
 };
 
 const getTimestampMillis = (
@@ -4784,6 +4943,36 @@ function PetAccessories({
         </div>
       )}
 
+
+      {equipped.prop ===
+        'matcha_cup' && (
+        <div
+          className="
+            absolute
+            right-[10px]
+            bottom-[13px]
+            w-[59px]
+            h-[65px]
+          "
+        >
+          {/* STEAM */}
+          <div className="absolute left-[18px] top-0 w-[8px] h-[19px] rounded-full border-l-2 border-emerald-300 rotate-[12deg]" />
+          <div className="absolute left-[31px] top-[2px] w-[8px] h-[17px] rounded-full border-l-2 border-emerald-300 -rotate-[12deg]" />
+
+          {/* CUP */}
+          <div className="absolute left-[5px] bottom-0 w-[43px] h-[39px] rounded-b-xl rounded-t-md border border-emerald-200 bg-[#f7fff8] shadow" />
+
+          {/* HANDLE */}
+          <div className="absolute right-[1px] bottom-[9px] w-[20px] h-[23px] rounded-full border-[4px] border-[#f7fff8]" />
+
+          {/* MATCHA */}
+          <div className="absolute left-[8px] bottom-[34px] w-[37px] h-[7px] rounded-full bg-[#8faf69]" />
+
+          {/* TINY LEAF */}
+          <div className="absolute left-[23px] bottom-[13px] w-[10px] h-[6px] rotate-[-18deg] rounded-[100%_0_100%_0] bg-emerald-500/80" />
+        </div>
+      )}
+
     </div>
   );
 }
@@ -5088,6 +5277,19 @@ function AccessoryPreview({
 
           <div className="absolute left-[8px] bottom-[35px] w-[36px] h-[7px] rounded-full bg-[#624231]" />
 
+        </div>
+      )}
+
+
+      {itemId ===
+        'matcha_cup' && (
+        <div className="relative w-[60px] h-[65px]">
+          <div className="absolute left-[17px] top-[2px] w-[7px] h-[17px] border-l-2 border-emerald-300 rotate-12 rounded-full" />
+          <div className="absolute left-[31px] top-[4px] w-[7px] h-[15px] border-l-2 border-emerald-300 -rotate-12 rounded-full" />
+          <div className="absolute left-[5px] bottom-[2px] w-[42px] h-[38px] rounded-b-xl border border-emerald-200 bg-[#f7fff8]" />
+          <div className="absolute right-[1px] bottom-[10px] w-[20px] h-[22px] rounded-full border-[4px] border-[#f7fff8]" />
+          <div className="absolute left-[8px] bottom-[35px] w-[36px] h-[7px] rounded-full bg-[#8faf69]" />
+          <div className="absolute left-[22px] bottom-[14px] w-[10px] h-[6px] rotate-[-18deg] rounded-[100%_0_100%_0] bg-emerald-500/80" />
         </div>
       )}
 
@@ -8753,6 +8955,27 @@ export default function PetPage() {
       );
 
       /*
+       * A successful feeding counts as today's
+       * Tambayan activity. This shares the same
+       * users/{ownerId}.streak used elsewhere.
+       */
+      try {
+        const updatedStreak =
+          await updateUserStreakFromPetInteraction(
+            ownerId
+          );
+
+        setCurrentStreak(
+          updatedStreak
+        );
+      } catch (streakError) {
+        console.error(
+          'Failed to update streak from feeding:',
+          streakError
+        );
+      }
+
+      /*
        * Update local pantry.
        */
       setPantry(
@@ -9069,6 +9292,27 @@ const performAction =
       setPet(
         updatedPet
       );
+
+      /*
+       * A successful Play / Study / Sleep action
+       * counts as today's Tambayan activity.
+       * Only one streak day can be earned per PH day.
+       */
+      try {
+        const updatedStreak =
+          await updateUserStreakFromPetInteraction(
+            ownerId
+          );
+
+        setCurrentStreak(
+          updatedStreak
+        );
+      } catch (streakError) {
+        console.error(
+          'Failed to update streak from pet action:',
+          streakError
+        );
+      }
 
       const animationDurations = {
         play: 2800,
