@@ -675,7 +675,7 @@ const PETS: {
   },
   {
     id: 'axolotl',
-    name: 'Pink Axolotl',
+    name: "Pink Axolotl (Achi's Version)",
     description: 'Soft, aquatic, and unlocked by a 14-day streak.',
     unlockStreak: 14,
   },
