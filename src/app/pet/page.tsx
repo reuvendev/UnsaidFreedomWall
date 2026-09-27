@@ -10,6 +10,7 @@ import React, {
 
 import {
   collection,
+  deleteDoc,
   doc,
   documentId,
   getDoc,
@@ -24,6 +25,8 @@ import {
   startAfter,
   Timestamp,
   updateDoc,
+  where,
+  writeBatch,
 } from 'firebase/firestore';
 
 import { db } from '@/lib/firebase';
@@ -38,7 +41,8 @@ type PetSpecies =
   | 'hamster'
   | 'frog'
   | 'chick'
-  | 'seal';
+  | 'seal'
+  | 'axolotl';
 
 type PetPersonality =
   | 'Chill'
@@ -213,6 +217,89 @@ interface ParkSceneEvent {
 const GLOBAL_PARK_CHAT_ID =
   'global';
 
+/*
+ * Pet Park chat is daily.
+ * A new chat day begins at 12:00 AM in the Philippines.
+ * Old documents may remain in Firestore, but the UI/query
+ * only reads messages from the current PH calendar day.
+ */
+const getPhilippineDayStart =
+  (
+    now = new Date()
+  ) => {
+    const parts =
+      new Intl.DateTimeFormat(
+        'en-CA',
+        {
+          timeZone:
+            'Asia/Manila',
+          year: 'numeric',
+          month: '2-digit',
+          day: '2-digit',
+        }
+      ).formatToParts(
+        now
+      );
+
+    const year =
+      Number(
+        parts.find(
+          (part) =>
+            part.type ===
+            'year'
+        )?.value
+      );
+
+    const month =
+      Number(
+        parts.find(
+          (part) =>
+            part.type ===
+            'month'
+        )?.value
+      );
+
+    const day =
+      Number(
+        parts.find(
+          (part) =>
+            part.type ===
+            'day'
+        )?.value
+      );
+
+    /*
+     * Philippine Standard Time is UTC+8 year-round.
+     * 00:00 PHT = 16:00 UTC on the previous date.
+     */
+    return new Date(
+      Date.UTC(
+        year,
+        month - 1,
+        day,
+        -8,
+        0,
+        0,
+        0
+      )
+    );
+  };
+
+const getNextPhilippineMidnight =
+  (
+    now = new Date()
+  ) => {
+    const dayStart =
+      getPhilippineDayStart(
+        now
+      );
+
+    return new Date(
+      dayStart.getTime() +
+        24 * 60 * 60 * 1000
+    );
+  };
+
 const EMPTY_EQUIPPED: EquippedItems = {
   head: null,
   face: null,
@@ -335,6 +422,30 @@ const SPECIES_DIALOGUES:
     feed: [
       'More crumbs, please.',
       'That hit the spot.',
+    ],
+  },
+
+  axolotl: {
+    play: [
+      'Splash!',
+      'Again, again!',
+      'Water zoomies!',
+    ],
+
+    feed: [
+      'Yum... worm bites.',
+      'That was perfect.',
+      'More snacks, please.',
+    ],
+
+    study: [
+      'Tiny brain, big thoughts.',
+      'I am absorbing knowledge.',
+    ],
+
+    sleep: [
+      'Floating to sleep...',
+      'Just five more bubbles.',
     ],
   },
 };
@@ -493,6 +604,16 @@ const FOODS: FoodItem[] = [
   },
 
   {
+    id: 'axolotl_worm_bites',
+    name: 'Worm Bites',
+    description: 'A soft little snack for an axolotl.',
+    species: 'axolotl',
+    price: 22,
+    hungerGain: 36,
+    happinessBonus: 7,
+  },
+
+  {
     id: 'emergency_biscuit',
     name: 'Emergency Biscuit',
     description: 'Works for any pet, but not their favorite.',
@@ -520,6 +641,7 @@ const PETS: {
   id: PetSpecies;
   name: string;
   description: string;
+  unlockStreak?: number;
 }[] = [
   {
     id: 'cat',
@@ -550,6 +672,12 @@ const PETS: {
     id: 'seal',
     name: 'Seal',
     description: 'Round, relaxed, and professionally adorable.',
+  },
+  {
+    id: 'axolotl',
+    name: 'Pink Axolotl',
+    description: 'Soft, aquatic, and unlocked by a 14-day streak.',
+    unlockStreak: 14,
   },
 ];
 
@@ -612,6 +740,56 @@ const getPhilippineDate = () => {
       day: '2-digit',
     }
   ).format(new Date());
+};
+
+const getDateDifference = (
+  date1: string,
+  date2: string
+) => {
+  const first =
+    new Date(
+      `${date1}T00:00:00`
+    );
+
+  const second =
+    new Date(
+      `${date2}T00:00:00`
+    );
+
+  return Math.round(
+    (
+      second.getTime() -
+      first.getTime()
+    ) /
+      (
+        1000 *
+        60 *
+        60 *
+        24
+      )
+  );
+};
+
+const getEffectiveStreak = (
+  current: number,
+  lastActiveDate:
+    string | null
+) => {
+  if (!lastActiveDate) {
+    return 0;
+  }
+
+  const difference =
+    getDateDifference(
+      lastActiveDate,
+      getPhilippineDate()
+    );
+
+  if (difference <= 1) {
+    return current;
+  }
+
+  return 0;
 };
 
 const getTimestampMillis = (
@@ -2545,6 +2723,438 @@ function ChickPet() {
   );
 }
 
+function AxolotlPet() {
+  return (
+    <div className="relative w-[195px] h-[170px]">
+
+      {/* SOFT SHADOW */}
+      <div
+        className="
+          absolute
+          left-1/2
+          bottom-[1px]
+          -translate-x-1/2
+          w-[132px]
+          h-[18px]
+          rounded-full
+          bg-pink-950/10
+          blur-[4px]
+        "
+      />
+
+      {/* FLOATING BUBBLES */}
+      <span
+        className="
+          axolotl-bubble
+          absolute
+          left-[17px]
+          top-[17px]
+          z-10
+          h-[10px]
+          w-[10px]
+          rounded-full
+          border
+          border-pink-300/70
+          bg-white/50
+        "
+      />
+
+      <span
+        className="
+          axolotl-bubble
+          axolotl-bubble-delay
+          absolute
+          right-[21px]
+          top-[4px]
+          z-10
+          h-[7px]
+          w-[7px]
+          rounded-full
+          border
+          border-pink-300/70
+          bg-white/50
+        "
+      />
+
+      {/* TAIL */}
+      <div
+        className="
+          axolotl-tail
+          absolute
+          right-[-1px]
+          bottom-[26px]
+          z-[1]
+          w-[83px]
+          h-[39px]
+          origin-left
+          rotate-[8deg]
+          rounded-[60%_95%_95%_46%]
+          border
+          border-[#dc86a2]
+          bg-gradient-to-r
+          from-[#f5aec3]
+          via-[#f3a1ba]
+          to-[#e987a6]
+          shadow-sm
+        "
+      >
+        <div
+          className="
+            absolute
+            right-[8px]
+            top-[6px]
+            h-[24px]
+            w-[42px]
+            rounded-[65%_95%_95%_65%]
+            bg-[#ffd0dd]/65
+          "
+        />
+
+        <div
+          className="
+            absolute
+            right-[14px]
+            top-[8px]
+            h-[7px]
+            w-[26px]
+            -rotate-[8deg]
+            rounded-full
+            bg-white/35
+          "
+        />
+      </div>
+
+      {/* BACK LEGS */}
+      <div
+        className="
+          absolute
+          left-[39px]
+          bottom-[9px]
+          z-[4]
+          h-[27px]
+          w-[42px]
+          rotate-[13deg]
+          rounded-[60%_60%_48%_48%]
+          border
+          border-[#db829f]
+          bg-gradient-to-b
+          from-[#f6b0c4]
+          to-[#eb93ae]
+          shadow-sm
+        "
+      >
+        <span className="absolute bottom-[4px] left-[10px] h-[5px] w-[6px] rounded-full border-b border-[#ce728f]" />
+        <span className="absolute bottom-[3px] left-[18px] h-[5px] w-[6px] rounded-full border-b border-[#ce728f]" />
+        <span className="absolute bottom-[4px] left-[26px] h-[5px] w-[6px] rounded-full border-b border-[#ce728f]" />
+      </div>
+
+      <div
+        className="
+          absolute
+          right-[39px]
+          bottom-[9px]
+          z-[4]
+          h-[27px]
+          w-[42px]
+          -rotate-[13deg]
+          rounded-[60%_60%_48%_48%]
+          border
+          border-[#db829f]
+          bg-gradient-to-b
+          from-[#f6b0c4]
+          to-[#eb93ae]
+          shadow-sm
+        "
+      >
+        <span className="absolute bottom-[4px] left-[10px] h-[5px] w-[6px] rounded-full border-b border-[#ce728f]" />
+        <span className="absolute bottom-[3px] left-[18px] h-[5px] w-[6px] rounded-full border-b border-[#ce728f]" />
+        <span className="absolute bottom-[4px] left-[26px] h-[5px] w-[6px] rounded-full border-b border-[#ce728f]" />
+      </div>
+
+      {/* LEFT FEATHERY GILLS */}
+      <div
+        className="
+          axolotl-gill-left
+          absolute
+          left-[1px]
+          top-[37px]
+          z-[2]
+          h-[70px]
+          w-[64px]
+          origin-right
+        "
+      >
+        <div className="absolute right-[3px] top-[29px] h-[11px] w-[48px] rotate-[4deg] rounded-full bg-[#d75d85]" />
+        <div className="absolute right-[6px] top-[11px] h-[10px] w-[49px] -rotate-[23deg] rounded-full bg-[#dc668d]" />
+        <div className="absolute right-[6px] top-[47px] h-[10px] w-[49px] rotate-[24deg] rounded-full bg-[#dc668d]" />
+
+        <span className="absolute left-[2px] top-[2px] h-[13px] w-[24px] -rotate-[25deg] rounded-full bg-[#f080a3]" />
+        <span className="absolute left-[-4px] top-[18px] h-[13px] w-[25px] -rotate-[10deg] rounded-full bg-[#f48cab]" />
+        <span className="absolute left-[-5px] top-[35px] h-[13px] w-[25px] rotate-[4deg] rounded-full bg-[#f48cab]" />
+        <span className="absolute left-[1px] top-[52px] h-[13px] w-[24px] rotate-[24deg] rounded-full bg-[#f080a3]" />
+
+        <span className="absolute left-[7px] top-[5px] h-[5px] w-[9px] rounded-full bg-white/35" />
+        <span className="absolute left-[1px] top-[21px] h-[5px] w-[10px] rounded-full bg-white/30" />
+      </div>
+
+      {/* RIGHT FEATHERY GILLS */}
+      <div
+        className="
+          axolotl-gill-right
+          absolute
+          right-[1px]
+          top-[37px]
+          z-[2]
+          h-[70px]
+          w-[64px]
+          origin-left
+        "
+      >
+        <div className="absolute left-[3px] top-[29px] h-[11px] w-[48px] -rotate-[4deg] rounded-full bg-[#d75d85]" />
+        <div className="absolute left-[6px] top-[11px] h-[10px] w-[49px] rotate-[23deg] rounded-full bg-[#dc668d]" />
+        <div className="absolute left-[6px] top-[47px] h-[10px] w-[49px] -rotate-[24deg] rounded-full bg-[#dc668d]" />
+
+        <span className="absolute right-[2px] top-[2px] h-[13px] w-[24px] rotate-[25deg] rounded-full bg-[#f080a3]" />
+        <span className="absolute right-[-4px] top-[18px] h-[13px] w-[25px] rotate-[10deg] rounded-full bg-[#f48cab]" />
+        <span className="absolute right-[-5px] top-[35px] h-[13px] w-[25px] -rotate-[4deg] rounded-full bg-[#f48cab]" />
+        <span className="absolute right-[1px] top-[52px] h-[13px] w-[24px] -rotate-[24deg] rounded-full bg-[#f080a3]" />
+
+        <span className="absolute right-[7px] top-[5px] h-[5px] w-[9px] rounded-full bg-white/35" />
+        <span className="absolute right-[1px] top-[21px] h-[5px] w-[10px] rounded-full bg-white/30" />
+      </div>
+
+      {/* ROUND HEAD / BODY */}
+      <div
+        className="
+          axolotl-body
+          absolute
+          left-1/2
+          top-[43px]
+          z-[3]
+          h-[107px]
+          w-[153px]
+          -translate-x-1/2
+          rounded-[51%_51%_46%_46%]
+          border
+          border-[#df88a4]
+          bg-gradient-to-b
+          from-[#ffd1de]
+          via-[#f7aec3]
+          to-[#eb91ae]
+          shadow-[0_9px_20px_rgba(190,77,116,0.16)]
+        "
+      >
+        {/* HEAD HIGHLIGHT */}
+        <div
+          className="
+            absolute
+            left-[27px]
+            top-[10px]
+            h-[14px]
+            w-[52px]
+            -rotate-12
+            rounded-full
+            bg-white/45
+            blur-[0.2px]
+          "
+        />
+
+        {/* TINY FOREHEAD HEART */}
+        <div
+          className="
+            absolute
+            left-1/2
+            top-[17px]
+            h-[8px]
+            w-[8px]
+            -translate-x-1/2
+            rotate-45
+            rounded-[2px]
+            bg-[#ec779b]/45
+          "
+        >
+          <span className="absolute -left-[4px] top-0 h-[8px] w-[8px] rounded-full bg-[#ec779b]/45" />
+          <span className="absolute left-0 -top-[4px] h-[8px] w-[8px] rounded-full bg-[#ec779b]/45" />
+        </div>
+
+        {/* BIG SHINY LEFT EYE */}
+        <div
+          className="
+            pet-eye-blink
+            absolute
+            left-[35px]
+            top-[36px]
+            h-[21px]
+            w-[18px]
+            rounded-[50%]
+            bg-[#34252d]
+            shadow-[0_2px_3px_rgba(0,0,0,0.15)]
+          "
+        >
+          <span className="absolute left-[4px] top-[3px] h-[6px] w-[6px] rounded-full bg-white" />
+          <span className="absolute right-[3px] bottom-[4px] h-[3px] w-[3px] rounded-full bg-white/70" />
+        </div>
+
+        {/* BIG SHINY RIGHT EYE */}
+        <div
+          className="
+            pet-eye-blink
+            absolute
+            right-[35px]
+            top-[36px]
+            h-[21px]
+            w-[18px]
+            rounded-[50%]
+            bg-[#34252d]
+            shadow-[0_2px_3px_rgba(0,0,0,0.15)]
+          "
+        >
+          <span className="absolute left-[4px] top-[3px] h-[6px] w-[6px] rounded-full bg-white" />
+          <span className="absolute right-[3px] bottom-[4px] h-[3px] w-[3px] rounded-full bg-white/70" />
+        </div>
+
+        {/* EXTRA ROSY CHEEKS */}
+        <div className="absolute left-[16px] top-[61px] h-[17px] w-[31px] rounded-full bg-[#ef6f9a]/30 blur-[0.2px]" />
+        <div className="absolute right-[16px] top-[61px] h-[17px] w-[31px] rounded-full bg-[#ef6f9a]/30 blur-[0.2px]" />
+
+        <span className="absolute left-[23px] top-[65px] h-[4px] w-[8px] -rotate-12 rounded-full bg-white/35" />
+        <span className="absolute right-[23px] top-[65px] h-[4px] w-[8px] rotate-12 rounded-full bg-white/35" />
+
+        {/* LITTLE :3-STYLE SMILE */}
+        <div
+          className="
+            absolute
+            left-1/2
+            top-[61px]
+            z-10
+            -translate-x-1/2
+          "
+        >
+          <span
+            className="
+              absolute
+              right-[-1px]
+              top-0
+              h-[11px]
+              w-[14px]
+              rounded-full
+              border-b-2
+              border-[#a95672]
+            "
+          />
+
+          <span
+            className="
+              absolute
+              left-[-1px]
+              top-0
+              h-[11px]
+              w-[14px]
+              rounded-full
+              border-b-2
+              border-[#a95672]
+            "
+          />
+
+          <span
+            className="
+              absolute
+              left-1/2
+              top-[9px]
+              h-[5px]
+              w-[7px]
+              -translate-x-1/2
+              rounded-b-full
+              bg-[#dc6f91]/65
+            "
+          />
+        </div>
+
+        {/* PALE BELLY */}
+        <div
+          className="
+            absolute
+            left-1/2
+            bottom-[3px]
+            h-[30px]
+            w-[78px]
+            -translate-x-1/2
+            rounded-[50%]
+            bg-[#ffd4df]/55
+          "
+        />
+
+        {/* TINY FRONT ARMS */}
+        <div
+          className="
+            absolute
+            left-[25px]
+            bottom-[11px]
+            h-[14px]
+            w-[33px]
+            rotate-[17deg]
+            rounded-full
+            bg-[#ec91ad]
+          "
+        />
+
+        <div
+          className="
+            absolute
+            right-[25px]
+            bottom-[11px]
+            h-[14px]
+            w-[33px]
+            -rotate-[17deg]
+            rounded-full
+            bg-[#ec91ad]
+          "
+        />
+      </div>
+
+      {/* FRONT FEET */}
+      <div
+        className="
+          absolute
+          left-[48px]
+          bottom-[1px]
+          z-[5]
+          h-[18px]
+          w-[36px]
+          rotate-[5deg]
+          rounded-[58%]
+          border
+          border-[#da819e]
+          bg-gradient-to-b
+          from-[#f7b0c4]
+          to-[#ed96b0]
+          shadow-sm
+        "
+      />
+
+      <div
+        className="
+          absolute
+          right-[48px]
+          bottom-[1px]
+          z-[5]
+          h-[18px]
+          w-[36px]
+          -rotate-[5deg]
+          rounded-[58%]
+          border
+          border-[#da819e]
+          bg-gradient-to-b
+          from-[#f7b0c4]
+          to-[#ed96b0]
+          shadow-sm
+        "
+      />
+    </div>
+  );
+}
+
+
 /* =========================================================
    PET SVG
 ========================================================= */
@@ -2674,6 +3284,11 @@ function PetAvatar({
           <ChickPet />
         )}
 
+        {species ===
+          'axolotl' && (
+          <AxolotlPet />
+        )}
+
         <PetAccessories
           species={species}
           equipped={equipped}
@@ -2710,6 +3325,57 @@ function PetParkScene({
   sceneEvent: ParkSceneEvent | null;
   currentAnimation: PetAnimation;
 }) {
+  const [parkClock, setParkClock] =
+    useState(() => Date.now());
+
+  useEffect(() => {
+    const timer =
+      window.setInterval(
+        () => {
+          setParkClock(
+            Date.now()
+          );
+        },
+        60 * 1000
+      );
+
+    return () =>
+      window.clearInterval(
+        timer
+      );
+  }, []);
+
+  const parkHour =
+    Number(
+      new Intl.DateTimeFormat(
+        'en-US',
+        {
+          timeZone:
+            'Asia/Manila',
+          hour:
+            '2-digit',
+          hourCycle:
+            'h23',
+        }
+      ).format(
+        new Date(
+          parkClock
+        )
+      )
+    );
+
+  const parkTime:
+    | 'day'
+    | 'sunset'
+    | 'night' =
+      parkHour >= 6 &&
+      parkHour < 17
+        ? 'day'
+        : parkHour >= 17 &&
+            parkHour < 19
+          ? 'sunset'
+          : 'night';
+
   const currentParkPet =
     useMemo<ParkPet>(
       () => ({
@@ -3101,71 +3767,133 @@ function PetParkScene({
         min-h-0
         overflow-hidden
         touch-manipulation
-        bg-sky-100
-        dark:bg-slate-900
       "
     >
-      {/* SKY */}
+      {/* TIME-MATCHED SKY — Philippine time */}
       <div
-        className="
-          absolute
-          inset-x-0
-          top-0
-          h-[38%]
-          bg-gradient-to-b
-          from-sky-100
-          via-sky-100
-          to-sky-50
-          dark:from-slate-900
-          dark:via-slate-900
-          dark:to-slate-800
-        "
+        className={`absolute inset-0 transition-colors duration-1000 ${
+          parkTime === 'day'
+            ? 'bg-sky-100'
+            : parkTime === 'sunset'
+              ? 'bg-orange-100'
+              : 'bg-slate-950'
+        }`}
       />
 
-      {/* SUN */}
       <div
-        className="
-          absolute
-          right-[8%]
-          top-[6%]
-          h-14
-          w-14
-          rounded-full
-          bg-amber-200
-          shadow-[0_0_40px_rgba(253,230,138,0.7)]
-          dark:bg-amber-300/70
-        "
+        className={`absolute inset-x-0 top-0 h-[38%] bg-gradient-to-b transition-all duration-1000 ${
+          parkTime === 'day'
+            ? 'from-sky-200 via-sky-100 to-sky-50'
+            : parkTime === 'sunset'
+              ? 'from-violet-400 via-orange-300 to-amber-100'
+              : 'from-slate-950 via-indigo-950 to-slate-900'
+        }`}
       />
+
+      {/* SUN / MOON */}
+      {parkTime === 'night' ? (
+        <>
+          <div
+            className="
+              absolute
+              right-[8%]
+              top-[6%]
+              h-12
+              w-12
+              rounded-full
+              bg-slate-100
+              shadow-[0_0_34px_rgba(226,232,240,0.5)]
+            "
+          >
+            <span className="absolute left-[9px] top-[10px] h-2.5 w-2.5 rounded-full bg-slate-300/55" />
+            <span className="absolute bottom-[9px] right-[8px] h-3 w-3 rounded-full bg-slate-300/45" />
+          </div>
+
+          {/* STARS */}
+          <div className="absolute inset-x-0 top-0 h-[31%] opacity-80 pointer-events-none">
+            {[
+              [8, 18],
+              [17, 9],
+              [27, 22],
+              [39, 8],
+              [50, 18],
+              [61, 7],
+              [70, 22],
+              [80, 13],
+              [91, 25],
+              [33, 29],
+              [57, 27],
+            ].map(
+              ([left, top], index) => (
+                <span
+                  key={index}
+                  className="absolute h-1 w-1 rounded-full bg-white shadow-[0_0_5px_rgba(255,255,255,0.8)]"
+                  style={{
+                    left: `${left}%`,
+                    top: `${top}%`,
+                  }}
+                />
+              )
+            )}
+          </div>
+        </>
+      ) : (
+        <div
+          className={`absolute right-[8%] top-[6%] h-14 w-14 rounded-full transition-all duration-1000 ${
+            parkTime === 'sunset'
+              ? 'bg-orange-300 shadow-[0_0_45px_rgba(251,146,60,0.7)]'
+              : 'bg-amber-200 shadow-[0_0_40px_rgba(253,230,138,0.7)]'
+          }`}
+        />
+      )}
 
       {/* CLOUDS */}
-      <div className="absolute left-[9%] top-[8%] h-8 w-24 rounded-full bg-white/80 dark:bg-white/10">
+      <div className={`absolute left-[9%] top-[8%] h-8 w-24 rounded-full ${
+        parkTime === 'night'
+          ? 'bg-slate-300/10'
+          : parkTime === 'sunset'
+            ? 'bg-rose-50/45'
+            : 'bg-white/80'
+      }`}>
         <span className="absolute -top-4 left-5 h-10 w-10 rounded-full bg-white/90 dark:bg-white/10" />
         <span className="absolute -top-2 right-4 h-8 w-8 rounded-full bg-white/90 dark:bg-white/10" />
       </div>
 
-      <div className="absolute left-[43%] top-[13%] h-6 w-20 rounded-full bg-white/70 dark:bg-white/10">
+      <div className={`absolute left-[43%] top-[13%] h-6 w-20 rounded-full ${
+        parkTime === 'night'
+          ? 'bg-slate-300/10'
+          : parkTime === 'sunset'
+            ? 'bg-rose-50/40'
+            : 'bg-white/70'
+      }`}>
         <span className="absolute -top-3 left-4 h-7 w-7 rounded-full bg-white/80 dark:bg-white/10" />
       </div>
 
       {/* DISTANT HILLS */}
-      <div className="absolute -left-[8%] top-[24%] h-36 w-[58%] rounded-[50%] bg-emerald-200 dark:bg-emerald-950/70" />
-      <div className="absolute right-[-12%] top-[22%] h-40 w-[66%] rounded-[50%] bg-emerald-300/80 dark:bg-emerald-900/60" />
+      <div className={`absolute -left-[8%] top-[24%] h-36 w-[58%] rounded-[50%] ${
+        parkTime === 'night'
+          ? 'bg-emerald-950/90'
+          : parkTime === 'sunset'
+            ? 'bg-emerald-500/70'
+            : 'bg-emerald-200'
+      }`} />
+      <div className={`absolute right-[-12%] top-[22%] h-40 w-[66%] rounded-[50%] ${
+        parkTime === 'night'
+          ? 'bg-emerald-900/80'
+          : parkTime === 'sunset'
+            ? 'bg-emerald-600/65'
+            : 'bg-emerald-300/80'
+      }`} />
 
       {/* GRASS */}
       <div
-        className="
-          absolute
-          inset-x-0
-          bottom-0
-          top-[31%]
-          bg-gradient-to-b
-          from-emerald-300
-          via-emerald-300
-          to-emerald-400
-          dark:from-emerald-950
-          dark:via-emerald-950
-          dark:to-emerald-900
-        "
+        className={`absolute inset-x-0 bottom-0 top-[31%] bg-gradient-to-b transition-all duration-1000 ${
+          parkTime === 'night'
+            ? 'from-emerald-950 via-emerald-950 to-slate-950'
+            : parkTime === 'sunset'
+              ? 'from-emerald-500 via-emerald-600 to-emerald-700'
+              : 'from-emerald-300 via-emerald-300 to-emerald-400'
+        }`}
       />
 
       {/* FENCE */}
@@ -3238,6 +3966,13 @@ function PetParkScene({
         </p>
         <p className="mt-0.5 text-[9px] font-medium text-neutral-500 dark:text-neutral-400">
           pets wander around while you hang out
+        </p>
+        <p className="mt-1 font-mono text-[6px] font-black uppercase tracking-wider text-neutral-400">
+          {parkTime === 'day'
+            ? 'Daytime'
+            : parkTime === 'sunset'
+              ? 'Sunset'
+              : 'Nighttime'} · PH time
         </p>
       </div>
 
@@ -3328,14 +4063,19 @@ function PetParkScene({
               'feed';
           }
 
+          /*
+           * Keep pets intentionally small in the park.
+           * This prevents the scene from becoming visually
+           * chaotic when many users are online.
+           */
           const depthScale =
             Math.min(
-              0.60,
+              0.42,
               Math.max(
-                0.45,
-                0.42 +
+                0.30,
+                0.27 +
                   position.y *
-                    0.0022
+                    0.0018
               )
             );
 
@@ -3356,15 +4096,15 @@ function PetParkScene({
               className={`
                 absolute
                 z-20
-                h-[132px]
-                w-[112px]
+                h-[92px]
+                w-[82px]
                 -translate-x-1/2
                 -translate-y-1/2
                 transition-[left,top]
                 ease-in-out
                 disabled:cursor-default
-                sm:h-[142px]
-                sm:w-[122px]
+                sm:h-[102px]
+                sm:w-[90px]
                 ${
                   isEventPair
                     ? 'duration-[2200ms]'
@@ -3437,7 +4177,7 @@ function PetParkScene({
                   absolute
                   bottom-0
                   left-1/2
-                  max-w-[118px]
+                  max-w-[88px]
                   -translate-x-1/2
                   whitespace-nowrap
                   rounded-full
@@ -4117,6 +4857,15 @@ function ScarfAccessory({
       tailTop: 'top-[16px]',
       scale: 'scale-[0.92]',
     },
+
+    axolotl: {
+      top: 'top-[126px]',
+      width: 'w-[116px]',
+      collarWidth: 'w-[112px]',
+      tailRight: 'right-[21px]',
+      tailTop: 'top-[17px]',
+      scale: 'scale-[0.96]',
+    },
   };
 
   const layout =
@@ -4516,6 +5265,12 @@ export default function PetPage() {
   const [selectedSpecies, setSelectedSpecies] =
     useState<PetSpecies>('seal');
 
+  const [currentStreak, setCurrentStreak] =
+    useState(0);
+
+  const [streakLoading, setStreakLoading] =
+    useState(true);
+
   const [petName, setPetName] =
     useState('');
 
@@ -4527,6 +5282,16 @@ export default function PetPage() {
 
   const [renaming, setRenaming] =
     useState(false);
+
+  const [
+    readoptWarningOpen,
+    setReadoptWarningOpen,
+  ] = useState(false);
+
+  const [
+    readoptMode,
+    setReadoptMode,
+  ] = useState(false);
 
   const [creating, setCreating] =
     useState(false);
@@ -4673,6 +5438,23 @@ export default function PetPage() {
     parkChatSending,
     setParkChatSending,
   ] = useState(false);
+
+  const [
+    deletingParkChatMessageId,
+    setDeletingParkChatMessageId,
+  ] = useState<string | null>(
+    null
+  );
+
+  const [
+    parkChatCooldownUntil,
+    setParkChatCooldownUntil,
+  ] = useState(0);
+
+  const [
+    parkChatCooldownNow,
+    setParkChatCooldownNow,
+  ] = useState(() => Date.now());
 
   const [
     parkChatUnreadCount,
@@ -5394,8 +6176,39 @@ export default function PetPage() {
         }
       );
 
-    return () =>
+    /*
+     * At 12:00 AM Philippine time, restart the chat view.
+     * The fresh query will only include the new day's
+     * messages. We reload the page because this page also
+     * has several refs/cursors tied to the current chat
+     * window, making the reset deterministic and cheap.
+     */
+    const nextMidnight =
+      getNextPhilippineMidnight();
+
+    const midnightDelay =
+      Math.max(
+        1000,
+        nextMidnight.getTime() -
+          Date.now() +
+          250
+      );
+
+    const midnightTimer =
+      window.setTimeout(
+        () => {
+          window.location.reload();
+        },
+        midnightDelay
+      );
+
+    return () => {
       unsubscribe();
+
+      window.clearTimeout(
+        midnightTimer
+      );
+    };
   }, [
     parkOpen,
     ownerId,
@@ -5663,6 +6476,11 @@ export default function PetPage() {
       return;
     }
 
+    const currentDayStart =
+      Timestamp.fromDate(
+        getPhilippineDayStart()
+      );
+
     const messagesQuery =
       query(
         collection(
@@ -5670,6 +6488,11 @@ export default function PetPage() {
           'petParkChats',
           GLOBAL_PARK_CHAT_ID,
           'messages'
+        ),
+        where(
+          'createdAt',
+          '>=',
+          currentDayStart
         ),
         orderBy(
           'createdAt',
@@ -5891,6 +6714,13 @@ export default function PetPage() {
               'petParkChats',
               GLOBAL_PARK_CHAT_ID,
               'messages'
+            ),
+            where(
+              'createdAt',
+              '>=',
+              Timestamp.fromDate(
+                getPhilippineDayStart()
+              )
             ),
             orderBy(
               'createdAt',
@@ -6165,6 +6995,122 @@ export default function PetPage() {
      PET PARK INTERACTIONS
   ========================================================= */
 
+  const PARK_CHAT_COOLDOWN_MS =
+    5 * 1000;
+
+  const parkChatCooldownRemaining =
+    Math.max(
+      0,
+      parkChatCooldownUntil -
+        parkChatCooldownNow
+    );
+
+  useEffect(() => {
+    if (
+      parkChatCooldownUntil <=
+      Date.now()
+    ) {
+      return;
+    }
+
+    const timer =
+      window.setInterval(
+        () => {
+          setParkChatCooldownNow(
+            Date.now()
+          );
+        },
+        250
+      );
+
+    return () =>
+      window.clearInterval(
+        timer
+      );
+  }, [
+    parkChatCooldownUntil,
+  ]);
+
+  const deleteParkChatMessage =
+    async (
+      message:
+        ParkChatMessage
+    ) => {
+      if (
+        !ownerId ||
+        message.senderOwnerId !==
+          ownerId ||
+        deletingParkChatMessageId
+      ) {
+        return;
+      }
+
+      const confirmed =
+        window.confirm(
+          'Delete this message?'
+        );
+
+      if (!confirmed) {
+        return;
+      }
+
+      setDeletingParkChatMessageId(
+        message.id
+      );
+
+      try {
+        await deleteDoc(
+          doc(
+            db,
+            'petParkChats',
+            GLOBAL_PARK_CHAT_ID,
+            'messages',
+            message.id
+          )
+        );
+
+        /*
+         * Remove immediately from paged history too.
+         * The live latest-10 listener handles its own
+         * window automatically.
+         */
+        setParkChatOlderMessages(
+          (previous) =>
+            previous.filter(
+              (item) =>
+                item.id !==
+                message.id
+            )
+        );
+
+        setParkChatMessages(
+          (previous) =>
+            previous.filter(
+              (item) =>
+                item.id !==
+                message.id
+            )
+        );
+
+        setParkMessage(
+          'Message deleted.'
+        );
+      } catch (error) {
+        console.error(
+          'Pet Park message delete failed:',
+          error
+        );
+
+        setParkMessage(
+          'Could not delete that message.'
+        );
+      } finally {
+        setDeletingParkChatMessageId(
+          null
+        );
+      }
+    };
+
   const sendParkChatMessage =
     async () => {
       if (
@@ -6172,6 +7118,20 @@ export default function PetPage() {
         !pet ||
         parkChatSending
       ) {
+        return;
+      }
+
+      const nowMs =
+        Date.now();
+
+      if (
+        parkChatCooldownUntil >
+        nowMs
+      ) {
+        setParkMessage(
+          'Slow down a little — you can send another park message in a few seconds.'
+        );
+
         return;
       }
 
@@ -6225,6 +7185,64 @@ export default function PetPage() {
         const createdAt =
           Timestamp.now();
 
+        /*
+         * Firestore-backed cooldown.
+         * This makes the 5-second anti-spam delay harder
+         * to bypass than a client-only timer.
+         */
+        const cooldownRef =
+          doc(
+            db,
+            'petParkChatCooldowns',
+            ownerId
+          );
+
+        await runTransaction(
+          db,
+          async (
+            transaction
+          ) => {
+            const cooldownSnapshot =
+              await transaction.get(
+                cooldownRef
+              );
+
+            const previousSentAt =
+              cooldownSnapshot.exists()
+                ? getTimestampMillis(
+                    cooldownSnapshot.data()
+                      .lastSentAt
+                  ) || 0
+                : 0;
+
+            const transactionNow =
+              Date.now();
+
+            if (
+              transactionNow -
+                previousSentAt <
+              PARK_CHAT_COOLDOWN_MS
+            ) {
+              throw new Error(
+                'PARK_CHAT_COOLDOWN'
+              );
+            }
+
+            transaction.set(
+              cooldownRef,
+              {
+                lastSentAt:
+                  Timestamp.fromMillis(
+                    transactionNow
+                  ),
+              },
+              {
+                merge: true,
+              }
+            );
+          }
+        );
+
         await setDoc(
           chatRef,
           {
@@ -6271,7 +7289,43 @@ export default function PetPage() {
         );
 
         setParkChatText('');
+
+        const nextCooldown =
+          Date.now() +
+          PARK_CHAT_COOLDOWN_MS;
+
+        setParkChatCooldownUntil(
+          nextCooldown
+        );
+
+        setParkChatCooldownNow(
+          Date.now()
+        );
       } catch (error) {
+        if (
+          error instanceof Error &&
+          error.message ===
+            'PARK_CHAT_COOLDOWN'
+        ) {
+          const nextCooldown =
+            Date.now() +
+            PARK_CHAT_COOLDOWN_MS;
+
+          setParkChatCooldownUntil(
+            nextCooldown
+          );
+
+          setParkChatCooldownNow(
+            Date.now()
+          );
+
+          setParkMessage(
+            'Slow down a little — park chat has a 5-second cooldown.'
+          );
+
+          return;
+        }
+
         console.error(
           'Pet Park chat send failed:',
           error
@@ -6733,11 +7787,70 @@ export default function PetPage() {
       setOwnerId(id);
 
       if (!id) {
+        setCurrentStreak(0);
+        setStreakLoading(false);
         setLoading(false);
         return;
       }
 
       try {
+        /*
+         * Load Tambayan streak.
+         * The Pink Axolotl becomes available
+         * at an effective 14-day streak.
+         */
+        try {
+          const userSnapshot =
+            await getDoc(
+              doc(
+                db,
+                'users',
+                id
+              )
+            );
+
+          if (
+            userSnapshot.exists()
+          ) {
+            const userData =
+              userSnapshot.data();
+
+            const streakData =
+              userData.streak ||
+              {};
+
+            const rawCurrent =
+              typeof streakData.current ===
+              'number'
+                ? streakData.current
+                : 0;
+
+            const lastActiveDate =
+              typeof streakData.lastActiveDate ===
+              'string'
+                ? streakData.lastActiveDate
+                : null;
+
+            setCurrentStreak(
+              getEffectiveStreak(
+                rawCurrent,
+                lastActiveDate
+              )
+            );
+          } else {
+            setCurrentStreak(0);
+          }
+        } catch (streakError) {
+          console.error(
+            'Failed to load streak:',
+            streakError
+          );
+
+          setCurrentStreak(0);
+        } finally {
+          setStreakLoading(false);
+        }
+
         const petRef =
           doc(
             db,
@@ -6925,10 +8038,86 @@ export default function PetPage() {
         return;
       }
 
+      const selectedPetOption =
+        PETS.find(
+          (candidate) =>
+            candidate.id ===
+            selectedSpecies
+        );
+
+      const requiredStreak =
+        selectedPetOption?.unlockStreak ||
+        0;
+
+      if (
+        requiredStreak > 0 &&
+        currentStreak <
+          requiredStreak
+      ) {
+        setMessage(
+          `Reach a ${requiredStreak}-day streak to unlock the Pink Axolotl.`
+        );
+
+        return;
+      }
+
       setCreating(true);
       setMessage('');
 
       try {
+        /*
+         * Re-check the streak from Firestore
+         * for streak-locked pets before adoption.
+         */
+        if (
+          requiredStreak > 0
+        ) {
+          const userSnapshot =
+            await getDoc(
+              doc(
+                db,
+                'users',
+                ownerId
+              )
+            );
+
+          const userData =
+            userSnapshot.exists()
+              ? userSnapshot.data()
+              : {};
+
+          const streakData =
+            userData.streak ||
+            {};
+
+          const verifiedStreak =
+            getEffectiveStreak(
+              typeof streakData.current ===
+                'number'
+                ? streakData.current
+                : 0,
+              typeof streakData.lastActiveDate ===
+                'string'
+                ? streakData.lastActiveDate
+                : null
+            );
+
+          setCurrentStreak(
+            verifiedStreak
+          );
+
+          if (
+            verifiedStreak <
+            requiredStreak
+          ) {
+            setMessage(
+              `Reach a ${requiredStreak}-day streak to unlock the Pink Axolotl.`
+            );
+
+            return;
+          }
+        }
+
         const personality =
           randomPersonality();
 
@@ -6974,30 +8163,127 @@ export default function PetPage() {
           dailyRewardDay: 0,
         };
 
-        await setDoc(
+        const petRef =
           doc(
             db,
             'pets',
             ownerId
-          ),
-          {
-            ...newPet,
+          );
 
-            createdAt:
-              serverTimestamp(),
+        if (readoptMode) {
+          /*
+           * Readoption is a full Tambayan Pet reset.
+           *
+           * We clear pet-owned inventory and pantry,
+           * replace the pet document, and remove any
+           * stale Pet Park presence.
+           *
+           * The user's Tambayan streak lives under
+           * users/{ownerId}, so it is intentionally
+           * NOT touched here.
+           */
+          const [
+            inventorySnapshot,
+            pantrySnapshot,
+          ] = await Promise.all([
+            getDocs(
+              collection(
+                db,
+                'pets',
+                ownerId,
+                'inventory'
+              )
+            ),
 
-            updatedAt:
-              serverTimestamp(),
+            getDocs(
+              collection(
+                db,
+                'pets',
+                ownerId,
+                'pantry'
+              )
+            ),
+          ]);
 
-            lastNeedTickAt:
-              serverTimestamp(),
-          }
-        );
+          const resetBatch =
+            writeBatch(db);
+
+          inventorySnapshot.docs.forEach(
+            (inventoryDoc) => {
+              resetBatch.delete(
+                inventoryDoc.ref
+              );
+            }
+          );
+
+          pantrySnapshot.docs.forEach(
+            (pantryDoc) => {
+              resetBatch.delete(
+                pantryDoc.ref
+              );
+            }
+          );
+
+          resetBatch.delete(
+            doc(
+              db,
+              'petParkPresence',
+              ownerId
+            )
+          );
+
+          resetBatch.set(
+            petRef,
+            {
+              ...newPet,
+
+              createdAt:
+                serverTimestamp(),
+
+              updatedAt:
+                serverTimestamp(),
+
+              lastNeedTickAt:
+                serverTimestamp(),
+            }
+          );
+
+          await resetBatch.commit();
+
+          setInventory({});
+          setPantry({});
+          setWardrobeTab('shop');
+          setFoodTab('shop');
+          setFeedOpen(false);
+          setSelectedParkPet(null);
+          setGiftTarget(null);
+          setParkOpen(false);
+        } else {
+          await setDoc(
+            petRef,
+            {
+              ...newPet,
+
+              createdAt:
+                serverTimestamp(),
+
+              updatedAt:
+                serverTimestamp(),
+
+              lastNeedTickAt:
+                serverTimestamp(),
+            }
+          );
+        }
 
         setPet(newPet);
+        setReadoptMode(false);
+        setPetName('');
 
         setMessage(
-          `${cleanName} is now your Tambayan Pet.`
+          readoptMode
+            ? `${cleanName} is your new Tambayan Pet. Everything from your previous pet has been reset.`
+            : `${cleanName} is now your Tambayan Pet.`
         );
       } catch (error) {
         console.error(
@@ -8272,18 +9558,33 @@ const performAction =
      ADOPTION
   ========================================================= */
 
-  if (!pet) {
+  if (!pet || readoptMode) {
     return (
       <main className="min-h-screen bg-neutral-50 dark:bg-neutral-950 text-neutral-900 dark:text-white px-5 py-10">
         <div className="max-w-3xl mx-auto">
 
-          <a
-            href="/"
-            className="inline-flex items-center gap-2 text-xs font-mono text-neutral-500 hover:text-neutral-900 dark:hover:text-white mb-10"
-          >
-            <Icon.ArrowLeft />
-            Back to Tambayan
-          </a>
+          {readoptMode && pet ? (
+            <button
+              type="button"
+              onClick={() => {
+                setReadoptMode(false);
+                setPetName('');
+                setMessage('');
+              }}
+              className="inline-flex items-center gap-2 text-xs font-mono text-neutral-500 hover:text-neutral-900 dark:hover:text-white mb-10"
+            >
+              <Icon.ArrowLeft />
+              Back to {pet.name}
+            </button>
+          ) : (
+            <a
+              href="/"
+              className="inline-flex items-center gap-2 text-xs font-mono text-neutral-500 hover:text-neutral-900 dark:hover:text-white mb-10"
+            >
+              <Icon.ArrowLeft />
+              Back to Tambayan
+            </a>
+          )}
 
           <div className="mb-10">
             <p className="font-mono text-[10px] uppercase tracking-[0.2em] font-bold text-emerald-600">
@@ -8291,16 +9592,44 @@ const performAction =
             </p>
 
             <h1 className="mt-3 text-4xl sm:text-5xl font-black tracking-tight">
-              Pick your companion.
+              {readoptMode
+                ? 'Choose your new companion.'
+                : 'Pick your companion.'}
             </h1>
 
             <p className="mt-4 max-w-lg text-sm sm:text-base leading-relaxed text-neutral-500">
-              Adopt a pet, take care of it,
-              earn Tambay Coins, level up,
-              and unlock more as you keep
-              coming back.
+              {readoptMode
+                ? 'Pick carefully. Confirming a new pet will reset your current Tambayan Pet progress.'
+                : 'Adopt a pet, take care of it, earn Tambay Coins, level up, and unlock more as you keep coming back.'}
             </p>
           </div>
+
+          {readoptMode && pet && (
+            <div
+              className="
+                mb-6
+                rounded-2xl
+                border
+                border-rose-200
+                bg-rose-50
+                p-4
+                dark:border-rose-950
+                dark:bg-rose-950/20
+              "
+            >
+              <p className="font-mono text-[9px] font-black uppercase tracking-[0.16em] text-rose-600 dark:text-rose-400">
+                Readoption reset
+              </p>
+
+              <p className="mt-2 text-sm font-bold">
+                {pet.name}&apos;s pet progress will be replaced.
+              </p>
+
+              <p className="mt-1 text-xs leading-relaxed text-neutral-600 dark:text-neutral-400">
+                Level, XP, Tambay Coins, needs, personality, wardrobe, pantry, and pet reward progress will reset. Your Tambayan streak will stay.
+              </p>
+            </div>
+          )}
 
           <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
             {PETS.map(
@@ -8309,25 +9638,72 @@ const performAction =
                   selectedSpecies ===
                   candidate.id;
 
+                const requiredStreak =
+                  candidate.unlockStreak ||
+                  0;
+
+                const locked =
+                  requiredStreak > 0 &&
+                  currentStreak <
+                    requiredStreak;
+
                 return (
                   <button
                     key={
                       candidate.id
                     }
                     type="button"
-                    onClick={() =>
-                      setSelectedSpecies(
-                        candidate.id
-                      )
+                    disabled={
+                      locked ||
+                      streakLoading
                     }
-                    className={`text-left rounded-2xl border p-4 transition-all ${
-                      selected
-                        ? 'border-emerald-500 bg-emerald-500/5 ring-2 ring-emerald-500/10'
-                        : 'border-neutral-200 dark:border-neutral-800 bg-white dark:bg-neutral-900 hover:border-neutral-300 dark:hover:border-neutral-700'
+                    onClick={() => {
+                      if (!locked) {
+                        setSelectedSpecies(
+                          candidate.id
+                        );
+                      }
+                    }}
+                    className={`relative text-left rounded-2xl border p-4 transition-all ${
+                      locked
+                        ? 'cursor-not-allowed border-pink-200 bg-pink-50/40 opacity-75 dark:border-pink-950 dark:bg-pink-950/10'
+                        : selected
+                          ? 'border-emerald-500 bg-emerald-500/5 ring-2 ring-emerald-500/10'
+                          : 'border-neutral-200 dark:border-neutral-800 bg-white dark:bg-neutral-900 hover:border-neutral-300 dark:hover:border-neutral-700'
                     }`}
                   >
+                    {requiredStreak >
+                      0 && (
+                      <div
+                        className={`
+                          absolute
+                          right-3
+                          top-3
+                          z-20
+                          rounded-full
+                          px-2.5
+                          py-1
+                          font-mono
+                          text-[7px]
+                          font-black
+                          uppercase
+                          tracking-wider
+                          ${
+                            locked
+                              ? 'bg-pink-100 text-pink-700 dark:bg-pink-950 dark:text-pink-300'
+                              : 'bg-emerald-100 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300'
+                          }
+                        `}
+                      >
+                        {locked
+                          ? `${requiredStreak}-day streak`
+                          : 'Unlocked'}
+                      </div>
+                    )}
+
                     <div
                       className={`
+                        relative
                         aspect-square
                         rounded-xl
                         flex
@@ -8335,17 +9711,58 @@ const performAction =
                         justify-center
                         overflow-hidden
                         ${
-                          selected
-                            ? 'bg-emerald-500/10'
-                            : 'bg-neutral-100 dark:bg-neutral-800'
+                          locked
+                            ? 'bg-pink-100/60 dark:bg-pink-950/20'
+                            : selected
+                              ? 'bg-emerald-500/10'
+                              : 'bg-neutral-100 dark:bg-neutral-800'
                         }
                       `}
                     >
-                      <div className="scale-[0.62] sm:scale-[0.7]">
+                      <div
+                        className={`scale-[0.62] sm:scale-[0.7] transition ${
+                          locked
+                            ? 'grayscale-[0.25] opacity-55'
+                            : ''
+                        }`}
+                      >
                         <PetAvatar
-                          species={candidate.id}
+                          species={
+                            candidate.id
+                          }
                         />
                       </div>
+
+                      {locked && (
+                        <div
+                          className="
+                            absolute
+                            bottom-3
+                            left-1/2
+                            -translate-x-1/2
+                            whitespace-nowrap
+                            rounded-full
+                            border
+                            border-pink-200
+                            bg-white/90
+                            px-3
+                            py-1.5
+                            font-mono
+                            text-[7px]
+                            font-black
+                            uppercase
+                            tracking-wider
+                            text-pink-700
+                            shadow-sm
+                            backdrop-blur
+                            dark:border-pink-900
+                            dark:bg-neutral-900/90
+                            dark:text-pink-300
+                          "
+                        >
+                          {currentStreak}/{requiredStreak} days
+                        </div>
+                      )}
                     </div>
 
                     <p className="mt-3 font-bold">
@@ -8409,8 +9826,12 @@ const performAction =
               className="mt-5 w-full rounded-xl bg-neutral-900 dark:bg-emerald-600 text-white py-3.5 font-mono text-xs font-bold uppercase tracking-wider disabled:opacity-50"
             >
               {creating
-                ? 'Adopting...'
-                : 'Adopt Pet'}
+                ? readoptMode
+                  ? 'Resetting...'
+                  : 'Adopting...'
+                : readoptMode
+                  ? 'Reset & Readopt Pet'
+                  : 'Adopt Pet'}
             </button>
           </div>
 
@@ -8658,6 +10079,30 @@ const performAction =
                     "
                   >
                     Enter Pet Park
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() =>
+                      setReadoptWarningOpen(
+                        true
+                      )
+                    }
+                    className="
+                      mt-3
+                      block
+                      mx-auto
+                      font-mono
+                      text-[8px]
+                      font-bold
+                      uppercase
+                      tracking-wider
+                      text-neutral-400
+                      transition-colors
+                      hover:text-rose-500
+                    "
+                  >
+                    Readopt a pet
                   </button>
                 </div>
 
@@ -9759,6 +11204,168 @@ const performAction =
 {/* =========================================================
     SHOP + INVENTORY
 ========================================================= */}
+
+{/* READOPT WARNING MODAL */}
+{readoptWarningOpen && pet && (
+  <div
+    className="
+      fixed
+      inset-0
+      z-[360]
+      flex
+      items-end
+      sm:items-center
+      justify-center
+      bg-neutral-950/65
+      backdrop-blur-sm
+      px-0
+      sm:px-4
+    "
+    onClick={() =>
+      setReadoptWarningOpen(
+        false
+      )
+    }
+  >
+    <div
+      role="alertdialog"
+      aria-modal="true"
+      aria-labelledby="readopt-warning-title"
+      onClick={(event) =>
+        event.stopPropagation()
+      }
+      className="
+        w-full
+        sm:max-w-md
+        rounded-t-3xl
+        sm:rounded-3xl
+        border
+        border-neutral-200
+        dark:border-neutral-800
+        bg-white
+        dark:bg-neutral-900
+        p-5
+        sm:p-6
+        shadow-2xl
+        pb-[max(1.25rem,env(safe-area-inset-bottom))]
+      "
+    >
+      <div
+        className="
+          flex
+          h-11
+          w-11
+          items-center
+          justify-center
+          rounded-full
+          bg-rose-100
+          text-lg
+          dark:bg-rose-950/50
+        "
+      >
+        !
+      </div>
+
+      <h2
+        id="readopt-warning-title"
+        className="mt-4 text-xl font-black tracking-tight"
+      >
+        Readopt a new pet?
+      </h2>
+
+      <p className="mt-2 text-sm leading-relaxed text-neutral-500">
+        You can choose another companion, but your current Tambayan Pet progress will be reset when you confirm the new adoption.
+      </p>
+
+      <div
+        className="
+          mt-4
+          rounded-2xl
+          border
+          border-rose-200
+          bg-rose-50
+          p-4
+          dark:border-rose-950
+          dark:bg-rose-950/20
+        "
+      >
+        <p className="text-xs font-bold text-rose-700 dark:text-rose-300">
+          This will reset:
+        </p>
+
+        <p className="mt-2 text-xs leading-relaxed text-neutral-600 dark:text-neutral-400">
+          {pet.name}&apos;s level, XP, Tambay Coins, hunger, happiness, energy, personality, wardrobe, pantry, and pet reward progress.
+        </p>
+
+        <p className="mt-3 text-xs font-bold text-emerald-700 dark:text-emerald-400">
+          Your Tambayan streak will NOT reset.
+        </p>
+      </div>
+
+      <div className="mt-5 grid grid-cols-2 gap-2">
+        <button
+          type="button"
+          onClick={() =>
+            setReadoptWarningOpen(
+              false
+            )
+          }
+          className="
+            rounded-xl
+            border
+            border-neutral-200
+            dark:border-neutral-700
+            px-4
+            py-3
+            font-mono
+            text-[9px]
+            font-bold
+            uppercase
+            tracking-wider
+            text-neutral-600
+            dark:text-neutral-300
+          "
+        >
+          Keep my pet
+        </button>
+
+        <button
+          type="button"
+          onClick={() => {
+            setReadoptWarningOpen(
+              false
+            );
+
+            setSelectedSpecies(
+              pet.species
+            );
+
+            setPetName('');
+            setMessage('');
+            setReadoptMode(true);
+          }}
+          className="
+            rounded-xl
+            bg-rose-600
+            px-4
+            py-3
+            font-mono
+            text-[9px]
+            font-bold
+            uppercase
+            tracking-wider
+            text-white
+            transition
+            hover:bg-rose-500
+            active:scale-[0.99]
+          "
+        >
+          Choose new pet
+        </button>
+      </div>
+    </div>
+  </div>
+)}
 
 {/* RENAME PET MODAL */}
 {renameOpen && (
@@ -11214,6 +12821,14 @@ const performAction =
                   </div>
                 )}
 
+                <div className="mb-2 flex items-center gap-2 px-1">
+                  <div className="h-px flex-1 bg-neutral-200 dark:bg-neutral-800" />
+                  <span className="font-mono text-[7px] font-black uppercase tracking-wider text-neutral-400">
+                    Today · resets 12 AM PH
+                  </span>
+                  <div className="h-px flex-1 bg-neutral-200 dark:bg-neutral-800" />
+                </div>
+
                 {visibleParkChatMessages.length ===
                 0 ? (
                   <div className="flex h-full min-h-[100px] items-center justify-center text-center">
@@ -11270,6 +12885,41 @@ const performAction =
                                 message.text
                               }
                             </p>
+
+                            {isMine && (
+                              <button
+                                type="button"
+                                disabled={
+                                  deletingParkChatMessageId ===
+                                  message.id
+                                }
+                                onClick={() =>
+                                  deleteParkChatMessage(
+                                    message
+                                  )
+                                }
+                                className="
+                                  mt-1.5
+                                  block
+                                  ml-auto
+                                  font-mono
+                                  text-[7px]
+                                  font-bold
+                                  uppercase
+                                  tracking-wider
+                                  text-white/60
+                                  transition
+                                  hover:text-white
+                                  disabled:opacity-40
+                                  touch-manipulation
+                                "
+                              >
+                                {deletingParkChatMessageId ===
+                                message.id
+                                  ? 'Deleting...'
+                                  : 'Delete'}
+                              </button>
+                            )}
                           </div>
                         </div>
                       );
@@ -11333,7 +12983,12 @@ const performAction =
 
                     <div className="mt-1 flex items-center justify-between gap-2">
                       <span className="truncate text-[8px] text-neutral-400">
-                        Chat as {pet.name}
+                        {parkChatCooldownRemaining > 0
+                          ? `Slow mode · ${Math.ceil(
+                              parkChatCooldownRemaining /
+                                1000
+                            )}s`
+                          : `Chat as ${pet.name}`}
                       </span>
                       <span className="shrink-0 font-mono text-[7px] text-neutral-400">
                         {parkChatText.length}/180
@@ -11345,13 +13000,21 @@ const performAction =
                     type="submit"
                     disabled={
                       parkChatSending ||
+                      parkChatCooldownRemaining >
+                        0 ||
                       !parkChatText.trim()
                     }
                     className="mb-[15px] flex h-11 min-w-[58px] shrink-0 items-center justify-center rounded-xl bg-emerald-600 px-3 font-mono text-[9px] font-black uppercase tracking-wider text-white transition active:scale-95 disabled:opacity-40 touch-manipulation"
                   >
                     {parkChatSending
                       ? '...'
-                      : 'Send'}
+                      : parkChatCooldownRemaining >
+                          0
+                        ? `${Math.ceil(
+                            parkChatCooldownRemaining /
+                              1000
+                          )}s`
+                        : 'Send'}
                   </button>
                 </div>
               </form>
@@ -11825,6 +13488,106 @@ const performAction =
         .pet-park-scroll {
           -webkit-overflow-scrolling: touch;
           overscroll-behavior: contain;
+        }
+
+        .pet-axolotl .axolotl-body {
+          animation:
+            axolotl-soft-float 3.8s ease-in-out infinite;
+        }
+
+        .pet-axolotl .axolotl-gill-left {
+          animation:
+            axolotl-gill-left 2.4s ease-in-out infinite;
+        }
+
+        .pet-axolotl .axolotl-gill-right {
+          animation:
+            axolotl-gill-right 2.4s ease-in-out infinite;
+        }
+
+        .pet-axolotl .axolotl-tail {
+          animation:
+            axolotl-tail-wiggle 3s ease-in-out infinite;
+        }
+
+        .pet-axolotl .axolotl-bubble {
+          animation:
+            axolotl-bubble-float 2.8s ease-in-out infinite;
+        }
+
+        .pet-axolotl .axolotl-bubble-delay {
+          animation-delay: 1.25s;
+        }
+
+        @keyframes axolotl-soft-float {
+          0%,
+          100% {
+            transform:
+              translateX(-50%)
+              translateY(0);
+          }
+
+          50% {
+            transform:
+              translateX(-50%)
+              translateY(-3px);
+          }
+        }
+
+        @keyframes axolotl-gill-left {
+          0%,
+          100% {
+            transform: rotate(0deg);
+          }
+
+          50% {
+            transform: rotate(-4deg);
+          }
+        }
+
+        @keyframes axolotl-gill-right {
+          0%,
+          100% {
+            transform: rotate(0deg);
+          }
+
+          50% {
+            transform: rotate(4deg);
+          }
+        }
+
+        @keyframes axolotl-tail-wiggle {
+          0%,
+          100% {
+            transform: rotate(8deg);
+          }
+
+          50% {
+            transform: rotate(13deg);
+          }
+        }
+
+        @keyframes axolotl-bubble-float {
+          0%,
+          100% {
+            transform: translateY(5px);
+            opacity: 0.3;
+          }
+
+          50% {
+            transform: translateY(-7px);
+            opacity: 0.9;
+          }
+        }
+
+        @media (prefers-reduced-motion: reduce) {
+          .pet-axolotl .axolotl-body,
+          .pet-axolotl .axolotl-gill-left,
+          .pet-axolotl .axolotl-gill-right,
+          .pet-axolotl .axolotl-tail,
+          .pet-axolotl .axolotl-bubble {
+            animation: none !important;
+          }
         }
       `}</style>
 
