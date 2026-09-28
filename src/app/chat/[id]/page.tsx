@@ -20,6 +20,8 @@ import {
   QueryDocumentSnapshot,
 } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
+import imageCompression from 'browser-image-compression';
+import { getPresignedUploadUrl } from '@/app/actions/r2-upload';
 
 interface Message {
   id: string;
@@ -29,6 +31,11 @@ interface Message {
   iv?: string;
   encryptionVersion?: number;
   ciphertext?: string;
+  image?: {
+    url: string;
+    iv: string;
+    mimeType: string;
+  };
   replyTo?: {
     id: string;
     senderNickname: string;
@@ -186,6 +193,151 @@ const decryptText = async (
 
   return new TextDecoder().decode(decrypted);
 };
+
+const encryptImage = async (
+  file: File,
+  base64Key: string
+): Promise<{
+  encryptedBlob: Blob;
+  iv: string;
+}> => {
+  const key = await importRoomKey(base64Key);
+  const iv = crypto.getRandomValues(new Uint8Array(12));
+  const fileBuffer = await file.arrayBuffer();
+
+  const encrypted = await crypto.subtle.encrypt(
+    {
+      name: 'AES-GCM',
+      iv,
+    },
+    key,
+    fileBuffer
+  );
+
+  return {
+    encryptedBlob: new Blob([encrypted], {
+      type: 'application/octet-stream',
+    }),
+    iv: arrayBufferToBase64(iv.buffer),
+  };
+};
+
+const decryptImage = async (
+  encryptedBuffer: ArrayBuffer,
+  iv: string,
+  base64Key: string,
+  mimeType: string
+): Promise<Blob> => {
+  const key = await importRoomKey(base64Key);
+
+  const decrypted = await crypto.subtle.decrypt(
+    {
+      name: 'AES-GCM',
+      iv: new Uint8Array(base64ToArrayBuffer(iv)),
+    },
+    key,
+    encryptedBuffer
+  );
+
+  return new Blob([decrypted], {
+    type: mimeType || 'image/webp',
+  });
+};
+
+function EncryptedChatImage({
+  imageData,
+  roomKey,
+}: {
+  imageData: {
+    url: string;
+    iv: string;
+    mimeType: string;
+  };
+  roomKey: string;
+}) {
+  const [src, setSrc] = useState<string | null>(null);
+  const [failed, setFailed] = useState(false);
+
+  useEffect(() => {
+    let cancelled = false;
+    let objectUrl: string | null = null;
+
+    const loadImage = async () => {
+      try {
+        setFailed(false);
+        setSrc(null);
+
+        const response = await fetch(imageData.url);
+
+        if (!response.ok) {
+          throw new Error(
+            `Encrypted image download failed (${response.status}).`
+          );
+        }
+
+        const encryptedBuffer = await response.arrayBuffer();
+
+        const decryptedBlob = await decryptImage(
+          encryptedBuffer,
+          imageData.iv,
+          roomKey,
+          imageData.mimeType
+        );
+
+        if (cancelled) return;
+
+        objectUrl = URL.createObjectURL(decryptedBlob);
+        setSrc(objectUrl);
+      } catch (error) {
+        console.error('Failed to decrypt chat image:', error);
+
+        if (!cancelled) {
+          setFailed(true);
+        }
+      }
+    };
+
+    loadImage();
+
+    return () => {
+      cancelled = true;
+
+      if (objectUrl) {
+        URL.revokeObjectURL(objectUrl);
+      }
+    };
+  }, [
+    imageData.url,
+    imageData.iv,
+    imageData.mimeType,
+    roomKey,
+  ]);
+
+  if (failed) {
+    return (
+      <div className="px-3 py-2 text-xs opacity-60">
+        Unable to decrypt photo.
+      </div>
+    );
+  }
+
+  if (!src) {
+    return (
+      <div className="px-3 py-2 text-xs opacity-60">
+        Decrypting photo...
+      </div>
+    );
+  }
+
+  return (
+    <img
+      src={src}
+      alt="Encrypted chat attachment"
+      className="block max-w-full max-h-80 rounded-xl object-contain"
+      loading="lazy"
+    />
+  );
+}
 
 type StoredECDHKeyPair = {
   publicKey: JsonWebKey;
@@ -520,7 +672,15 @@ export default function ChatRoomPage() {
   const [selectedReason, setSelectedReason] = useState('harassment');
   const [isSubmittingReport, setIsSubmittingReport] = useState(false);
 
+  // Photo attachment state.
+  // The selected image is compressed to WebP BEFORE it is encrypted/uploaded.
+  const [imageFile, setImageFile] = useState<File | null>(null);
+  const [imagePreview, setImagePreview] = useState<string | null>(null);
+  const [isCompressingImage, setIsCompressingImage] = useState(false);
+  const [isUploadingImage, setIsUploadingImage] = useState(false);
+
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
   const typingTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const lastTypingUpdateRef = useRef<number>(0);
   const initialScrollDone = useRef(false);
@@ -529,8 +689,15 @@ export default function ChatRoomPage() {
     id: string,
     data: any
   ): Promise<Message> => {
-    // Existing plaintext messages
-    if (!data.ciphertext || !data.iv) {
+    const hasEncryptedText =
+      Boolean(data.ciphertext) && Boolean(data.iv);
+
+    const hasEncryptedImage = Boolean(
+      data.image?.url && data.image?.iv
+    );
+
+    // Existing plaintext messages remain backward-compatible.
+    if (!hasEncryptedText && !hasEncryptedImage) {
       return {
         id,
         ...data,
@@ -542,16 +709,22 @@ export default function ChatRoomPage() {
       return {
         id,
         ...data,
-        text: '[Unable to decrypt message]',
+        text: hasEncryptedText
+          ? '[Unable to decrypt message]'
+          : '',
       } as Message;
     }
 
     try {
-      const decryptedText = await decryptText(
-        data.ciphertext,
-        data.iv,
-        roomKey
-      );
+      let decryptedText = '';
+
+      if (hasEncryptedText) {
+        decryptedText = await decryptText(
+          data.ciphertext,
+          data.iv,
+          roomKey
+        );
+      }
 
       let decryptedReply;
 
@@ -595,7 +768,9 @@ export default function ChatRoomPage() {
       return {
         id,
         ...data,
-        text: '[Unable to decrypt message]',
+        text: hasEncryptedText
+          ? '[Unable to decrypt message]'
+          : '',
       } as Message;
     }
   };
@@ -1113,6 +1288,104 @@ useEffect(() => {
     }
   };
 
+  const handleImageChange = async (
+    e: React.ChangeEvent<HTMLInputElement>
+  ) => {
+    const selectedFile = e.target.files?.[0];
+
+    if (!selectedFile) return;
+
+    const allowedTypes = [
+      'image/jpeg',
+      'image/png',
+      'image/webp',
+    ];
+
+    if (!allowedTypes.includes(selectedFile.type)) {
+      alert('Please select a JPG, PNG, or WebP image.');
+      e.target.value = '';
+      return;
+    }
+
+    // Reject very large originals before doing expensive client-side work.
+    const maxOriginalSize = 10 * 1024 * 1024;
+
+    if (selectedFile.size > maxOriginalSize) {
+      alert('Image must be smaller than 10 MB.');
+      e.target.value = '';
+      return;
+    }
+
+    setIsCompressingImage(true);
+
+    try {
+      /*
+       * IMPORTANT:
+       * Compress FIRST, then encrypt the compressed WebP.
+       * The original image is never uploaded to R2.
+       */
+      const compressedBlob = await imageCompression(
+        selectedFile,
+        {
+          maxSizeMB: 0.5,
+          maxWidthOrHeight: 1600,
+          useWebWorker: true,
+          fileType: 'image/webp',
+          initialQuality: 0.8,
+        }
+      );
+
+      const compressedFile = new File(
+        [compressedBlob],
+        `chat-${Date.now()}.webp`,
+        {
+          type: 'image/webp',
+        }
+      );
+
+      setImagePreview((currentPreview) => {
+        if (currentPreview) {
+          URL.revokeObjectURL(currentPreview);
+        }
+
+        return URL.createObjectURL(compressedFile);
+      });
+
+      setImageFile(compressedFile);
+    } catch (error) {
+      console.error('Image compression failed:', error);
+      alert('Could not process this image. Please try another photo.');
+      e.target.value = '';
+    } finally {
+      setIsCompressingImage(false);
+    }
+  };
+
+  const handleRemoveImage = () => {
+    setImagePreview((currentPreview) => {
+      if (currentPreview) {
+        URL.revokeObjectURL(currentPreview);
+      }
+
+      return null;
+    });
+
+    setImageFile(null);
+
+    if (fileInputRef.current) {
+      fileInputRef.current.value = '';
+    }
+  };
+
+  // Revoke the current preview URL when this page unmounts.
+  useEffect(() => {
+    return () => {
+      if (imagePreview) {
+        URL.revokeObjectURL(imagePreview);
+      }
+    };
+  }, [imagePreview]);
+
   const handleInputChange = (
     e: React.ChangeEvent<HTMLInputElement>
   ) => {
@@ -1149,11 +1422,18 @@ useEffect(() => {
     e.preventDefault();
 
     const textToSend = newMessage.trim();
+    const imageToSend = imageFile;
 
-    if (!textToSend || !userId) return;
+    // Allow text-only, photo-only, or photo + text.
+    if ((!textToSend && !imageToSend) || !userId) return;
 
     if (chatStatus !== 'active') {
       alert('This conversation is no longer active.');
+      return;
+    }
+
+    if (!roomKey) {
+      alert('The encrypted session is not ready yet.');
       return;
     }
 
@@ -1164,7 +1444,9 @@ useEffect(() => {
             replyingTo.senderId === userId
               ? 'You'
               : replyingTo.senderNickname,
-          text: replyingTo.text,
+          text:
+            replyingTo.text ||
+            (replyingTo.image ? '📷 Photo' : ''),
         }
       : null;
 
@@ -1183,45 +1465,108 @@ useEffect(() => {
 
     const tempId = 'temp_' + Date.now();
 
-    const optimisticMessage: Message = {
-      id: tempId,
-      senderId: userId,
-      senderNickname: nickname,
-      text: textToSend,
-      replyTo: currentReply || undefined,
-      createdAt: new Date(),
-    };
+    /*
+     * Keep text-only optimistic sending exactly like before.
+     * For photo messages, wait until compression/encryption/upload finishes
+     * so we never render an empty optimistic bubble.
+     */
+    if (!imageToSend) {
+      const optimisticMessage: Message = {
+        id: tempId,
+        senderId: userId,
+        senderNickname: nickname,
+        text: textToSend,
+        replyTo: currentReply || undefined,
+        createdAt: new Date(),
+      };
 
-    setMessages((prev) => [...prev, optimisticMessage]);
+      setMessages((prev) => [...prev, optimisticMessage]);
 
-    setTimeout(() => {
-      messagesEndRef.current?.scrollIntoView({
-        behavior: 'smooth',
-        block: 'nearest',
-      });
-    }, 50);
+      setTimeout(() => {
+        messagesEndRef.current?.scrollIntoView({
+          behavior: 'smooth',
+          block: 'nearest',
+        });
+      }, 50);
+    }
 
     try {
-      if (!roomKey) {
-        throw new Error('Encryption key is unavailable.');
-      }
-
-      const encryptedMessage = await encryptText(
-        textToSend,
-        roomKey
-      );
-
       const messagePayload: any = {
         senderId: userId,
         senderNickname: nickname,
-
-        ciphertext: encryptedMessage.ciphertext,
-        iv: encryptedMessage.iv,
-
         encryptionVersion: 1,
-
         createdAt: serverTimestamp(),
       };
+
+      // Encrypt text only when there is text.
+      if (textToSend) {
+        const encryptedMessage = await encryptText(
+          textToSend,
+          roomKey
+        );
+
+        messagePayload.ciphertext =
+          encryptedMessage.ciphertext;
+        messagePayload.iv = encryptedMessage.iv;
+      }
+
+      /*
+       * IMAGE FLOW:
+       * 1. Image was already compressed to WebP in handleImageChange.
+       * 2. Encrypt that compressed WebP locally with the room key.
+       * 3. Upload only the encrypted bytes to R2.
+       * 4. Store only encrypted-image metadata in Firestore.
+       */
+      if (imageToSend) {
+        setIsUploadingImage(true);
+
+        const { encryptedBlob, iv } =
+          await encryptImage(imageToSend, roomKey);
+
+        /*
+         * Keep a .webp object name/content type so this works with the
+         * same R2 image presigner already used by TambayanSLU.
+         * The BODY is still AES-GCM ciphertext, not a readable WebP.
+         */
+        const encryptedFileName =
+          `chat-${roomId}-${crypto.randomUUID()}.webp`;
+
+        const urlRes = await getPresignedUploadUrl(
+          encryptedFileName,
+          'image/webp'
+        );
+
+        if (
+          !urlRes.success ||
+          !urlRes.signedUrl ||
+          !urlRes.publicUrl
+        ) {
+          throw new Error(
+            urlRes.error ||
+              'Failed to authorize encrypted photo upload.'
+          );
+        }
+
+        const uploadRes = await fetch(urlRes.signedUrl, {
+          method: 'PUT',
+          headers: {
+            'Content-Type': 'image/webp',
+          },
+          body: encryptedBlob,
+        });
+
+        if (!uploadRes.ok) {
+          throw new Error(
+            `Encrypted photo upload failed (${uploadRes.status}).`
+          );
+        }
+
+        messagePayload.image = {
+          url: urlRes.publicUrl,
+          iv,
+          mimeType: imageToSend.type || 'image/webp',
+        };
+      }
 
       if (currentReply) {
         const encryptedReply = await encryptText(
@@ -1232,7 +1577,6 @@ useEffect(() => {
         messagePayload.replyTo = {
           id: currentReply.id,
           senderNickname: currentReply.senderNickname,
-
           ciphertext: encryptedReply.ciphertext,
           iv: encryptedReply.iv,
         };
@@ -1242,18 +1586,35 @@ useEffect(() => {
         collection(db, 'chatRooms', roomId, 'messages'),
         messagePayload
       );
+
+      if (imageToSend) {
+        handleRemoveImage();
+
+        setTimeout(() => {
+          messagesEndRef.current?.scrollIntoView({
+            behavior: 'smooth',
+            block: 'nearest',
+          });
+        }, 100);
+      }
     } catch (error) {
       console.error('Failed to send encrypted message:', error);
 
+      // Only text-only messages have an optimistic temp message.
       setMessages((prev) =>
         prev.filter((m) => m.id !== tempId)
       );
 
       setNewMessage(textToSend);
 
+      // Keep the selected compressed image so the user can retry.
       alert(
-        'Failed to send encrypted message. Please try again.'
+        imageToSend
+          ? 'Failed to send encrypted photo. The photo is still attached so you can try again.'
+          : 'Failed to send encrypted message. Please try again.'
       );
+    } finally {
+      setIsUploadingImage(false);
     }
   };
 
@@ -1841,7 +2202,16 @@ useEffect(() => {
                       </div>
                     )}
 
-                    <p>{msg.text}</p>
+                    {msg.image && roomKey && (
+                      <div className={msg.text ? 'mb-2' : ''}>
+                        <EncryptedChatImage
+                          imageData={msg.image}
+                          roomKey={roomKey}
+                        />
+                      </div>
+                    )}
+
+                    {msg.text && <p>{msg.text}</p>}
                   </div>
 
                   {msg.reactions &&
@@ -2019,7 +2389,8 @@ useEffect(() => {
                 </p>
 
                 <p className="text-xs truncate">
-                  {replyingTo.text}
+                  {replyingTo.text ||
+                    (replyingTo.image ? '📷 Photo' : '')}
                 </p>
               </div>
 
@@ -2035,38 +2406,181 @@ useEffect(() => {
           {chatStatus === 'active' ? (
             <form
               onSubmit={handleSendMessage}
-              className="flex items-center gap-2"
+              className="space-y-2"
             >
               <input
-                type="text"
-                value={newMessage}
-                onChange={handleInputChange}
-                placeholder={
-                  roomKey
-                    ? 'Type your anonymous message...'
-                    : 'Establishing encrypted session...'
-                }
-                className={`flex-1 px-4 py-3 rounded-xl border text-base sm:text-sm outline-none transition-all ${
-                  isDarkMode
-                    ? 'bg-neutral-950 border-neutral-800 text-white focus:border-emerald-500'
-                    : 'bg-neutral-900/0 border-neutral-200 text-neutral-900 focus:border-emerald-600'
-                }`}
+                ref={fileInputRef}
+                type="file"
+                accept="image/jpeg,image/png,image/webp"
+                onChange={handleImageChange}
+                className="hidden"
               />
 
-              <button
-                type="submit"
-                disabled={
-                  !newMessage.trim() ||
-                  !roomKey
-                }
-                className={`p-3 rounded-xl flex items-center justify-center font-medium transition-all cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed ${
-                  isDarkMode
-                    ? 'bg-emerald-600 hover:bg-emerald-500 text-white'
-                    : 'bg-neutral-900 hover:bg-neutral-800 text-white'
-                }`}
-              >
-                <Icons.Send />
-              </button>
+              {isCompressingImage && (
+                <div
+                  className={`px-3 py-2 rounded-xl border font-mono text-[10px] ${
+                    isDarkMode
+                      ? 'bg-neutral-950 border-neutral-800 text-neutral-400'
+                      : 'bg-neutral-50 border-neutral-200 text-neutral-500'
+                  }`}
+                >
+                  Compressing photo to WebP...
+                </div>
+              )}
+
+              {imagePreview && (
+                <div
+                  className={`relative inline-block max-w-full rounded-xl border p-2 ${
+                    isDarkMode
+                      ? 'bg-neutral-950 border-neutral-800'
+                      : 'bg-neutral-50 border-neutral-200'
+                  }`}
+                >
+                  <img
+                    src={imagePreview}
+                    alt="Compressed photo preview"
+                    className="block max-h-40 max-w-full sm:max-w-[260px] rounded-lg object-contain"
+                  />
+
+                  <button
+                    type="button"
+                    onClick={handleRemoveImage}
+                    disabled={
+                    isCompressingImage ||
+                    isUploadingImage
+                  }
+                    className="absolute -top-2 -right-2 w-7 h-7 rounded-full bg-neutral-900 text-white flex items-center justify-center shadow-lg cursor-pointer disabled:opacity-50"
+                    aria-label="Remove photo"
+                    title="Remove photo"
+                  >
+                    <Icons.X />
+                  </button>
+
+                  <div className="mt-2 px-1 flex items-center justify-between gap-3">
+
+                    <p
+                      className={`font-mono text-[9px] shrink-0 ${
+                        isDarkMode
+                          ? 'text-emerald-500'
+                          : 'text-emerald-600'
+                      }`}
+                    >
+                      {(imageFile!.size / 1024).toFixed(0)} KB
+                    </p>
+                  </div>
+                </div>
+              )}
+
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() =>
+                    fileInputRef.current?.click()
+                  }
+                  disabled={
+                    !roomKey ||
+                    isCompressingImage ||
+                    isUploadingImage
+                  }
+                  aria-label="Attach photo"
+                  title="Attach photo"
+                  className={`p-3 rounded-xl border flex items-center justify-center transition-all cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed ${
+                    isDarkMode
+                      ? 'bg-neutral-950 border-neutral-800 text-neutral-400 hover:text-white hover:border-neutral-700'
+                      : 'bg-white border-neutral-200 text-neutral-600 hover:bg-neutral-50'
+                  }`}
+                >
+                  <svg
+                    xmlns="http://www.w3.org/2000/svg"
+                    width="17"
+                    height="17"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="2"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                  >
+                    <rect
+                      x="3"
+                      y="3"
+                      width="18"
+                      height="18"
+                      rx="2"
+                    />
+                    <circle
+                      cx="8.5"
+                      cy="8.5"
+                      r="1.5"
+                    />
+                    <polyline points="21 15 16 10 5 21" />
+                  </svg>
+                </button>
+
+                <input
+                  type="text"
+                  value={newMessage}
+                  onChange={handleInputChange}
+                  disabled={
+                    isCompressingImage ||
+                    isUploadingImage
+                  }
+                  placeholder={
+                    roomKey
+                      ? imageFile
+                        ? 'Add a message...'
+                        : 'Type your anonymous message...'
+                      : 'Establishing encrypted session...'
+                  }
+                  className={`flex-1 min-w-0 px-4 py-3 rounded-xl border text-base sm:text-sm outline-none transition-all disabled:opacity-60 ${
+                    isDarkMode
+                      ? 'bg-neutral-950 border-neutral-800 text-white focus:border-emerald-500'
+                      : 'bg-neutral-900/0 border-neutral-200 text-neutral-900 focus:border-emerald-600'
+                  }`}
+                />
+
+                <button
+                  type="submit"
+                  disabled={
+                    (!newMessage.trim() && !imageFile) ||
+                    !roomKey ||
+                    isCompressingImage ||
+                    isUploadingImage
+                  }
+                  className={`p-3 rounded-xl flex items-center justify-center font-medium transition-all cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed ${
+                    isDarkMode
+                      ? 'bg-emerald-600 hover:bg-emerald-500 text-white'
+                      : 'bg-neutral-900 hover:bg-neutral-800 text-white'
+                  }`}
+                  aria-label={
+                    isCompressingImage
+                      ? 'Compressing photo'
+                      : isUploadingImage
+                      ? 'Uploading encrypted photo'
+                      : 'Send message'
+                  }
+                >
+                  {isCompressingImage || isUploadingImage ? (
+                    <span className="w-4 h-4 border-2 border-white/40 border-t-white rounded-full animate-spin" />
+                  ) : (
+                    <Icons.Send />
+                  )}
+                </button>
+              </div>
+
+              {imagePreview && (
+                <p
+                  className={`px-1 font-mono text-[9px] ${
+                    isDarkMode
+                      ? 'text-neutral-500'
+                      : 'text-neutral-400'
+                  }`}
+                >
+                  Privacy reminder: check photos for faces, names,
+                  IDs, locations, or other personal information
+                  before sending.
+                </p>
+              )}
             </form>
           ) : (
             <div

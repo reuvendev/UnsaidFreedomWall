@@ -5,8 +5,11 @@ import Link from 'next/link';
 import {
   collection,
   getDocs,
+  getDoc,
   query,
   where,
+  doc,
+  deleteDoc,
 } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 
@@ -72,6 +75,26 @@ const Icons = {
       <path d="M12 5v14M5 12h14" />
     </svg>
   ),
+
+  Trash: () => (
+    <svg
+      xmlns="http://www.w3.org/2000/svg"
+      width="15"
+      height="15"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    >
+      <polyline points="3 6 5 6 21 6" />
+      <path d="M19 6l-1 14H6L5 6" />
+      <path d="M10 11v6" />
+      <path d="M14 11v6" />
+      <path d="M9 6V4h6v2" />
+    </svg>
+  ),
 };
 
 function formatDate(timestamp: any): string {
@@ -102,6 +125,8 @@ export default function MyEntriesPage() {
   const [loading, setLoading] = useState(true);
   const [isDarkMode, setIsDarkMode] = useState(false);
   const [visibleCount, setVisibleCount] = useState(10);
+  const [deletingPostId, setDeletingPostId] =
+    useState<string | null>(null);
 
   // Load theme
   useEffect(() => {
@@ -191,6 +216,126 @@ export default function MyEntriesPage() {
   loadMyPosts();
 }, []);
 
+  const removePostFromLocalList = (postId: string) => {
+    try {
+      const key = 'tambayan_my_posts';
+      const existingPosts = JSON.parse(
+        localStorage.getItem(key) || '[]'
+      );
+
+      if (Array.isArray(existingPosts)) {
+        const updatedPosts = existingPosts.filter(
+          (id: string) => id !== postId
+        );
+
+        localStorage.setItem(
+          key,
+          JSON.stringify(updatedPosts)
+        );
+      }
+    } catch (error) {
+      console.warn(
+        'Could not update local My Entries list:',
+        error
+      );
+    }
+  };
+
+  const handleDeleteEntry = async (
+    postId: string
+  ) => {
+    if (deletingPostId) return;
+
+    const confirmed = window.confirm(
+      'Delete this entry? This cannot be undone.'
+    );
+
+    if (!confirmed) return;
+
+    const userId = localStorage.getItem(
+      'unsaid_chat_user_id'
+    );
+
+    if (!userId) {
+      alert(
+        'This browser can no longer verify ownership of this entry.'
+      );
+      return;
+    }
+
+    setDeletingPostId(postId);
+
+    try {
+      const postRef = doc(db, 'posts', postId);
+      const postSnapshot = await getDoc(postRef);
+
+      if (!postSnapshot.exists()) {
+        setPosts((prev) =>
+          prev.filter((post) => post.id !== postId)
+        );
+
+        removePostFromLocalList(postId);
+        return;
+      }
+
+      const postData = postSnapshot.data();
+
+      // Verify that the stored owner ID still matches
+      // this browser's anonymous user ID before deleting.
+      if (postData.userId !== userId) {
+        throw new Error(
+          'You can only delete entries created from this browser.'
+        );
+      }
+
+      // Delete replies first because Firestore does not
+      // automatically delete subcollections when a parent
+      // document is deleted.
+      const repliesSnapshot = await getDocs(
+        collection(db, 'posts', postId, 'replies')
+      );
+
+      if (!repliesSnapshot.empty) {
+        await Promise.all(
+          repliesSnapshot.docs.map((replyDoc) =>
+            deleteDoc(
+              doc(
+                db,
+                'posts',
+                postId,
+                'replies',
+                replyDoc.id
+              )
+            )
+          )
+        );
+      }
+
+      // Delete the Firestore entry itself.
+      // R2 image cleanup is intentionally NOT included here.
+      await deleteDoc(postRef);
+
+      setPosts((prev) =>
+        prev.filter((post) => post.id !== postId)
+      );
+
+      removePostFromLocalList(postId);
+    } catch (error) {
+      console.error(
+        'Error deleting your entry:',
+        error
+      );
+
+      alert(
+        error instanceof Error
+          ? error.message
+          : 'Failed to delete your entry. Please try again.'
+      );
+    } finally {
+      setDeletingPostId(null);
+    }
+  };
+
   if (loading) {
     return (
       <div
@@ -234,7 +379,7 @@ export default function MyEntriesPage() {
           </Link>
 
           <Link
-            href="/"
+            href="/wall"
             className={`font-mono text-xs font-semibold uppercase tracking-wider ${
               isDarkMode
                 ? 'text-neutral-400 hover:text-white'
@@ -347,15 +492,18 @@ export default function MyEntriesPage() {
         {/* Posts */}
         <div className="space-y-5">
           {posts.slice(0, visibleCount).map((post) => (
-            <Link
+            <article
               key={post.id}
-              href={`/post/${post.id}`}
-              className={`block p-6 border rounded-lg transition-all ${
+              className={`relative border rounded-lg transition-all overflow-hidden ${
                 isDarkMode
                   ? 'bg-neutral-900/50 border-neutral-800 hover:border-neutral-700'
                   : 'bg-white border-neutral-200 hover:border-neutral-300'
               }`}
             >
+              <Link
+                href={`/post/${post.id}`}
+                className="block p-6 pb-20"
+              >
               {/* Top */}
               <div className="flex items-center justify-between gap-4 mb-4">
                 <div className="flex items-center gap-2 font-mono text-[11px] uppercase tracking-wider min-w-0">
@@ -495,17 +643,48 @@ export default function MyEntriesPage() {
                   </span>
                 </div>
 
-                <span
-                  className={`ml-auto text-[10px] uppercase tracking-wider ${
+              </div>
+              </Link>
+
+              <div
+                className={`absolute left-6 right-6 bottom-4 pt-3 border-t flex items-center justify-between gap-3 ${
+                  isDarkMode
+                    ? 'border-neutral-800'
+                    : 'border-neutral-100'
+                }`}
+              >
+                <Link
+                  href={`/post/${post.id}`}
+                  className={`font-mono text-[10px] font-bold uppercase tracking-wider ${
                     isDarkMode
-                      ? 'text-neutral-600'
-                      : 'text-neutral-400'
+                      ? 'text-neutral-500 hover:text-white'
+                      : 'text-neutral-400 hover:text-neutral-900'
                   }`}
                 >
                   View Entry →
-                </span>
+                </Link>
+
+                <button
+                  type="button"
+                  onClick={() =>
+                    handleDeleteEntry(post.id)
+                  }
+                  disabled={deletingPostId === post.id}
+                  className={`inline-flex items-center gap-1.5 px-3 py-2 rounded font-mono text-[10px] font-bold uppercase tracking-wider border transition-all active:scale-95 disabled:opacity-40 disabled:cursor-not-allowed ${
+                    isDarkMode
+                      ? 'border-rose-900/70 text-rose-400 hover:bg-rose-950/40'
+                      : 'border-rose-200 text-rose-600 hover:bg-rose-50'
+                  }`}
+                >
+                  <Icons.Trash />
+                  <span>
+                    {deletingPostId === post.id
+                      ? 'Deleting...'
+                      : 'Delete'}
+                  </span>
+                </button>
               </div>
-            </Link>
+            </article>
           ))}
         </div>
 
