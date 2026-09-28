@@ -4944,32 +4944,136 @@ function PetAccessories({
       )}
 
 
-      {equipped.prop ===
-        'matcha_cup' && (
+      {equipped.prop === 'matcha_cup' && (
         <div
           className="
             absolute
-            right-[10px]
-            bottom-[13px]
-            w-[59px]
-            h-[65px]
+            right-[8px]
+            bottom-[10px]
+            w-[62px]
+            h-[72px]
           "
         >
-          {/* STEAM */}
-          <div className="absolute left-[18px] top-0 w-[8px] h-[19px] rounded-full border-l-2 border-emerald-300 rotate-[12deg]" />
-          <div className="absolute left-[31px] top-[2px] w-[8px] h-[17px] rounded-full border-l-2 border-emerald-300 -rotate-[12deg]" />
+          {/* STRAW */}
+          <div
+            className="
+              absolute
+              left-[36px]
+              top-[1px]
+              z-0
+              w-[4px]
+              h-[32px]
+              rotate-[8deg]
+              rounded-full
+              bg-[#d9c7a3]
+              border border-[#bca984]
+            "
+          />
 
           {/* CUP */}
-          <div className="absolute left-[5px] bottom-0 w-[43px] h-[39px] rounded-b-xl rounded-t-md border border-emerald-200 bg-[#f7fff8] shadow" />
+          <div
+            className="
+              absolute
+              left-[7px]
+              bottom-0
+              z-10
+              w-[45px]
+              h-[48px]
+              overflow-hidden
+              rounded-b-[12px]
+              rounded-t-[7px]
+              border-2
+              border-white/80
+              bg-white/25
+              shadow-md
+            "
+          >
+            {/* MATCHA LATTE */}
+            <div
+              className="
+                absolute
+                inset-x-[2px]
+                bottom-[2px]
+                h-[38px]
+                rounded-b-[9px]
+                bg-gradient-to-b
+                from-[#a8c97f]
+                via-[#8fb466]
+                to-[#789c50]
+              "
+            />
 
-          {/* HANDLE */}
-          <div className="absolute right-[1px] bottom-[9px] w-[20px] h-[23px] rounded-full border-[4px] border-[#f7fff8]" />
+            {/* CREAMY TOP */}
+            <div
+              className="
+                absolute
+                left-[2px]
+                right-[2px]
+                top-[5px]
+                h-[9px]
+                rounded-full
+                bg-[#dce8c8]
+              "
+            />
 
-          {/* MATCHA */}
-          <div className="absolute left-[8px] bottom-[34px] w-[37px] h-[7px] rounded-full bg-[#8faf69]" />
+            {/* MATCHA FOAM */}
+            <div
+              className="
+                absolute
+                left-[6px]
+                right-[6px]
+                top-[8px]
+                h-[4px]
+                rounded-full
+                bg-[#789d55]
+              "
+            />
 
-          {/* TINY LEAF */}
-          <div className="absolute left-[23px] bottom-[13px] w-[10px] h-[6px] rotate-[-18deg] rounded-[100%_0_100%_0] bg-emerald-500/80" />
+            {/* GLASS HIGHLIGHT */}
+            <div
+              className="
+                absolute
+                left-[5px]
+                top-[13px]
+                w-[4px]
+                h-[24px]
+                rounded-full
+                bg-white/35
+              "
+            />
+          </div>
+
+          {/* CUP RIM */}
+          <div
+            className="
+              absolute
+              left-[6px]
+              bottom-[43px]
+              z-20
+              w-[47px]
+              h-[8px]
+              rounded-full
+              border-2
+              border-white/80
+              bg-[#b8d493]
+              shadow-sm
+            "
+          />
+
+          {/* MATCHA LEAF */}
+          <div
+            className="
+              absolute
+              left-[25px]
+              bottom-[19px]
+              z-20
+              w-[12px]
+              h-[7px]
+              -rotate-[25deg]
+              rounded-[100%_0_100%_0]
+              bg-[#4f7f3b]
+            "
+          />
         </div>
       )}
 
@@ -5281,17 +5385,129 @@ function AccessoryPreview({
       )}
 
 
-      {itemId ===
-        'matcha_cup' && (
-        <div className="relative w-[60px] h-[65px]">
-          <div className="absolute left-[17px] top-[2px] w-[7px] h-[17px] border-l-2 border-emerald-300 rotate-12 rounded-full" />
-          <div className="absolute left-[31px] top-[4px] w-[7px] h-[15px] border-l-2 border-emerald-300 -rotate-12 rounded-full" />
-          <div className="absolute left-[5px] bottom-[2px] w-[42px] h-[38px] rounded-b-xl border border-emerald-200 bg-[#f7fff8]" />
-          <div className="absolute right-[1px] bottom-[10px] w-[20px] h-[22px] rounded-full border-[4px] border-[#f7fff8]" />
-          <div className="absolute left-[8px] bottom-[35px] w-[36px] h-[7px] rounded-full bg-[#8faf69]" />
-          <div className="absolute left-[22px] bottom-[14px] w-[10px] h-[6px] rotate-[-18deg] rounded-[100%_0_100%_0] bg-emerald-500/80" />
+      {itemId === 'matcha_cup' && (
+      <div className="relative w-[62px] h-[70px]">
+
+        {/* STRAW */}
+        <div
+          className="
+            absolute
+            left-[37px]
+            top-0
+            w-[4px]
+            h-[31px]
+            rotate-[8deg]
+            rounded-full
+            bg-[#d9c7a3]
+            border border-[#bca984]
+          "
+        />
+
+        {/* CUP */}
+        <div
+          className="
+            absolute
+            left-[8px]
+            bottom-[1px]
+            z-10
+            w-[45px]
+            h-[47px]
+            overflow-hidden
+            rounded-b-[12px]
+            rounded-t-[7px]
+            border-2
+            border-white/80
+            bg-white/25
+            shadow-md
+          "
+        >
+          {/* MATCHA */}
+          <div
+            className="
+              absolute
+              inset-x-[2px]
+              bottom-[2px]
+              h-[37px]
+              rounded-b-[9px]
+              bg-gradient-to-b
+              from-[#a8c97f]
+              via-[#8fb466]
+              to-[#789c50]
+            "
+          />
+
+          {/* MILK / FOAM */}
+          <div
+            className="
+              absolute
+              left-[2px]
+              right-[2px]
+              top-[5px]
+              h-[9px]
+              rounded-full
+              bg-[#dce8c8]
+            "
+          />
+
+          {/* MATCHA SWIRL */}
+          <div
+            className="
+              absolute
+              left-[7px]
+              right-[7px]
+              top-[8px]
+              h-[4px]
+              rounded-full
+              bg-[#789d55]
+            "
+          />
+
+          {/* GLASS SHINE */}
+          <div
+            className="
+              absolute
+              left-[5px]
+              top-[14px]
+              w-[4px]
+              h-[22px]
+              rounded-full
+              bg-white/35
+            "
+          />
         </div>
-      )}
+
+        {/* RIM */}
+        <div
+          className="
+            absolute
+            left-[7px]
+            bottom-[42px]
+            z-20
+            w-[47px]
+            h-[8px]
+            rounded-full
+            border-2
+            border-white/80
+            bg-[#b8d493]
+          "
+        />
+
+        {/* LEAF */}
+        <div
+          className="
+            absolute
+            left-[26px]
+            bottom-[18px]
+            z-20
+            w-[12px]
+            h-[7px]
+            -rotate-[25deg]
+            rounded-[100%_0_100%_0]
+            bg-[#4f7f3b]
+          "
+        />
+      </div>
+    )}
 
       {itemId ===
         'graduation_cap' && (
