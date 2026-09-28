@@ -152,6 +152,14 @@ interface PetData {
   equipped: EquippedItems;
 
   lastNeedTickAt?: unknown;
+
+  lastJobAt?: Timestamp | null;
+
+  lastJobId?: string | null;
+
+  jobDate?: string | null;
+
+  jobsCompletedToday?: number;
 }
 
 type ParkInteractionType =
@@ -722,6 +730,32 @@ const ACTIONS = {
     coins: 2,
   },
 } as const;
+
+const TAMBAY_JOBS = [
+  {
+    id: 'study_buddy',
+    name: 'Study Buddy',
+    description: 'Help another tambay focus for a while.',
+    coins: 12,
+    cooldown: 45 * 60 * 1000,
+  },
+  {
+    id: 'park_cleanup',
+    name: 'Park Cleanup',
+    description: 'Help keep the Pet Park clean and cozy.',
+    coins: 18,
+    cooldown: 90 * 60 * 1000,
+  },
+  {
+    id: 'tambayan_helper',
+    name: 'Tambayan Helper',
+    description: 'Do a small shift helping around Tambayan.',
+    coins: 25,
+    cooldown: 2 * 60 * 60 * 1000,
+  },
+] as const;
+
+const MAX_JOBS_PER_DAY = 5;
 
 /* =========================================================
    HELPERS
@@ -5717,6 +5751,9 @@ export default function PetPage() {
   const [actionLoading, setActionLoading] =
     useState<string | null>(null);
 
+  const [jobLoading, setJobLoading] =
+    useState<string | null>(null);
+
   const [message, setMessage] =
     useState('');
 
@@ -6286,44 +6323,110 @@ export default function PetPage() {
     'idle'
   );
 
-  const petAlert =
-  useMemo(() => {
-    if (!pet) {
+  const petCondition =
+    useMemo(() => {
+      if (!pet) {
+        return null;
+      }
+
+      const zeroStats = [
+        pet.hunger <= 0,
+        pet.happiness <= 0,
+        pet.energy <= 0,
+      ].filter(Boolean).length;
+
+      if (zeroStats === 3) {
+        return {
+          severity: 'critical' as const,
+          title: `${pet.name} needs care.`,
+          description:
+            'All needs are at 0. Feed them, let them rest, and spend time with them to help them recover.',
+          dialogue: 'I need you right now...',
+        };
+      }
+
+      if (pet.hunger <= 0) {
+        return {
+          severity: 'critical' as const,
+          title: `${pet.name} is starving.`,
+          description:
+            'Happiness and energy will fall faster. Play and Study are locked until you feed them.',
+          dialogue: 'I am really hungry...',
+        };
+      }
+
+      if (pet.energy <= 0) {
+        return {
+          severity: 'critical' as const,
+          title: `${pet.name} is exhausted.`,
+          description:
+            'They are too tired to Play or Study. Let them Sleep to recover energy.',
+          dialogue: 'Too tired... need sleep.',
+        };
+      }
+
+      if (pet.happiness <= 0) {
+        return {
+          severity: 'critical' as const,
+          title: `${pet.name} feels lonely.`,
+          description:
+            'Spend some time playing with them when they have enough food and energy.',
+          dialogue: 'Can we hang out for a bit?',
+        };
+      }
+
+      if (pet.hunger <= 15) {
+        return {
+          severity: 'warning' as const,
+          title: 'Your pet is very hungry.',
+          description:
+            'Play and Study are locked while hunger is this low.',
+          dialogue: null,
+        };
+      }
+
+      if (pet.hunger <= 35 || pet.energy <= 20 || pet.happiness <= 20) {
+        return {
+          severity: 'warning' as const,
+          title: 'Your pet needs some attention.',
+          description:
+            'One of their needs is getting low. Take care of it before it reaches 0.',
+          dialogue: null,
+        };
+      }
+
       return null;
+    }, [pet]);
+
+  const petAlert = petCondition;
+
+  const jobsCompletedToday =
+    pet?.jobDate === getPhilippineDate()
+      ? pet.jobsCompletedToday || 0
+      : 0;
+
+  const getJobRemainingCooldown = (
+    job: (typeof TAMBAY_JOBS)[number]
+  ) => {
+    if (!pet?.lastJobAt || !pet.lastJobId) {
+      return 0;
     }
 
-    if (pet.hunger <= 0) {
-      return {
-        tone: 'danger',
-        title:
-          'Your pet is starving.',
-        description:
-          'It is losing happiness and energy over time. It cannot play or study until you feed it.',
-      };
+    const previousJob = TAMBAY_JOBS.find(
+      (candidate) => candidate.id === pet.lastJobId
+    );
+
+    if (!previousJob) {
+      return 0;
     }
 
-    if (pet.hunger <= 15) {
-      return {
-        tone: 'warning',
-        title:
-          'Your pet is very hungry.',
-        description:
-          'Play and Study are locked while hunger is this low.',
-      };
-    }
-
-    if (pet.hunger <= 35) {
-      return {
-        tone: 'warning',
-        title:
-          'Your pet is getting hungry.',
-        description:
-          'If you ignore it too long, it will start losing happiness and energy.',
-      };
-    }
-
-    return null;
-  }, [pet]);
+    return Math.max(
+      0,
+      timestampToMs(pet.lastJobAt) +
+        previousJob.cooldown -
+        now
+    );
+  };
 
   const [
     petDialogue,
@@ -9371,6 +9474,12 @@ const performAction =
                 );
               }
 
+              if (energy <= 0) {
+                throw new Error(
+                  `${basePet.name} is too exhausted to play. Let them sleep first.`
+                );
+              }
+
               happiness =
                 clamp(
                   happiness + 20
@@ -9578,6 +9687,113 @@ const performAction =
       setActionLoading(
         null
       );
+    }
+  };
+
+  /* =========================================================
+     TAMBAY JOBS — EARN COINS
+  ========================================================= */
+
+  const performTambayJob = async (
+    job: (typeof TAMBAY_JOBS)[number]
+  ) => {
+    if (!ownerId || !pet || jobLoading) {
+      return;
+    }
+
+    const remaining = getJobRemainingCooldown(job);
+
+    if (remaining > 0) {
+      setMessage(
+        `Take a break first. Next job in ${formatCooldown(remaining)}.`
+      );
+      return;
+    }
+
+    if (jobsCompletedToday >= MAX_JOBS_PER_DAY) {
+      setMessage(
+        `You already finished ${MAX_JOBS_PER_DAY} jobs today. Come back tomorrow.`
+      );
+      return;
+    }
+
+    setJobLoading(job.id);
+    setMessage('');
+
+    try {
+      const petRef = doc(db, 'pets', ownerId);
+
+      const updatedPet = await runTransaction(
+        db,
+        async (transaction) => {
+          const snapshot = await transaction.get(petRef);
+
+          if (!snapshot.exists()) {
+            throw new Error('Pet not found.');
+          }
+
+          const current = snapshot.data() as PetData;
+          const today = getPhilippineDate();
+          const currentTime = Timestamp.now();
+
+          const previousJob = TAMBAY_JOBS.find(
+            (candidate) => candidate.id === current.lastJobId
+          );
+
+          if (current.lastJobAt && previousJob) {
+            const availableAt =
+              timestampToMs(current.lastJobAt) +
+              previousJob.cooldown;
+
+            if (Date.now() < availableAt) {
+              throw new Error(
+                `Take a break first. Next job in ${formatCooldown(availableAt - Date.now())}.`
+              );
+            }
+          }
+
+          const completedToday =
+            current.jobDate === today
+              ? current.jobsCompletedToday || 0
+              : 0;
+
+          if (completedToday >= MAX_JOBS_PER_DAY) {
+            throw new Error(
+              `You already finished ${MAX_JOBS_PER_DAY} jobs today.`
+            );
+          }
+
+          const next: Partial<PetData> = {
+            coins: current.coins + job.coins,
+            lastJobAt: currentTime,
+            lastJobId: job.id,
+            jobDate: today,
+            jobsCompletedToday: completedToday + 1,
+            updatedAt: currentTime,
+          };
+
+          transaction.update(petRef, next);
+
+          return {
+            ...current,
+            ...next,
+          } as PetData;
+        }
+      );
+
+      setPet(updatedPet);
+      setMessage(
+        `${job.name} complete. +${job.coins} Tambay Coins.`
+      );
+    } catch (error) {
+      console.error('Tambay job failed:', error);
+      setMessage(
+        error instanceof Error
+          ? error.message
+          : 'Could not finish this job.'
+      );
+    } finally {
+      setJobLoading(null);
     }
   };
 
@@ -10435,7 +10651,13 @@ const performAction =
 
               <div className="absolute inset-0 bg-[radial-gradient(circle_at_50%_35%,rgba(16,185,129,0.10),transparent_50%)]" />
 
-              <div className="relative flex items-center justify-center w-[230px] h-[210px]">
+              <div
+                className={`relative flex items-center justify-center w-[230px] h-[210px] transition-all duration-500 ${
+                  petCondition?.severity === 'critical'
+                    ? 'grayscale-[0.45] opacity-80 scale-[0.97]'
+                    : ''
+                }`}
+              >
                 <PetAvatar
                   species={
                     pet.species
@@ -10447,7 +10669,9 @@ const performAction =
                     petAnimation
                   }
                   dialogue={
-                    petDialogue
+                    petDialogue ||
+                    petCondition?.dialogue ||
+                    null
                   }
                 />
               </div>
@@ -10647,8 +10871,8 @@ const performAction =
               {petAlert && (
               <div
                 className={`mt-5 rounded-xl border px-4 py-3 ${
-                  petAlert.tone ===
-                  'danger'
+                  petAlert.severity ===
+                  'critical'
                     ? 'border-rose-200 bg-rose-50 text-rose-700 dark:border-rose-900/40 dark:bg-rose-950/30 dark:text-rose-300'
                     : 'border-amber-200 bg-amber-50 text-amber-700 dark:border-amber-900/40 dark:bg-amber-950/30 dark:text-amber-300'
                 }`}
@@ -11300,6 +11524,73 @@ const performAction =
     </div>
   </div>
 )}
+
+{/* TAMBAY JOBS */}
+<section className="mt-5 rounded-2xl border border-neutral-200 dark:border-neutral-800 bg-white dark:bg-neutral-900 p-5 sm:p-6">
+  <div className="flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
+    <div>
+      <p className="font-mono text-[10px] font-bold uppercase tracking-[0.18em] text-emerald-600">
+        Tambay Jobs
+      </p>
+      <h2 className="mt-1 text-lg font-black">Earn Tambay Coins</h2>
+      <p className="mt-1 text-xs leading-relaxed text-neutral-500">
+        Do small jobs to earn coins for food and accessories. You can finish up to {MAX_JOBS_PER_DAY} jobs per day.
+      </p>
+    </div>
+
+    <div className="shrink-0 rounded-xl border border-neutral-200 dark:border-neutral-800 px-3 py-2 text-center">
+      <p className="font-mono text-[8px] uppercase tracking-wider text-neutral-400">Today</p>
+      <p className="text-sm font-black">{jobsCompletedToday}/{MAX_JOBS_PER_DAY}</p>
+    </div>
+  </div>
+
+  <div className="mt-4 grid gap-3 sm:grid-cols-3">
+    {TAMBAY_JOBS.map((job) => {
+      const remaining = getJobRemainingCooldown(job);
+      const dailyLimitReached = jobsCompletedToday >= MAX_JOBS_PER_DAY;
+      const disabled = jobLoading !== null || remaining > 0 || dailyLimitReached;
+
+      return (
+        <button
+          key={job.id}
+          type="button"
+          disabled={disabled}
+          onClick={() => performTambayJob(job)}
+          className="rounded-2xl border border-neutral-200 dark:border-neutral-800 bg-neutral-50 dark:bg-neutral-950 p-4 text-left transition hover:border-emerald-500/50 hover:bg-emerald-500/[0.03] disabled:cursor-not-allowed disabled:opacity-50"
+        >
+          <div className="flex items-start justify-between gap-3">
+            <div>
+              <p className="text-sm font-black">{job.name}</p>
+              <p className="mt-1 text-[10px] leading-relaxed text-neutral-500">
+                {job.description}
+              </p>
+            </div>
+            <div className="flex shrink-0 items-center gap-1 font-mono text-xs font-black text-emerald-600">
+              <Icon.Coins />
+              +{job.coins}
+            </div>
+          </div>
+
+          <div className="mt-4 border-t border-neutral-200 dark:border-neutral-800 pt-3 font-mono text-[9px] font-bold uppercase tracking-wider">
+            {jobLoading === job.id
+              ? 'Working...'
+              : dailyLimitReached
+                ? 'Daily limit reached'
+                : remaining > 0
+                  ? `Rest ${formatCooldown(remaining)}`
+                  : 'Start job'}
+          </div>
+        </button>
+      );
+    })}
+  </div>
+
+  {petCondition?.severity === 'critical' && (
+    <p className="mt-4 rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-[10px] leading-relaxed text-amber-700 dark:border-amber-900/40 dark:bg-amber-950/20 dark:text-amber-300">
+      Out of coins? Jobs stay available even when your pet needs care, so you can always earn enough for emergency food.
+    </p>
+  )}
+</section>
 
 <section
   id="food-store"
