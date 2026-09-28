@@ -156,6 +156,25 @@ const Icons = {
     </svg>
   ),
 
+  Paw: () => (
+    <svg
+      xmlns="http://www.w3.org/2000/svg"
+      width="15"
+      height="15"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    >
+      <circle cx="11" cy="4" r="2" />
+      <circle cx="18" cy="8" r="2" />
+      <circle cx="20" cy="16" r="2" />
+      <path d="M9 10a5 5 0 0 0-5 5v1.5A3.5 3.5 0 0 0 7.5 20c1.2 0 2.2-.5 3-1.3.8.8 1.8 1.3 3 1.3A3.5 3.5 0 0 0 17 16.5V15a5 5 0 0 0-5-5Z" />
+    </svg>
+  ),
+
   Sun: () => (
     <svg
       xmlns="http://www.w3.org/2000/svg"
@@ -222,18 +241,6 @@ export default function HomePage() {
   });
   const [streakLoading, setStreakLoading] = useState<boolean>(true);
   const [streakDetailsOpen, setStreakDetailsOpen] = useState<boolean>(false);
-
-
-  //temp
-  useEffect(() => {
-  const userId = getAnonymousUserId();
-
-  if (userId === 'user_8y6qod1pq') {
-    localStorage.removeItem(
-      'tambayan_appreciation_user_8y6qod1pq'
-    );
-  }
-}, []);
 
   useEffect(() => {
     try {
@@ -746,7 +753,7 @@ export default function HomePage() {
             >
               <Icons.MessageSquare />
               <span>
-                Freedom Wall
+                Post anonymously
               </span>
             </Link>
 
@@ -760,7 +767,30 @@ export default function HomePage() {
             >
               <Icons.Users />
               <span>
-                Find Chatmate
+                Find someone to chat with.
+              </span>
+            </Link>
+
+            <Link
+              href="/pet"
+              className={`inline-flex items-center gap-2 border font-mono text-xs font-bold uppercase tracking-wider px-5 py-3.5 rounded-lg active:scale-95 shadow-sm transition ${
+                isDarkMode
+                  ? 'bg-emerald-950/60 text-emerald-300 border-emerald-800 hover:bg-emerald-900/60'
+                  : 'bg-emerald-600 text-white border-emerald-600 hover:bg-emerald-700'
+              }`}
+            >
+              <Icons.Paw />
+              <span>
+                Tambayan Pet
+              </span>
+              <span
+                className={`ml-0.5 rounded-full px-1.5 py-0.5 text-[8px] tracking-wider ${
+                  isDarkMode
+                    ? 'bg-emerald-900 text-emerald-200'
+                    : 'bg-white/20 text-white'
+                }`}
+              >
+                PLAY
               </span>
             </Link>
 
@@ -781,70 +811,7 @@ export default function HomePage() {
           </div>
         </div>
 
-        {/* TAMBAYAN PET */}
-<section className="mb-14">
-  <Link
-    href="/pet"
-    className={`
-      group
-      block
-      rounded-2xl
-      border
-      p-5
-      sm:p-6
-      transition
-      active:scale-[0.99]
-      ${
-        isDarkMode
-          ? 'bg-neutral-900 border-neutral-800 hover:border-emerald-900'
-          : 'bg-white border-neutral-200 hover:border-emerald-300'
-      }
-    `}
-  >
-    <div className="flex items-center justify-between gap-5">
-      <div>
-        <p className="font-mono text-[9px] font-bold uppercase tracking-widest text-emerald-600">
-          Tambayan Pet
-        </p>
-
-        <h2
-          className={`mt-2 text-xl font-extrabold tracking-tight ${
-            isDarkMode
-              ? 'text-white'
-              : 'text-neutral-900'
-          }`}
-        >
-          Meet your little tambay.
-        </h2>
-
-        <p
-          className={`mt-2 text-sm leading-relaxed ${
-            isDarkMode
-              ? 'text-neutral-400'
-              : 'text-neutral-500'
-          }`}
-        >
-          Adopt, feed, play, and hang out with other pets.
-        </p>
-      </div>
-
-      <span
-        className="
-          shrink-0
-          font-mono
-          text-lg
-          text-emerald-600
-          transition-transform
-          group-hover:translate-x-1
-        "
-      >
-        →
-      </span>
-    </div>
-  </Link>
-</section>
-
-        {/* ABOUT TAMBAYAN */}
+        {/* COMMUNITY INTRO */}
         <section className="mb-14">
           <div
             className={`rounded-2xl border p-6 sm:p-8 ${
@@ -853,12 +820,8 @@ export default function HomePage() {
                 : 'bg-white border-neutral-200/80'
             }`}
           >
-            <p
-              className={`font-mono text-[10px] font-bold uppercase tracking-widest mb-3 ${
-                isDarkMode ? 'text-emerald-500' : 'text-emerald-600'
-              }`}
-            >
-              About Tambayan
+            <p className="font-mono text-[10px] font-bold uppercase tracking-widest text-emerald-600 mb-3">
+              Built for Louisians
             </p>
 
             <h2
@@ -866,32 +829,71 @@ export default function HomePage() {
                 isDarkMode ? 'text-white' : 'text-neutral-900'
               }`}
             >
-              A place to share, connect, and be heard.
+              A student space for the things that are easier to say anonymously.
             </h2>
 
-            <p
-              className={`text-sm sm:text-base leading-relaxed mb-4 ${
-                isDarkMode ? 'text-neutral-400' : 'text-neutral-600'
-              }`}
-            >
-              Tambayan SLU is an independent online community for Louisians.
-              It gives students a space to share thoughts, confessions, rants,
-              questions, stories, and experiences anonymously.
-            </p>
+            <div className="space-y-4">
+              <p
+                className={`text-sm sm:text-base leading-relaxed ${
+                  isDarkMode ? 'text-neutral-400' : 'text-neutral-600'
+                }`}
+              >
+                Tambayan SLU is an independent online community where Louisians can
+                share thoughts, confessions, questions, rants, advice, and everyday
+                campus experiences without attaching their public identity to every post.
+              </p>
 
-            <p
-              className={`text-sm sm:text-base leading-relaxed ${
-                isDarkMode ? 'text-neutral-400' : 'text-neutral-600'
-              }`}
-            >
-              Whether you want to say something you cannot say out loud,
-              read what other students are going through, or simply have
-              an anonymous conversation, Tambayan is made to give Louisians
-              a place to connect.
-            </p>
+              <p
+                className={`text-sm sm:text-base leading-relaxed ${
+                  isDarkMode ? 'text-neutral-400' : 'text-neutral-600'
+                }`}
+              >
+                The goal is simple: make it easier to speak, listen, and connect while
+                keeping the community respectful. Public entries can be moderated and
+                reported, while private conversations stay separate from the Freedom Wall.
+              </p>
+            </div>
 
             <div
-              className={`mt-5 pt-5 border-t text-[11px] font-mono ${
+              className={`mt-6 grid gap-3 border-t pt-6 sm:grid-cols-3 ${
+                isDarkMode ? 'border-neutral-800' : 'border-neutral-100'
+              }`}
+            >
+              {[
+                {
+                  title: 'Anonymous by design',
+                  text: 'Public posts use anonymous Louisian aliases instead of requiring a public profile.',
+                },
+                {
+                  title: 'Moderated for safety',
+                  text: 'Reports and moderation help keep harassment, doxxing, spam, and harmful content off the wall.',
+                },
+                {
+                  title: 'Community-first',
+                  text: 'Tambayan is built around student stories, questions, experiences, and conversations.',
+                },
+              ].map((item) => (
+                <div key={item.title}>
+                  <p
+                    className={`font-mono text-[10px] font-bold uppercase tracking-wider ${
+                      isDarkMode ? 'text-neutral-200' : 'text-neutral-800'
+                    }`}
+                  >
+                    {item.title}
+                  </p>
+                  <p
+                    className={`mt-2 text-xs leading-relaxed ${
+                      isDarkMode ? 'text-neutral-500' : 'text-neutral-500'
+                    }`}
+                  >
+                    {item.text}
+                  </p>
+                </div>
+              ))}
+            </div>
+
+            <div
+              className={`mt-6 pt-5 border-t text-[11px] font-mono ${
                 isDarkMode
                   ? 'border-neutral-800 text-neutral-500'
                   : 'border-neutral-100 text-neutral-400'
@@ -926,7 +928,6 @@ export default function HomePage() {
           </div>
 
           <div className="grid gap-4 sm:grid-cols-2">
-            {/* FREEDOM WALL */}
             <div
               className={`rounded-2xl border p-5 ${
                 isDarkMode
@@ -936,7 +937,6 @@ export default function HomePage() {
             >
               <div className="flex items-center gap-2 mb-4">
                 <span className="w-2 h-2 rounded-full bg-emerald-500" />
-
                 <p className="font-mono text-xs font-bold uppercase tracking-wider">
                   Freedom Wall
                 </p>
@@ -947,7 +947,7 @@ export default function HomePage() {
                   isDarkMode ? 'text-white' : 'text-neutral-900'
                 }`}
               >
-                Say what you want to say.
+                Share what is on your mind.
               </h3>
 
               <p
@@ -955,20 +955,18 @@ export default function HomePage() {
                   isDarkMode ? 'text-neutral-400' : 'text-neutral-600'
                 }`}
               >
-                Share your thoughts, confessions, rants, questions,
-                advice, and stories anonymously. Browse entries from
-                other Louisians and join the conversation through replies.
+                Publish anonymous thoughts, stories, questions, advice, or rants.
+                Browse approved community entries and join public conversations through replies.
               </p>
 
               <Link
                 href="/wall"
                 className="inline-flex mt-5 font-mono text-[10px] font-bold uppercase tracking-wider text-emerald-600 hover:text-emerald-500"
               >
-                Enter →
+                Explore the wall →
               </Link>
             </div>
 
-            {/* ANONYMOUS CHAT */}
             <div
               className={`rounded-2xl border p-5 ${
                 isDarkMode
@@ -978,7 +976,6 @@ export default function HomePage() {
             >
               <div className="flex items-center gap-2 mb-4">
                 <span className="w-2 h-2 rounded-full bg-emerald-500" />
-
                 <p className="font-mono text-xs font-bold uppercase tracking-wider">
                   Anonymous Chat
                 </p>
@@ -989,7 +986,7 @@ export default function HomePage() {
                   isDarkMode ? 'text-white' : 'text-neutral-900'
                 }`}
               >
-                Talk to someone anonymously.
+                Talk without putting yourself on display.
               </h3>
 
               <p
@@ -997,9 +994,8 @@ export default function HomePage() {
                   isDarkMode ? 'text-neutral-400' : 'text-neutral-600'
                 }`}
               >
-                Get matched with another anonymous user for a private
-                conversation. No need to publicly share your identity
-                just to have someone to talk to.
+                Get matched with another anonymous user for a private conversation.
+                Your private chat experience stays separate from public Freedom Wall posts.
               </p>
 
               <Link
@@ -1010,6 +1006,97 @@ export default function HomePage() {
               </Link>
             </div>
           </div>
+        </section>
+
+        {/* INSIDE THE WALL */}
+        <section className="mb-14">
+          <div className="mb-5">
+            <p
+              className={`font-mono text-[10px] font-bold uppercase tracking-widest ${
+                isDarkMode ? 'text-neutral-500' : 'text-neutral-400'
+              }`}
+            >
+              Inside the wall
+            </p>
+
+            <h2
+              className={`text-2xl font-extrabold tracking-tight mt-2 ${
+                isDarkMode ? 'text-white' : 'text-neutral-900'
+              }`}
+            >
+              Different moods, one community.
+            </h2>
+
+            <p
+              className={`mt-3 max-w-xl text-sm leading-relaxed ${
+                isDarkMode ? 'text-neutral-400' : 'text-neutral-600'
+              }`}
+            >
+              The Freedom Wall is organized so people can quickly find the kind of
+              conversation they need — whether they want to vent, ask for advice,
+              share something wholesome, or simply read what other Louisians are experiencing.
+            </p>
+          </div>
+
+          <div className="grid gap-3 sm:grid-cols-2">
+            {[
+              {
+                title: 'Thoughts',
+                text: 'Random realizations, everyday moments, school thoughts, and things you just need to get out.',
+              },
+              {
+                title: 'Love & Connections',
+                text: 'Crush stories, missed chances, friendships, appreciation posts, and the people who stay on your mind.',
+              },
+              {
+                title: 'Rants',
+                text: 'A place to let frustration out while still respecting other people and the community guidelines.',
+              },
+              {
+                title: 'Advice',
+                text: 'Ask the community for perspective on school, friendships, adjustment, decisions, or everyday problems.',
+              },
+              {
+                title: 'Others',
+                text: 'Campus stories, questions, wholesome moments, and everything that does not fit neatly into one category.',
+              },
+              {
+                title: 'Replies',
+                text: 'Public posts can become conversations, giving other Louisians a chance to respond, relate, and help.',
+              },
+            ].map((item) => (
+              <div
+                key={item.title}
+                className={`rounded-xl border p-4 ${
+                  isDarkMode
+                    ? 'bg-neutral-900/50 border-neutral-800'
+                    : 'bg-white border-neutral-200/80'
+                }`}
+              >
+                <h3
+                  className={`font-mono text-xs font-bold uppercase tracking-wider ${
+                    isDarkMode ? 'text-neutral-200' : 'text-neutral-800'
+                  }`}
+                >
+                  {item.title}
+                </h3>
+                <p
+                  className={`mt-2 text-sm leading-relaxed ${
+                    isDarkMode ? 'text-neutral-500' : 'text-neutral-600'
+                  }`}
+                >
+                  {item.text}
+                </p>
+              </div>
+            ))}
+          </div>
+
+          <Link
+            href="/wall"
+            className="inline-flex mt-5 font-mono text-[10px] font-bold uppercase tracking-wider text-emerald-600 hover:text-emerald-500"
+          >
+            Read community posts →
+          </Link>
         </section>
 
         {/* HOW IT WORKS */}
@@ -1037,22 +1124,22 @@ export default function HomePage() {
               {
                 number: '01',
                 title: 'Choose what you want to do',
-                text: 'Post something on the Freedom Wall or start an anonymous chat.',
+                text: 'Browse the Freedom Wall, submit a post, or start an anonymous chat.',
               },
               {
                 number: '02',
                 title: 'Stay anonymous',
-                text: 'Your posts use an anonymous Louisian alias instead of requiring you to publicly identify yourself.',
+                text: 'Freedom Wall posts use an anonymous Louisian alias instead of asking you to publicly identify yourself.',
               },
               {
                 number: '03',
-                title: 'Connect with other Louisians',
-                text: 'Read community entries, leave replies, or have an anonymous conversation.',
+                title: 'Take part in the community',
+                text: 'Read approved entries, respond to public posts, or have a private anonymous conversation.',
               },
               {
                 number: '04',
                 title: 'Help keep Tambayan safe',
-                text: 'Report content that violates the community guidelines so it can be reviewed by the moderators.',
+                text: 'Use the report tools when content violates the community guidelines so it can be reviewed.',
               },
             ].map((item) => (
               <div
@@ -1089,17 +1176,17 @@ export default function HomePage() {
           </div>
 
           <Link
-                href="/how-it-works"
-                className="inline-flex mt-5 font-mono text-[10px] font-bold uppercase tracking-wider text-emerald-600 hover:text-emerald-500"
-              >
-                See more →
-              </Link>
+            href="/how-it-works"
+            className="inline-flex mt-5 font-mono text-[10px] font-bold uppercase tracking-wider text-emerald-600 hover:text-emerald-500"
+          >
+            See how Tambayan works →
+          </Link>
         </section>
 
         {/* COMMUNITY SAFETY */}
         <section className="mb-14">
           <div
-            className={`rounded-2xl border p-6 ${
+            className={`rounded-2xl border p-6 sm:p-8 ${
               isDarkMode
                 ? 'bg-emerald-950/20 border-emerald-900/50'
                 : 'bg-emerald-50 border-emerald-200'
@@ -1107,43 +1194,127 @@ export default function HomePage() {
           >
             <div className="flex items-center gap-2 mb-3">
               <span className="w-2 h-2 rounded-full bg-emerald-500" />
-
               <p className="font-mono text-[10px] font-bold uppercase tracking-widest text-emerald-600">
                 Community safety
               </p>
             </div>
 
             <h2
-              className={`text-xl font-bold mb-3 ${
+              className={`text-xl sm:text-2xl font-bold mb-3 ${
                 isDarkMode ? 'text-white' : 'text-neutral-900'
               }`}
             >
-              Help keep Tambayan a safe space.
+              Anonymous does not mean anything goes.
             </h2>
 
             <p
-              className={`text-sm leading-relaxed mb-4 ${
+              className={`text-sm leading-relaxed mb-5 ${
                 isDarkMode ? 'text-neutral-400' : 'text-neutral-600'
               }`}
             >
-              Tambayan uses moderation and reporting tools to help
-              prevent harmful content. Posts may be reviewed before
-              appearing on the Freedom Wall, and users can report
-              content that violates the community guidelines.
+              Tambayan uses moderation and reporting tools to reduce harassment,
+              doxxing, spam, scams, malicious links, and other content that can harm
+              the community. Posts may be reviewed before appearing publicly, and
+              users can report entries that break the rules.
             </p>
 
-            <Link
-              href="/guidelines"
-              className="inline-flex font-mono text-[10px] font-bold uppercase tracking-wider text-emerald-600 hover:text-emerald-500"
-            >
-              Read Community Guidelines →
-            </Link>
+            <div className="flex flex-wrap gap-4">
+              <Link
+                href="/guidelines"
+                className="inline-flex font-mono text-[10px] font-bold uppercase tracking-wider text-emerald-600 hover:text-emerald-500"
+              >
+                Read Community Guidelines →
+              </Link>
+              <Link
+                href="/privacy"
+                className={`inline-flex font-mono text-[10px] font-bold uppercase tracking-wider ${
+                  isDarkMode
+                    ? 'text-neutral-400 hover:text-neutral-200'
+                    : 'text-neutral-500 hover:text-neutral-800'
+                }`}
+              >
+                Privacy →
+              </Link>
+            </div>
           </div>
         </section>
 
+        {/* TAMBAYAN PET */}
+        <section className="mb-14">
+          <div
+            className={`relative overflow-hidden rounded-2xl border p-6 sm:p-7 ${
+              isDarkMode
+                ? 'bg-emerald-950/25 border-emerald-900/60'
+                : 'bg-emerald-50 border-emerald-200'
+            }`}
+          >
+            <div
+              className={`absolute -right-8 -top-8 h-28 w-28 rounded-full blur-2xl ${
+                isDarkMode ? 'bg-emerald-900/30' : 'bg-emerald-200/60'
+              }`}
+            />
+
+            <div className="relative">
+              <div className="mb-4 flex items-center gap-2">
+                <span
+                  className={`inline-flex h-9 w-9 items-center justify-center rounded-xl ${
+                    isDarkMode
+                      ? 'bg-emerald-900/60 text-emerald-300'
+                      : 'bg-emerald-600 text-white'
+                  }`}
+                >
+                  <Icons.Paw />
+                </span>
+
+                <div>
+                  <p className="font-mono text-[9px] font-bold uppercase tracking-widest text-emerald-600">
+                    Tambayan Pet
+                  </p>
+                  <p
+                    className={`font-mono text-[9px] uppercase tracking-wider ${
+                      isDarkMode ? 'text-neutral-500' : 'text-neutral-500'
+                    }`}
+                  >
+                    Your little tambay
+                  </p>
+                </div>
+              </div>
+
+              <h2
+                className={`text-2xl font-extrabold tracking-tight ${
+                  isDarkMode ? 'text-white' : 'text-neutral-900'
+                }`}
+              >
+                Adopt a pet and keep it company.
+              </h2>
+
+              <p
+                className={`mt-3 max-w-lg text-sm leading-relaxed ${
+                  isDarkMode ? 'text-neutral-400' : 'text-neutral-600'
+                }`}
+              >
+                Feed it, play with it, build your streak, and hang out with other
+                Tambayan pets whenever you want a lighter break from the wall.
+              </p>
+
+              <Link
+                href="/pet"
+                className={`mt-5 inline-flex items-center gap-2 rounded-lg px-5 py-3 font-mono text-xs font-bold uppercase tracking-wider shadow-sm transition active:scale-95 ${
+                  isDarkMode
+                    ? 'bg-emerald-600 text-white hover:bg-emerald-500'
+                    : 'bg-emerald-600 text-white hover:bg-emerald-700'
+                }`}
+              >
+                <Icons.Paw />
+                Open Tambayan Pet
+                <span aria-hidden="true">→</span>
+              </Link>
+            </div>
+          </div>
+        </section>
 
         {/* FAQ */}
-        <section className="mb-14">
+        <section className="mb-6">
           <div
             className={`rounded-2xl border p-6 sm:p-8 ${
               isDarkMode
@@ -1153,9 +1324,7 @@ export default function HomePage() {
           >
             <p
               className={`font-mono text-[10px] font-bold uppercase tracking-widest mb-3 ${
-                isDarkMode
-                  ? 'text-neutral-500'
-                  : 'text-neutral-400'
+                isDarkMode ? 'text-neutral-500' : 'text-neutral-400'
               }`}
             >
               Questions?
@@ -1163,23 +1332,19 @@ export default function HomePage() {
 
             <h2
               className={`text-xl font-bold mb-3 ${
-                isDarkMode
-                  ? 'text-white'
-                  : 'text-neutral-900'
+                isDarkMode ? 'text-white' : 'text-neutral-900'
               }`}
             >
-              Learn more about Tambayan.
+              Learn more before you post or chat.
             </h2>
 
             <p
               className={`text-sm leading-relaxed mb-5 ${
-                isDarkMode
-                  ? 'text-neutral-400'
-                  : 'text-neutral-600'
+                isDarkMode ? 'text-neutral-400' : 'text-neutral-600'
               }`}
             >
-              Find answers about anonymity, encrypted chats,
-              moderation, privacy, streaks, and how Tambayan works.
+              Find answers about anonymity, encrypted chats, moderation,
+              privacy, streaks, reporting, and how Tambayan works.
             </p>
 
             <Link

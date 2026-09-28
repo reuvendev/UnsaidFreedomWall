@@ -439,7 +439,7 @@ const Icons = {
   ),
 };
 
-export default function HomePage() {
+export default function WallPage() {
   const [streak, setStreak] =
     useState<StreakData>({
       current: 0,
@@ -527,55 +527,7 @@ export default function HomePage() {
   const [isDarkMode, setIsDarkMode] =
   useState<boolean>(false);
 
-/* =========================================================
-   TEMP UNSENT LETTER — START
-   Remove this entire feature after the event/experiment.
-========================================================= */
 
-const [letterOpen, setLetterOpen] =
-  useState<boolean>(false);
-
-/* TEMP UNSENT LETTER — END */
-
-/* =========================================================
-   TEMP UNSENT LETTER — START
-========================================================= */
-
-useEffect(() => {
-  if (!letterOpen) {
-    return;
-  }
-
-  const previousOverflow =
-    document.body.style.overflow;
-
-  document.body.style.overflow = 'hidden';
-
-  const handleEscape = (
-    event: KeyboardEvent
-  ) => {
-    if (event.key === 'Escape') {
-      setLetterOpen(false);
-    }
-  };
-
-  window.addEventListener(
-    'keydown',
-    handleEscape
-  );
-
-  return () => {
-    document.body.style.overflow =
-      previousOverflow;
-
-    window.removeEventListener(
-      'keydown',
-      handleEscape
-    );
-  };
-}, [letterOpen]);
-
-/* TEMP UNSENT LETTER — END */
 
 useEffect(() => {
   try {
@@ -703,6 +655,33 @@ useEffect(() => {
     setVotedPosts({});
   }
 }, []);
+
+useEffect(() => {
+  try {
+    const storedReports =
+      localStorage.getItem('unsaid_reported_posts');
+
+    if (storedReports) {
+      const parsedReports =
+        JSON.parse(storedReports);
+
+      if (
+        parsedReports &&
+        typeof parsedReports === 'object'
+      ) {
+        setReportedPosts(parsedReports);
+      }
+    }
+  } catch (error) {
+    console.error(
+      'Failed to load reported posts:',
+      error
+    );
+
+    setReportedPosts({});
+  }
+}, []);
+
 
   /* =========================================================
      FORMAT POSTS
@@ -1843,188 +1822,201 @@ const copyPostLink =
       <main className="max-w-2xl mx-auto px-6 pt-16 pb-24">
 
         {/* FREEDOM WALL HEADER */}
-        <section className="mb-10">
+        <section className="mb-8 sm:mb-10">
 
           {/* STREAK */}
           {!streakLoading && (
             <button
               type="button"
               onClick={() => setStreakDetailsOpen(true)}
-              className={`mb-8 mx-auto flex flex-wrap items-center justify-center gap-x-2 gap-y-1 font-mono text-[10px] sm:text-xs transition-opacity hover:opacity-70 active:scale-[0.98] cursor-pointer ${
+              className={`mb-7 mx-auto flex flex-wrap items-center justify-center gap-x-2 gap-y-1 rounded-full px-3 py-1.5 font-mono text-[10px] sm:text-xs transition-all active:scale-[0.98] ${
                 isDarkMode
-                  ? 'text-neutral-400'
-                  : 'text-neutral-500'
+                  ? 'bg-neutral-900 text-neutral-400 hover:bg-neutral-800 hover:text-neutral-200'
+                  : 'bg-white text-neutral-500 border border-neutral-200 hover:border-neutral-300 hover:text-neutral-700'
               }`}
             >
-              <span className="streak-fire inline-flex">
+              <span className="streak-fire inline-flex text-orange-500">
                 <Icons.Flame />
               </span>
 
               {effectiveStreak > 0 ? (
                 <>
                   <span>
-                    {effectiveStreak}{' '}
-                    day
-                    {effectiveStreak !== 1
-                      ? 's'
-                      : ''}{' '}
-                    streak
+                    {effectiveStreak} day{effectiveStreak !== 1 ? 's' : ''} streak
                   </span>
-
-                  <span className="text-neutral-300">
-                    •
-                  </span>
-
+                  <span className={isDarkMode ? 'text-neutral-700' : 'text-neutral-300'}>•</span>
                   <span className="font-bold text-emerald-600">
                     {currentMilestone.title}
                   </span>
                 </>
               ) : (
-                <span>
-                  Start your streak
-                </span>
+                <span>Start your streak</span>
               )}
 
-              <span
-                className={`ml-1 underline underline-offset-2 ${
-                  isDarkMode
-                    ? 'text-neutral-500'
-                    : 'text-neutral-400'
-                }`}
-              >
-                View streak
+              <span className="font-bold text-emerald-600">
+                View →
               </span>
             </button>
           )}
 
-          <p className="font-mono text-[11px] font-bold text-emerald-600 tracking-widest uppercase mb-4 flex items-center gap-2">
-            <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
-            SLU
-          </p>
+          <div className={`relative overflow-hidden rounded-3xl border p-6 sm:p-8 ${
+            isDarkMode
+              ? 'bg-neutral-900 border-neutral-800'
+              : 'bg-white border-neutral-200'
+          }`}>
+            <div className="absolute -right-16 -top-20 h-44 w-44 rounded-full bg-emerald-500/10 blur-3xl pointer-events-none" />
 
-          <div className="flex flex-col sm:flex-row sm:items-end sm:justify-between gap-6">
-            <div>
-              <h1
-                className={`text-4xl md:text-5xl font-extrabold tracking-tight mb-4 leading-tight ${
-                  isDarkMode ? 'text-white' : 'text-neutral-900'
-                }`}
-              >
-                Freedom Wall
-              </h1>
+            <div className="relative">
+              <div className="mb-5 flex flex-wrap items-center gap-2">
+                <span className={`inline-flex items-center gap-2 rounded-full border px-3 py-1.5 font-mono text-[9px] font-bold uppercase tracking-[0.16em] ${
+                  isDarkMode
+                    ? 'border-emerald-900/60 bg-emerald-950/30 text-emerald-400'
+                    : 'border-emerald-200 bg-emerald-50 text-emerald-700'
+                }`}>
+                  <span className="h-1.5 w-1.5 rounded-full bg-emerald-500 animate-pulse" />
+                  Live community feed
+                </span>
 
-              <p
-                className={`text-base leading-relaxed max-w-lg ${
-                  isDarkMode ? 'text-neutral-400' : 'text-neutral-600'
-                }`}
-              >
-                Share your thoughts, confessions, rants, questions, and stories anonymously with fellow Louisians.
-              </p>
+                <span className={`font-mono text-[9px] uppercase tracking-wider ${
+                  isDarkMode ? 'text-neutral-600' : 'text-neutral-400'
+                }`}>
+                  Approved entries only
+                </span>
+              </div>
+
+              <div className="flex flex-col gap-6 sm:flex-row sm:items-end sm:justify-between">
+                <div className="min-w-0">
+                  <p className="mb-2 font-mono text-[10px] font-bold uppercase tracking-widest text-emerald-600">
+                    SLU Freedom Wall
+                  </p>
+
+                  <h1 className={`text-4xl font-extrabold tracking-tight sm:text-5xl ${
+                    isDarkMode ? 'text-white' : 'text-neutral-900'
+                  }`}>
+                    What&apos;s on your mind?
+                  </h1>
+
+                  <p className={`mt-4 max-w-xl text-sm leading-relaxed sm:text-base ${
+                    isDarkMode ? 'text-neutral-400' : 'text-neutral-600'
+                  }`}>
+                    Read what fellow Louisians are sharing, or leave a thought,
+                    confession, rant, question, or story without putting your
+                    public identity on it.
+                  </p>
+                </div>
+
+                <Link
+                  href="/post"
+                  className="inline-flex shrink-0 items-center justify-center gap-2 rounded-xl bg-neutral-900 px-6 py-3.5 font-mono text-xs font-bold uppercase tracking-wider text-white shadow-sm transition-transform active:scale-95 dark:bg-emerald-600"
+                >
+                  <Icons.Pen />
+                  Say Something
+                </Link>
+
+                <Link
+                  href="/entries"
+                  className="inline-flex shrink-0 items-center justify-center gap-2 rounded-xl bg-neutral-900 px-6 py-3.5 font-mono text-xs font-bold uppercase tracking-wider text-white shadow-sm transition-transform active:scale-95 dark:bg-emerald-600"
+                >
+                  My entries
+                </Link>
+              </div>
+
+              <div className={`mt-6 flex flex-wrap items-center gap-x-4 gap-y-2 border-t pt-4 font-mono text-[9px] uppercase tracking-wider ${
+                isDarkMode
+                  ? 'border-neutral-800 text-neutral-500'
+                  : 'border-neutral-100 text-neutral-400'
+              }`}>
+                <span>Anonymous aliases</span>
+                <span>•</span>
+                <span>Community moderated</span>
+                <span>•</span>
+                <Link
+                  href="/guidelines"
+                  className="font-bold text-emerald-600 hover:text-emerald-500"
+                >
+                  Read guidelines →
+                </Link>
+              </div>
             </div>
-
-            <Link
-              href="/post"
-              className="shrink-0 inline-flex items-center justify-center gap-2 bg-neutral-900 dark:bg-emerald-600 text-white font-mono text-xs font-bold uppercase tracking-wider px-6 py-3.5 rounded-lg active:scale-95 shadow-sm"
-            >
-              <Icons.Pen />
-              <span>Say Something</span>
-            </Link>
           </div>
         </section>
 
-        {/* SEARCH */}
-        <div className="relative mb-6">
+        {/* DISCOVERY */}
+        <section className="mb-8">
+          <div className="flex items-center justify-between gap-3 mb-3">
+            <div>
+              <p className={`font-mono text-[9px] font-bold uppercase tracking-widest ${
+                isDarkMode ? 'text-neutral-500' : 'text-neutral-400'
+              }`}>
+                Explore the wall
+              </p>
+              <h2 className={`mt-1 text-lg font-bold ${
+                isDarkMode ? 'text-white' : 'text-neutral-900'
+              }`}>
+                Find something worth reading.
+              </h2>
+            </div>
 
-          <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-neutral-400">
-            <Icons.Search />
           </div>
 
-          <input
-            type="text"
-            value={searchQuery}
-            onChange={(e) =>
-              setSearchQuery(
-                e.target.value
-              )
-            }
-            placeholder="Search entries, keywords, or campus alias..."
-            className={`w-full pl-10 pr-4 py-3 border rounded-xl text-sm font-mono focus:outline-none shadow-2xs ${
-              isDarkMode
-                ? 'bg-neutral-900 border-neutral-800 text-white placeholder:text-neutral-500 focus:border-emerald-500'
-                : 'bg-white border-neutral-200 text-neutral-900 placeholder:text-neutral-400 focus:border-neutral-900 focus:ring-1 focus:ring-neutral-900'
-            }`}
-          />
+          {/* SEARCH */}
+          <div className="relative mb-4">
+            <div className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3.5 text-neutral-400">
+              <Icons.Search />
+            </div>
 
-        </div>
+            <input
+              type="search"
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              placeholder="Search recent entries or aliases..."
+              aria-label="Search Freedom Wall entries"
+              className={`w-full rounded-xl border py-3.5 pl-10 pr-11 text-sm font-mono shadow-2xs focus:outline-none ${
+                isDarkMode
+                  ? 'bg-neutral-900 border-neutral-800 text-white placeholder:text-neutral-600 focus:border-emerald-500'
+                  : 'bg-white border-neutral-200 text-neutral-900 placeholder:text-neutral-400 focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500/20'
+              }`}
+            />
 
-        {/* CATEGORIES */}
-        <div
-          className={`flex items-center gap-2 overflow-x-auto pb-4 mb-8 border-b hide-scrollbar ${
-            isDarkMode
-              ? 'border-neutral-800'
-              : 'border-neutral-200/80'
-          }`}
-        >
-          {CATEGORIES.map(
-            (cat) => (
+            {searchQuery && (
               <button
-                key={cat.id}
-                onClick={() =>
-                  setSelectedCategory(
-                    cat.id
-                  )
-                }
-                className={`px-4 py-2 text-xs font-mono font-semibold uppercase tracking-wider rounded-lg whitespace-nowrap ${
-                  selectedCategory ===
-                  cat.id
-                    ? 'bg-neutral-900 dark:bg-emerald-600 text-white shadow-sm'
-                    : isDarkMode
-                      ? 'bg-neutral-900 text-neutral-400 border border-neutral-800 hover:bg-neutral-800 hover:text-white'
-                      : 'bg-white text-neutral-600 border border-neutral-200/80 hover:bg-neutral-100 hover:text-neutral-900'
+                type="button"
+                onClick={() => setSearchQuery('')}
+                aria-label="Clear search"
+                className={`absolute inset-y-0 right-0 flex w-11 items-center justify-center text-lg ${
+                  isDarkMode
+                    ? 'text-neutral-600 hover:text-neutral-200'
+                    : 'text-neutral-400 hover:text-neutral-800'
                 }`}
               >
-                {cat.label}
+                ×
               </button>
-            )
-          )}
-        </div>
+            )}
+          </div>
 
-        <div className="flex items-center justify-between mb-4">
-          <Link
-  href="/entries"
-  className={`mt-3 w-full flex items-center justify-between px-4 py-3 rounded-lg border transition-all ${
-    isDarkMode
-      ? 'border-neutral-800 bg-neutral-900/50 hover:border-emerald-500/40 hover:bg-neutral-900'
-      : 'border-neutral-200 bg-neutral-50 hover:border-emerald-500/40 hover:bg-neutral-100'
-  }`}
->
-  <div className="text-left">
-    <p
-      className={`font-mono text-xs font-bold uppercase tracking-wider ${
-        isDarkMode ? 'text-neutral-200' : 'text-neutral-800'
-      }`}
-    >
-      My Entries
-    </p>
-
-    <p
-      className={`mt-0.5 text-[11px] ${
-        isDarkMode ? 'text-neutral-500' : 'text-neutral-500'
-      }`}
-    >
-      View your anonymous posts
-    </p>
-  </div>
-
-  <span
-    className={`text-lg ${
-      isDarkMode ? 'text-neutral-500' : 'text-neutral-400'
-    }`}
-  >
-    →
-  </span>
-</Link>
-        </div>
-
+          {/* CATEGORIES */}
+          <div className="relative">
+            <div className="flex items-center gap-2 overflow-x-auto pb-2 hide-scrollbar">
+              {CATEGORIES.map((cat) => (
+                <button
+                  key={cat.id}
+                  type="button"
+                  onClick={() => setSelectedCategory(cat.id)}
+                  aria-pressed={selectedCategory === cat.id}
+                  className={`shrink-0 whitespace-nowrap rounded-full border px-4 py-2 font-mono text-[10px] font-bold uppercase tracking-wider transition-colors ${
+                    selectedCategory === cat.id
+                      ? 'border-neutral-900 bg-neutral-900 text-white shadow-sm dark:border-emerald-600 dark:bg-emerald-600'
+                      : isDarkMode
+                        ? 'border-neutral-800 bg-neutral-900 text-neutral-400 hover:border-neutral-700 hover:text-white'
+                        : 'border-neutral-200 bg-white text-neutral-600 hover:border-neutral-300 hover:text-neutral-900'
+                  }`}
+                >
+                  {cat.label}
+                </button>
+              ))}
+            </div>
+          </div>
+        </section>
 
 {/* ₱1 BILLION COMMUNITY BUDGET 
 <Link
@@ -2313,7 +2305,7 @@ const copyPostLink =
                         : 'text-neutral-400'
                     }`}
                   >
-                    {post.category}
+                    {getCategoryLabel(post.category)}
                   </p>
                 </div>
 
@@ -2405,17 +2397,60 @@ const copyPostLink =
   </section>
 )}
 
+        {/* LATEST FEED HEADER */}
+        <section className="mb-4 flex items-end justify-between gap-4">
+          <div>
+            <p className={`font-mono text-[9px] font-bold uppercase tracking-widest ${
+              isDarkMode ? 'text-neutral-500' : 'text-neutral-400'
+            }`}>
+              {selectedCategory === 'all'
+                ? 'Latest entries'
+                : getCategoryLabel(selectedCategory)}
+            </p>
+            <h2 className={`mt-1 text-xl font-extrabold tracking-tight ${
+              isDarkMode ? 'text-white' : 'text-neutral-900'
+            }`}>
+              {debouncedSearch
+                ? `Results for “${debouncedSearch}”`
+                : 'Fresh from the wall'}
+            </h2>
+          </div>
+
+          {!loading && (
+            <span className={`shrink-0 font-mono text-[9px] uppercase tracking-wider ${
+              isDarkMode ? 'text-neutral-600' : 'text-neutral-400'
+            }`}>
+              {posts.length} shown
+            </span>
+          )}
+        </section>
+
         {/* POSTS */}
         {loading ? (
-          <div
-            className={`py-20 text-center font-mono text-sm border border-dashed rounded-2xl ${
-              isDarkMode
-                ? 'border-neutral-800 bg-neutral-900/50 text-neutral-400'
-                : 'border-neutral-200 bg-white/50 text-neutral-400'
-            }`}
-          >
-            <div className="w-2 h-2 rounded-full bg-emerald-500 animate-ping mx-auto mb-3" />
-            Connecting to live campus feed...
+          <div className="space-y-4" aria-label="Loading Freedom Wall entries">
+            {[0, 1, 2].map((item) => (
+              <div
+                key={item}
+                className={`animate-pulse rounded-2xl border p-5 sm:p-6 ${
+                  isDarkMode
+                    ? 'bg-neutral-900 border-neutral-800'
+                    : 'bg-white border-neutral-200'
+                }`}
+              >
+                <div className="flex items-start justify-between gap-4">
+                  <div className={`h-6 w-32 rounded-md ${isDarkMode ? 'bg-neutral-800' : 'bg-neutral-100'}`} />
+                  <div className={`h-6 w-20 rounded-md ${isDarkMode ? 'bg-neutral-800' : 'bg-neutral-100'}`} />
+                </div>
+                <div className={`mt-5 h-4 w-full rounded ${isDarkMode ? 'bg-neutral-800' : 'bg-neutral-100'}`} />
+                <div className={`mt-2 h-4 w-[88%] rounded ${isDarkMode ? 'bg-neutral-800' : 'bg-neutral-100'}`} />
+                <div className={`mt-2 h-4 w-[62%] rounded ${isDarkMode ? 'bg-neutral-800' : 'bg-neutral-100'}`} />
+                <div className={`mt-6 h-px w-full ${isDarkMode ? 'bg-neutral-800' : 'bg-neutral-100'}`} />
+                <div className="mt-4 flex gap-4">
+                  <div className={`h-5 w-14 rounded ${isDarkMode ? 'bg-neutral-800' : 'bg-neutral-100'}`} />
+                  <div className={`h-5 w-20 rounded ${isDarkMode ? 'bg-neutral-800' : 'bg-neutral-100'}`} />
+                </div>
+              </div>
+            ))}
           </div>
         ) : (
           <div className="space-y-6">
@@ -2472,7 +2507,7 @@ const copyPostLink =
                   <article
                     id={`post-${post.id}`}
                     key={post.id}
-                    className={`p-5 sm:p-6 rounded-2xl relative group transition-all duration-200 hover:-translate-y-1 hover:shadow-xl ${
+                    className={`p-5 sm:p-6 rounded-2xl relative group transition-all duration-200 sm:hover:-translate-y-0.5 hover:shadow-lg ${
                       isDev
                         ? isDarkMode
                           ? 'bg-emerald-950/20 border-2 border-emerald-500/50 shadow-md ring-1 ring-emerald-500/10'
@@ -2572,7 +2607,7 @@ const copyPostLink =
                                 : 'bg-white/60 text-neutral-950 border border-black/15'
                           }`}
                         >
-                          {post.category}
+                          {getCategoryLabel(post.category)}
                         </span>
 
                       </div>
@@ -2722,7 +2757,7 @@ const copyPostLink =
                             {
                               post.replies
                             }{' '}
-                            Replies
+                            {post.replies === 1 ? 'Reply' : 'Replies'}
                           </span>
                         </Link>
 
@@ -2785,15 +2820,61 @@ const copyPostLink =
             {/* NO POSTS */}
             {posts.length === 0 && (
               <div
-                className={`py-16 text-center font-mono text-sm border border-dashed rounded-2xl ${
+                className={`rounded-2xl border border-dashed px-6 py-14 text-center ${
                   isDarkMode
-                    ? 'border-neutral-800 bg-neutral-900/50 text-neutral-400'
-                    : 'border-neutral-200 bg-white/50 text-neutral-400'
+                    ? 'border-neutral-800 bg-neutral-900/50'
+                    : 'border-neutral-200 bg-white/70'
                 }`}
               >
-                {searchQuery
-                  ? `No entries found matching "${searchQuery}"`
-                  : 'No entries found in this category. Be the first to share your thoughts!'}
+                <div className={`mx-auto flex h-11 w-11 items-center justify-center rounded-2xl border ${
+                  isDarkMode
+                    ? 'border-neutral-800 bg-neutral-950 text-neutral-500'
+                    : 'border-neutral-200 bg-neutral-50 text-neutral-400'
+                }`}>
+                  <Icons.Search />
+                </div>
+
+                <h3 className={`mt-4 text-lg font-bold ${
+                  isDarkMode ? 'text-white' : 'text-neutral-900'
+                }`}>
+                  {searchQuery
+                    ? 'Nothing matched that search.'
+                    : 'Quiet here for now.'}
+                </h3>
+
+                <p className={`mx-auto mt-2 max-w-sm text-sm leading-relaxed ${
+                  isDarkMode ? 'text-neutral-500' : 'text-neutral-500'
+                }`}>
+                  {searchQuery
+                    ? `No recent entries matched “${searchQuery}”. Try another keyword or reset the filters.`
+                    : 'There are no approved entries in this category yet. You can be the first to leave something on the wall.'}
+                </p>
+
+                <div className="mt-5 flex flex-wrap items-center justify-center gap-2">
+                  {(searchQuery || selectedCategory !== 'all') && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setSearchQuery('');
+                        setSelectedCategory('all');
+                      }}
+                      className={`rounded-xl border px-4 py-2.5 font-mono text-[10px] font-bold uppercase tracking-wider ${
+                        isDarkMode
+                          ? 'border-neutral-700 bg-neutral-800 text-neutral-300 hover:bg-neutral-700'
+                          : 'border-neutral-200 bg-white text-neutral-700 hover:bg-neutral-100'
+                      }`}
+                    >
+                      Reset filters
+                    </button>
+                  )}
+
+                  <Link
+                    href="/post"
+                    className="rounded-xl bg-emerald-600 px-4 py-2.5 font-mono text-[10px] font-bold uppercase tracking-wider text-white hover:bg-emerald-500"
+                  >
+                    Say something →
+                  </Link>
+                </div>
               </div>
             )}
 
@@ -2810,15 +2891,15 @@ const copyPostLink =
                     disabled={
                       loadingMore
                     }
-                    className={`px-6 py-3 border font-mono text-xs font-bold uppercase tracking-wider rounded-xl disabled:opacity-50 shadow-2xs ${
+                    className={`px-6 py-3.5 border font-mono text-[10px] font-bold uppercase tracking-wider rounded-xl disabled:opacity-50 shadow-2xs transition-colors ${
                       isDarkMode
                         ? 'bg-neutral-900 border-neutral-800 text-neutral-300 hover:bg-neutral-800'
                         : 'bg-white border-neutral-200 text-neutral-700 hover:bg-neutral-100'
                     }`}
                   >
                     {loadingMore
-                      ? 'Loading more...'
-                      : 'Load More Entries'}
+                      ? 'Loading more…'
+                      : 'Show more entries'}
                   </button>
 
                 </div>
@@ -3235,12 +3316,18 @@ const copyPostLink =
               </h3>
 
               <button
+                type="button"
                 onClick={() =>
                   setActiveReportPostId(
                     null
                   )
                 }
-                className="text-neutral-400 hover:text-white p-1 rounded-lg"
+                aria-label="Close report dialog"
+                className={`p-2 rounded-lg ${
+                  isDarkMode
+                    ? 'text-neutral-500 hover:text-white hover:bg-neutral-800'
+                    : 'text-neutral-400 hover:text-neutral-900 hover:bg-neutral-100'
+                }`}
               >
                 <Icons.Close />
               </button>
