@@ -3012,7 +3012,7 @@ const copyPostLink =
             <div className="relative h-full flex flex-col p-7">
 
               {/* BRAND */}
-              <div>
+              <div className="shrink-0">
                 <p className="text-white text-lg font-black tracking-tight">
                   TAMBAYAN
                   <span className="text-emerald-500">
@@ -3026,107 +3026,131 @@ const copyPostLink =
               </div>
 
 {/* POST */}
-<div
-  className="
-    flex-1
-    min-h-0
-    flex
-    flex-col
-    justify-center
-    py-6
-    overflow-hidden
-  "
->
-  <div>
-    <span
+{(() => {
+  /*
+   * Share-card text is intentionally normalized and capped.
+   * This prevents long entries / lots of line breaks from
+   * growing into the footer of the fixed 4:5 card.
+   */
+  const normalizedContent =
+    shareCardPost.content
+      .replace(/\s+/g, ' ')
+      .trim();
+
+  const maxCharacters = 180;
+  const isTruncated =
+    normalizedContent.length > maxCharacters;
+
+  let displayContent = normalizedContent;
+
+  if (isTruncated) {
+    const roughCut =
+      normalizedContent.slice(0, maxCharacters);
+
+    const lastSpace =
+      roughCut.lastIndexOf(' ');
+
+    /*
+     * Prefer ending at a full word, but do not cut too far
+     * back when the entry contains one very long token.
+     */
+    const safeCut =
+      lastSpace > maxCharacters * 0.7
+        ? lastSpace
+        : maxCharacters;
+
+    displayContent =
+      `${roughCut.slice(0, safeCut).trim()}…`;
+  }
+
+  const visibleLength =
+    displayContent.length;
+
+  let textClass =
+    'text-[18px] leading-[1.45]';
+
+  if (visibleLength <= 70) {
+    textClass =
+      'text-[25px] leading-[1.4]';
+  } else if (visibleLength <= 125) {
+    textClass =
+      'text-[21px] leading-[1.45]';
+  } else if (visibleLength <= 165) {
+    textClass =
+      'text-[18px] leading-[1.45]';
+  } else {
+    textClass =
+      'text-[16px] leading-[1.5]';
+  }
+
+  return (
+    <div
       className="
-        inline-flex
-        px-2.5 py-1
-        rounded-lg
-        border
-        border-emerald-500/20
-        bg-emerald-500/10
-        text-emerald-400
-        font-mono
-        text-[8px]
-        font-bold
-        uppercase
-        tracking-wider
+        flex-1
+        min-h-0
+        flex
+        flex-col
+        py-5
+        overflow-hidden
       "
     >
-      {getCategoryLabel(
-        shareCardPost.category
-      )}
-    </span>
+      {/* POST META */}
+      <div className="shrink-0">
+        <span
+          className="
+            inline-flex
+            px-2.5 py-1
+            rounded-lg
+            border
+            border-emerald-500/20
+            bg-emerald-500/10
+            text-emerald-400
+            font-mono
+            text-[8px]
+            font-bold
+            uppercase
+            tracking-wider
+          "
+        >
+          {getCategoryLabel(
+            shareCardPost.category
+          )}
+        </span>
 
-    <p className="mt-4 text-[9px] font-mono font-semibold text-neutral-500">
-      {shareCardPost.authorAlias}
-    </p>
-  </div>
+        <p className="mt-3 text-[9px] font-mono font-semibold text-neutral-500">
+          {shareCardPost.authorAlias}
+        </p>
+      </div>
 
-  {(() => {
-    const length =
-      shareCardPost.content.length;
-
-    let textClass =
-      'text-[22px] leading-[1.45]';
-
-    const maxCharacters = 300;
-
-    if (length <= 70) {
-      textClass =
-        'text-[25px] leading-[1.4]';
-    } else if (length <= 140) {
-      textClass =
-        'text-[21px] leading-[1.45]';
-    } else if (length <= 220) {
-      textClass =
-        'text-[18px] leading-[1.5]';
-    } else if (length <= 320) {
-      textClass =
-        'text-[16px] leading-[1.5]';
-    } else {
-      textClass =
-        'text-[14px] leading-[1.55]';
-    }
-
-    const isTruncated =
-      length > maxCharacters;
-
-    const displayContent =
-      isTruncated
-        ? `${shareCardPost.content
-            .slice(0, maxCharacters)
-            .trim()}…`
-        : shareCardPost.content;
-
-    return (
-      <div className="mt-6">
+      {/* ENTRY PREVIEW */}
+      <div className="mt-5 min-h-0 overflow-hidden">
         <p
           className={`
             ${textClass}
             font-semibold
             text-neutral-50
-            whitespace-pre-wrap
             break-words
             [overflow-wrap:anywhere]
           `}
         >
           {displayContent}
         </p>
-
-        {isTruncated && (
-          <p className="mt-3 font-mono text-[7px] uppercase tracking-wider text-neutral-600">
-            Continue reading on tambayanslu.com
-          </p>
-        )}
       </div>
-    );
-  })()}
-</div>
+
+      {/* LONG POST CTA */}
+      {isTruncated && (
+        <div className="mt-4 shrink-0">
+          <p className="font-mono text-[8px] font-bold uppercase tracking-[0.12em] text-emerald-400">
+            Read more at tambayanslu.com →
+          </p>
+        </div>
+      )}
+    </div>
+  );
+})()}
 
               {/* FOOTER */}
-              <div className="border-t border-white/10 pt-5">
+              <div className="shrink-0 border-t border-white/10 pt-5">
 
                 <p className="text-[10px] font-semibold text-neutral-300">
                   Got something to say?
