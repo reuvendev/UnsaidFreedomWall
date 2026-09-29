@@ -2927,32 +2927,30 @@ const copyPostLink =
       backdrop-blur-md
       flex items-end sm:items-center
       justify-center
-      p-0 sm:p-6
+      overflow-hidden
+      sm:p-6
     "
     onClick={closeShareCard}
   >
     <div
-      onClick={(event) =>
-        event.stopPropagation()
-      }
-      className={`w-full sm:max-w-lg max-h-[95vh] overflow-y-auto rounded-t-3xl sm:rounded-3xl border shadow-2xl ${
+      onClick={(event) => event.stopPropagation()}
+      className={`w-full max-h-[92dvh] sm:max-w-lg sm:max-h-[95vh] overflow-y-auto overscroll-contain rounded-t-[28px] sm:rounded-3xl border shadow-2xl ${
         isDarkMode
           ? 'bg-neutral-900 border-neutral-800'
           : 'bg-white border-neutral-200'
       }`}
     >
-
       {/* HEADER */}
       <div
-        className={`sticky top-0 z-10 flex items-center justify-between gap-4 px-5 sm:px-6 py-4 border-b backdrop-blur-xl ${
+        className={`sticky top-0 z-20 flex items-center justify-between gap-3 px-4 py-3.5 sm:px-6 sm:py-4 border-b backdrop-blur-xl ${
           isDarkMode
             ? 'bg-neutral-900/95 border-neutral-800'
             : 'bg-white/95 border-neutral-100'
         }`}
       >
-        <div>
+        <div className="min-w-0">
           <p
-            className={`font-mono text-[9px] font-bold uppercase tracking-[0.18em] ${
+            className={`font-mono text-[8px] sm:text-[9px] font-bold uppercase tracking-[0.16em] ${
               isDarkMode
                 ? 'text-emerald-400'
                 : 'text-emerald-600'
@@ -2962,7 +2960,7 @@ const copyPostLink =
           </p>
 
           <h3
-            className={`mt-1 text-lg font-black tracking-tight ${
+            className={`mt-0.5 text-base sm:text-lg font-black tracking-tight ${
               isDarkMode
                 ? 'text-white'
                 : 'text-neutral-900'
@@ -2974,14 +2972,10 @@ const copyPostLink =
 
         <button
           type="button"
-          onClick={
-            closeShareCard
-          }
-          disabled={
-            shareCardBusy
-          }
+          onClick={closeShareCard}
+          disabled={shareCardBusy}
           aria-label="Close share card"
-          className={`p-2 rounded-xl transition-colors disabled:opacity-40 ${
+          className={`shrink-0 p-2 rounded-xl transition-colors disabled:opacity-40 ${
             isDarkMode
               ? 'text-neutral-400 hover:text-white hover:bg-neutral-800'
               : 'text-neutral-500 hover:text-neutral-900 hover:bg-neutral-100'
@@ -2991,192 +2985,186 @@ const copyPostLink =
         </button>
       </div>
 
-      <div className="p-5 sm:p-6">
-
-        {/* STORY PREVIEW */}
-        <div className="mx-auto w-full max-w-[380px]">
-
+      {/* CONTENT */}
+      <div className="px-4 pt-4 pb-6 sm:p-6">
+        {/* SHARE CARD PREVIEW */}
+        <div className="mx-auto w-full max-w-[330px] min-[390px]:max-w-[350px] sm:max-w-[380px]">
           <div
             ref={shareCardRef}
             className="
               relative
+              w-full
               aspect-[4/5]
               overflow-hidden
-              rounded-[28px]
-              border border-white/10
+              rounded-[22px]
+              sm:rounded-[28px]
+              border
+              border-white/10
               bg-neutral-950
-              shadow-2xl
+              shadow-xl
+              sm:shadow-2xl
             "
           >
+            {/* BACKGROUND GLOWS */}
+            <div className="absolute -top-20 -right-20 w-56 h-56 sm:w-64 sm:h-64 rounded-full bg-emerald-500/20 blur-3xl" />
+            <div className="absolute -bottom-20 -left-20 w-56 h-56 sm:w-64 sm:h-64 rounded-full bg-emerald-500/10 blur-3xl" />
 
-            {/* GLOWS */}
-            <div className="absolute -top-20 -right-20 w-64 h-64 bg-emerald-500/20 blur-3xl rounded-full" />
-
-            <div className="absolute -bottom-20 -left-20 w-64 h-64 bg-emerald-500/10 blur-3xl rounded-full" />
-
-            <div className="relative h-full flex flex-col p-7">
-
+            {/* CARD CONTENT */}
+            <div className="relative h-full flex flex-col p-5 min-[390px]:p-6 sm:p-7">
               {/* BRAND */}
               <div className="shrink-0">
-                <p className="text-white text-lg font-black tracking-tight">
+                <p className="text-white text-base sm:text-lg font-black tracking-tight">
                   TAMBAYAN
-                  <span className="text-emerald-500">
-                    .
-                  </span>
+                  <span className="text-emerald-500">.</span>
                 </p>
 
-                <p className="mt-0.5 text-[9px] text-neutral-500 font-mono">
+                <p className="mt-0.5 text-[7px] sm:text-[9px] text-neutral-500 font-mono">
                   SLU Freedom Wall
                 </p>
               </div>
 
-{/* POST */}
-{(() => {
-  const normalizedContent = shareCardPost.content
-    .replace(/\s+/g, ' ')
-    .trim();
+              {/* POST */}
+              {(() => {
+                const normalizedContent =
+                  shareCardPost.content
+                    .replace(/\s+/g, ' ')
+                    .trim();
 
-  // Keep share cards short and readable.
-  const maxCharacters = 120;
+                const maxCharacters = 125;
 
-  const isTruncated =
-    normalizedContent.length > maxCharacters;
+                const isTruncated =
+                  normalizedContent.length > maxCharacters;
 
-  let displayContent = normalizedContent;
+                let displayContent =
+                  normalizedContent;
 
-  if (isTruncated) {
-    const roughCut =
-      normalizedContent.slice(0, maxCharacters);
+                if (isTruncated) {
+                  const roughCut =
+                    normalizedContent.slice(
+                      0,
+                      maxCharacters
+                    );
 
-    const lastSpace =
-      roughCut.lastIndexOf(' ');
+                  const lastSpace =
+                    roughCut.lastIndexOf(' ');
 
-    const safeCut =
-      lastSpace > maxCharacters * 0.7
-        ? lastSpace
-        : maxCharacters;
+                  const safeCut =
+                    lastSpace >
+                    maxCharacters * 0.7
+                      ? lastSpace
+                      : maxCharacters;
 
-    displayContent =
-      `${roughCut.slice(0, safeCut).trim()}...`;
-  }
+                  displayContent =
+                    `${roughCut
+                      .slice(0, safeCut)
+                      .trim()}...`;
+                }
 
-  const visibleLength =
-    displayContent.length;
+                const visibleLength =
+                  displayContent.length;
 
-  let textClass =
-    'text-[20px] leading-[1.45]';
+                let textClass =
+                  'text-[16px] min-[390px]:text-[17px] sm:text-[18px] leading-[1.45]';
 
-  if (visibleLength <= 55) {
-    textClass =
-      'text-[27px] leading-[1.35]';
-  } else if (visibleLength <= 85) {
-    textClass =
-      'text-[23px] leading-[1.4]';
-  } else {
-    textClass =
-      'text-[20px] leading-[1.45]';
-  }
+                if (visibleLength <= 55) {
+                  textClass =
+                    'text-[22px] min-[390px]:text-[24px] sm:text-[26px] leading-[1.32]';
+                } else if (
+                  visibleLength <= 90
+                ) {
+                  textClass =
+                    'text-[19px] min-[390px]:text-[20px] sm:text-[22px] leading-[1.38]';
+                }
 
-  return (
-    <div
-      className="
-        flex-1
-        min-h-0
-        flex
-        flex-col
-        py-5
-        overflow-hidden
-      "
-    >
-      {/* POST META */}
-      <div className="shrink-0">
-        <span
-          className="
-            inline-flex
-            px-2.5 py-1
-            rounded-lg
-            border
-            border-emerald-500/20
-            bg-emerald-500/10
-            text-emerald-400
-            font-mono
-            text-[8px]
-            font-bold
-            uppercase
-            tracking-wider
-          "
-        >
-          {getCategoryLabel(
-            shareCardPost.category
-          )}
-        </span>
+                return (
+                  <div className="flex-1 min-h-0 flex flex-col py-4 sm:py-5 overflow-hidden">
+                    {/* POST META */}
+                    <div className="shrink-0">
+                      <span
+                        className="
+                          inline-flex
+                          px-2 py-1
+                          sm:px-2.5
+                          rounded-md
+                          sm:rounded-lg
+                          border
+                          border-emerald-500/20
+                          bg-emerald-500/10
+                          text-emerald-400
+                          font-mono
+                          text-[7px]
+                          sm:text-[8px]
+                          font-bold
+                          uppercase
+                          tracking-wider
+                        "
+                      >
+                        {getCategoryLabel(
+                          shareCardPost.category
+                        )}
+                      </span>
 
-        <p className="mt-3 text-[9px] font-mono font-semibold text-neutral-500">
-          {shareCardPost.authorAlias}
-        </p>
-      </div>
+                      <p className="mt-2 sm:mt-3 text-[8px] sm:text-[9px] font-mono font-semibold text-neutral-500 truncate">
+                        {shareCardPost.authorAlias}
+                      </p>
+                    </div>
 
-      {/* ENTRY PREVIEW */}
-      <div className="mt-5 min-h-0 overflow-hidden">
-        <p
-          className={`
-            ${textClass}
-            font-semibold
-            text-neutral-50
-            break-words
-            [overflow-wrap:anywhere]
-          `}
-        >
-          {displayContent}
-        </p>
-      </div>
+                    {/* ENTRY */}
+                    <div className="mt-3 sm:mt-5 min-h-0 overflow-hidden">
+                      <p
+                        className={`
+                          ${textClass}
+                          font-semibold
+                          text-neutral-50
+                          break-words
+                          [overflow-wrap:anywhere]
+                        `}
+                      >
+                        {displayContent}
+                      </p>
+                    </div>
 
-      {/* READ MORE */}
-      {isTruncated && (
-        <div className="mt-5 shrink-0">
-          <p className="font-mono text-[9px] font-bold text-emerald-400">
-            Read more at tambayanslu.com →
-          </p>
-        </div>
-      )}
-    </div>
-  );
-})()}
+                    {/* READ MORE */}
+                    {isTruncated && (
+                      <div className="mt-3 sm:mt-4 shrink-0">
+                        <p className="font-mono text-[7px] sm:text-[8px] font-bold uppercase tracking-[0.1em] text-emerald-400">
+                          Read more at tambayanslu.com →
+                        </p>
+                      </div>
+                    )}
+                  </div>
+                );
+              })()}
 
               {/* FOOTER */}
-              <div className="shrink-0 border-t border-white/10 pt-5">
-
-                <p className="text-[10px] font-semibold text-neutral-300">
+              <div className="shrink-0 border-t border-white/10 pt-3 sm:pt-5">
+                <p className="text-[8px] sm:text-[10px] font-semibold text-neutral-300">
                   Got something to say?
                 </p>
 
-                <p className="mt-1 text-[8px] leading-relaxed text-neutral-500">
+                <p className="mt-1 text-[7px] sm:text-[8px] leading-relaxed text-neutral-500">
                   Share it anonymously with fellow Louisians.
                 </p>
 
-                <div className="mt-5 flex items-end justify-between gap-3">
-
-                  <p className="text-[11px] font-black text-emerald-500">
+                <div className="mt-3 sm:mt-5 flex items-end justify-between gap-3">
+                  <p className="text-[9px] sm:text-[11px] font-black text-emerald-500">
                     tambayanslu.com
                   </p>
 
-                  <p className="text-[6px] text-neutral-600 text-right">
+                  <p className="text-[5px] sm:text-[6px] leading-relaxed text-neutral-600 text-right">
                     Anonymous.
                     <br />
                     Louisian.
                     <br />
                     Tambayan.
                   </p>
-
                 </div>
-
               </div>
-
             </div>
           </div>
 
           <p
-            className={`mt-3 text-center font-mono text-[9px] leading-relaxed ${
+            className={`mt-2.5 text-center font-mono text-[8px] sm:text-[9px] ${
               isDarkMode
                 ? 'text-neutral-600'
                 : 'text-neutral-400'
@@ -3184,13 +3172,11 @@ const copyPostLink =
           >
             1080 × 1350 • Share Card
           </p>
-
         </div>
 
         {/* ACTIONS */}
-        <div className="mt-6 grid grid-cols-1 sm:grid-cols-2 gap-2.5">
-
-          {/* SHARE IMAGE */}
+        <div className="mt-4 sm:mt-6 grid grid-cols-2 gap-2 sm:gap-2.5">
+          {/* SHARE */}
           <button
             type="button"
             onClick={() =>
@@ -3198,11 +3184,9 @@ const copyPostLink =
                 shareCardPost
               )
             }
-            disabled={
-              shareCardBusy
-            }
+            disabled={shareCardBusy}
             className="
-              sm:col-span-2
+              col-span-2
               w-full
               flex items-center
               justify-center
@@ -3213,10 +3197,13 @@ const copyPostLink =
               active:scale-[0.98]
               disabled:opacity-50
               disabled:cursor-not-allowed
-              px-4 py-3.5
+              px-4
+              py-3
+              sm:py-3.5
               text-white
               font-mono
-              text-[11px]
+              text-[10px]
+              sm:text-[11px]
               font-black
               uppercase
               tracking-wider
@@ -3238,16 +3225,14 @@ const copyPostLink =
                 shareCardPost
               )
             }
-            disabled={
-              shareCardBusy
-            }
-            className={`w-full rounded-xl border px-4 py-3 font-mono text-[10px] font-bold uppercase tracking-wider transition-colors disabled:opacity-50 ${
+            disabled={shareCardBusy}
+            className={`w-full rounded-xl border px-3 sm:px-4 py-3 font-mono text-[9px] sm:text-[10px] font-bold uppercase tracking-wider transition-colors disabled:opacity-50 ${
               isDarkMode
-                ? 'bg-neutral-800 border-neutral-700 text-neutral-200 hover:bg-neutral-700'
-                : 'bg-neutral-50 border-neutral-200 text-neutral-700 hover:bg-neutral-100'
+                ? 'border-neutral-700 bg-neutral-800 text-neutral-300 hover:bg-neutral-700'
+                : 'border-neutral-200 bg-neutral-50 text-neutral-700 hover:bg-neutral-100'
             }`}
           >
-            Download Card
+            Download
           </button>
 
           {/* COPY LINK */}
@@ -3258,12 +3243,9 @@ const copyPostLink =
                 shareCardPost.id
               )
             }
-            disabled={
-              shareCardBusy
-            }
-            className={`w-full rounded-xl border px-4 py-3 font-mono text-[10px] font-bold uppercase tracking-wider transition-colors disabled:opacity-50 ${
-              copiedId ===
-              shareCardPost.id
+            disabled={shareCardBusy}
+            className={`w-full rounded-xl border px-3 sm:px-4 py-3 font-mono text-[9px] sm:text-[10px] font-bold uppercase tracking-wider transition-colors disabled:opacity-50 ${
+              copiedId === shareCardPost.id
                 ? 'bg-emerald-500/10 border-emerald-500/30 text-emerald-500'
                 : isDarkMode
                   ? 'bg-neutral-800 border-neutral-700 text-neutral-200 hover:bg-neutral-700'
@@ -3273,15 +3255,14 @@ const copyPostLink =
             {copiedId ===
             shareCardPost.id
               ? 'Link Copied!'
-              : 'Copy Post Link'}
+              : 'Copy Link'}
           </button>
-
         </div>
 
         {/* STATUS */}
         {shareCardMessage && (
           <div
-            className={`mt-4 px-4 py-3 rounded-xl border text-center font-mono text-[10px] leading-relaxed ${
+            className={`mt-3 sm:mt-4 px-3 sm:px-4 py-3 rounded-xl border text-center font-mono text-[9px] sm:text-[10px] leading-relaxed ${
               isDarkMode
                 ? 'bg-neutral-950 border-neutral-800 text-neutral-400'
                 : 'bg-neutral-50 border-neutral-200 text-neutral-500'
@@ -3290,26 +3271,12 @@ const copyPostLink =
             {shareCardMessage}
           </div>
         )}
-
-        {/* NOTE */}
-        <p
-          className={`mt-4 text-center text-[10px] leading-relaxed ${
-            isDarkMode
-              ? 'text-neutral-600'
-              : 'text-neutral-400'
-          }`}
-        >
-          On supported phones, Share Image opens your
-          device&apos;s share menu. Otherwise, the image
-          will be downloaded automatically.
-        </p>
-
       </div>
     </div>
   </div>
 )}
 
-      {/* REPORT MODAL */}
+{/* REPORT MODAL */}
       {activeReportPostId && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-neutral-950/60 backdrop-blur-xs">
 
