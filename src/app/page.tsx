@@ -771,7 +771,7 @@ export default function HomePage() {
               </span>
             </Link>
 
-            <Link
+            {/*<Link
               href="/pet"
               className={`inline-flex items-center gap-2 border font-mono text-xs font-bold uppercase tracking-wider px-5 py-3.5 rounded-lg active:scale-95 shadow-sm transition ${
                 isDarkMode
@@ -792,7 +792,7 @@ export default function HomePage() {
               >
                 PLAY
               </span>
-            </Link>
+            </Link> */}
 
             <Link
               href="/support"

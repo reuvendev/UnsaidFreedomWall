@@ -12,11 +12,7 @@ import {
   writeBatch,
   Timestamp,
 } from 'firebase/firestore';
-import {
-  loginAdmin,
-  logoutAdmin,
-  checkAdminAuth,
-} from '../actions';
+import { loginAdmin, logoutAdmin, checkAdminAuth } from '../actions';
 
 const Icons = {
   Shield: () => (
