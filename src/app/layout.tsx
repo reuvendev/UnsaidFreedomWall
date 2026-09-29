@@ -16,21 +16,22 @@ const jetbrainsMono = JetBrains_Mono({
 
 export const metadata: Metadata = {
   title: "TambayanEselyu — Freedom Wall & Anonymous Chat",
-  description: "A safe, uninhibited anonymous space to share your thoughts, and rants.",
+  description:
+    "A safe, uninhibited anonymous space to share your thoughts, and rants.",
 
   keywords: [
-      "TambayanEselyu",
-      "Tambayan SLU",
-      "TambayanSLU",
-      "SLU Freedom Wall",
-      "Saint Louis University Freedom Wall",
-      "SLU Anonymous Chat",
-      "Louisian Freedom Wall",
-      "Louisian Anonymous Chat",
-      "SLU Baguio",
-      "Saint Louis University Baguio",
-      "Louisians",
-    ],
+    "TambayanEselyu",
+    "Tambayan SLU",
+    "TambayanSLU",
+    "SLU Freedom Wall",
+    "Saint Louis University Freedom Wall",
+    "SLU Anonymous Chat",
+    "Louisian Freedom Wall",
+    "Louisian Anonymous Chat",
+    "SLU Baguio",
+    "Saint Louis University Baguio",
+    "Louisians",
+  ],
 
   authors: [
     {
@@ -51,7 +52,7 @@ export const metadata: Metadata = {
   },
 
   icons: {
-    icon: "https://cdn.tambayanslu.com/icon/TAMBAYAN_IC.png", 
+    icon: "https://cdn.tambayanslu.com/icon/TAMBAYAN_IC.png",
   },
 
   openGraph: {
@@ -82,20 +83,39 @@ export default function RootLayout({
     <html lang="en">
       <head>
         {/* Google AdSense Meta Tag Verification */}
-        <meta name="google-adsense-account" content="ca-pub-4528898772462835" />
+        <meta
+          name="google-adsense-account"
+          content="ca-pub-4528898772462835"
+        />
 
-        {/* Google AdSense Script */}
+        {/* Google AdSense */}
         <Script
           async
           src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-4528898772462835"
           crossOrigin="anonymous"
           strategy="afterInteractive"
         />
+
+        {/* Google Analytics */}
+        <Script
+          src="https://www.googletagmanager.com/gtag/js?id=G-XVR0SB7YX0"
+          strategy="afterInteractive"
+        />
+
+        <Script id="google-analytics" strategy="afterInteractive">
+          {`
+            window.dataLayer = window.dataLayer || [];
+            function gtag(){dataLayer.push(arguments);}
+            gtag('js', new Date());
+            gtag('config', 'G-XVR0SB7YX0');
+          `}
+        </Script>
       </head>
-      <body className={`${inter.variable} ${jetbrainsMono.variable} font-sans antialiased min-h-screen flex flex-col bg-white text-neutral-900`}>
-        <div className="flex-1">
-          {children}
-        </div>
+
+      <body
+        className={`${inter.variable} ${jetbrainsMono.variable} font-sans antialiased min-h-screen flex flex-col bg-white text-neutral-900`}
+      >
+        <div className="flex-1">{children}</div>
         <Footer />
       </body>
     </html>
