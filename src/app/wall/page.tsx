@@ -3032,17 +3032,13 @@ const copyPostLink =
 
 {/* POST */}
 {(() => {
-  /*
-   * Share-card text is intentionally normalized and capped.
-   * This prevents long entries / lots of line breaks from
-   * growing into the footer of the fixed 4:5 card.
-   */
-  const normalizedContent =
-    shareCardPost.content
-      .replace(/\s+/g, ' ')
-      .trim();
+  const normalizedContent = shareCardPost.content
+    .replace(/\s+/g, ' ')
+    .trim();
 
-  const maxCharacters = 180;
+  // Keep share cards short and readable.
+  const maxCharacters = 120;
+
   const isTruncated =
     normalizedContent.length > maxCharacters;
 
@@ -3055,37 +3051,30 @@ const copyPostLink =
     const lastSpace =
       roughCut.lastIndexOf(' ');
 
-    /*
-     * Prefer ending at a full word, but do not cut too far
-     * back when the entry contains one very long token.
-     */
     const safeCut =
       lastSpace > maxCharacters * 0.7
         ? lastSpace
         : maxCharacters;
 
     displayContent =
-      `${roughCut.slice(0, safeCut).trim()}…`;
+      `${roughCut.slice(0, safeCut).trim()}...`;
   }
 
   const visibleLength =
     displayContent.length;
 
   let textClass =
-    'text-[18px] leading-[1.45]';
+    'text-[20px] leading-[1.45]';
 
-  if (visibleLength <= 70) {
+  if (visibleLength <= 55) {
     textClass =
-      'text-[25px] leading-[1.4]';
-  } else if (visibleLength <= 125) {
+      'text-[27px] leading-[1.35]';
+  } else if (visibleLength <= 85) {
     textClass =
-      'text-[21px] leading-[1.45]';
-  } else if (visibleLength <= 165) {
-    textClass =
-      'text-[18px] leading-[1.45]';
+      'text-[23px] leading-[1.4]';
   } else {
     textClass =
-      'text-[16px] leading-[1.5]';
+      'text-[20px] leading-[1.45]';
   }
 
   return (
@@ -3142,10 +3131,10 @@ const copyPostLink =
         </p>
       </div>
 
-      {/* LONG POST CTA */}
+      {/* READ MORE */}
       {isTruncated && (
-        <div className="mt-4 shrink-0">
-          <p className="font-mono text-[8px] font-bold uppercase tracking-[0.12em] text-emerald-400">
+        <div className="mt-5 shrink-0">
+          <p className="font-mono text-[9px] font-bold text-emerald-400">
             Read more at tambayanslu.com →
           </p>
         </div>

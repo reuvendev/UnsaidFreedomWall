@@ -82,7 +82,7 @@ export default function PrivacyPolicyPage() {
             Privacy & Cookie Policy
           </h1>
           <p className="font-mono text-[11px] text-neutral-500 mb-6">
-            Last updated: September 23, 2026
+            Last updated: September 29, 2026
           </p>
 
           <div className={`space-y-4 text-base leading-relaxed ${body}`}>
@@ -222,123 +222,100 @@ export default function PrivacyPolicyPage() {
           </section>
 
           <section className={`rounded-2xl border p-6 sm:p-8 ${card}`}>
-            <p className="font-mono text-[10px] font-bold uppercase tracking-widest text-emerald-600 mb-3">05 · User-Submitted Content</p>
-            <h2 className={`text-2xl font-extrabold tracking-tight mb-4 ${heading}`}>Posts, images, replies, and reports</h2>
+            <p className="font-mono text-[10px] font-bold uppercase tracking-widest text-emerald-600 mb-3">
+              05 · User-Submitted Content
+            </p>
+
+            <h2 className={`text-2xl font-extrabold tracking-tight mb-4 ${heading}`}>
+              Posts, images, replies, and reports
+            </h2>
+
             <div className={`space-y-4 text-sm sm:text-base leading-relaxed ${body}`}>
               <p>
-                Information you voluntarily submit through Tambayan may be stored so the requested
-                feature can operate. This can include pending and approved Freedom Wall posts, images,
-                replies, reactions, reports, moderation information, and related timestamps or metadata.
+                Information you voluntarily submit through Tambayan may be stored so the
+                requested feature can operate. This can include pending and approved
+                Freedom Wall posts, images, replies, reactions, reports, moderation
+                information, and related timestamps or metadata.
               </p>
+
               <p>
-                Approved Freedom Wall content is intended to be publicly visible. Do not submit private
-                information, confidential material, or content that you do not have permission to share.
+                Approved Freedom Wall content is intended to be publicly visible. Do not
+                submit private or sensitive information, confidential material, or
+                information that you do not have permission to share.
               </p>
+
               <p>
-                Submitted content may be reviewed for moderation and may be rejected, restricted, or
-                removed when it violates the Community Guidelines.
+                Posts may include ordinary, publicly observable descriptions of people
+                for purposes such as missed connections, compliments, or friendly
+                shout-outs. This may include general details such as clothing,
+                appearance, school or college affiliation, or the public event or place
+                where someone was seen.
+              </p>
+
+              <p>
+                Users must not reveal or ask others to reveal another person&apos;s
+                private or sensitive information. This includes personal contact
+                information, home addresses, private social media accounts, school
+                credentials, private schedules, or other information that could
+                reasonably be used to locate, track, contact, or expose someone without
+                their consent.
+              </p>
+
+              <p>
+                If you are trying to reconnect with someone, you may describe the
+                encounter and invite that person to voluntarily respond or identify
+                themselves.
+              </p>
+
+              <p>
+                Submitted content may be reviewed for moderation. Tambayan may edit,
+                reject, restrict, or remove content when reasonably necessary to protect
+                someone&apos;s privacy or safety or when the content violates the
+                Community Guidelines.
               </p>
             </div>
-            <Link href="/guidelines" className="inline-flex mt-5 font-mono text-[10px] font-bold uppercase tracking-wider text-emerald-600 hover:text-emerald-500">
+
+            <Link
+              href="/guidelines"
+              className="inline-flex mt-5 font-mono text-[10px] font-bold uppercase tracking-wider text-emerald-600 hover:text-emerald-500"
+            >
               Read Community Guidelines →
             </Link>
           </section>
 
-          <section className={`rounded-2xl border p-6 sm:p-8 ${card}`}>
-            <p className="font-mono text-[10px] font-bold uppercase tracking-widest text-emerald-600 mb-3">
-              06 · Anonymous Chat
-            </p>
+                    <section className={`rounded-2xl border p-6 sm:p-8 ${card}`}>
+                      <p className="font-mono text-[10px] font-bold uppercase tracking-widest text-emerald-600 mb-3">07 · How Information Is Used</p>
+                      <h2 className={`text-2xl font-extrabold tracking-tight mb-4 ${heading}`}>Why the service processes this information</h2>
+                      <p className={`text-sm sm:text-base leading-relaxed mb-4 ${body}`}>Information may be used to:</p>
+                      <ul className={`list-disc pl-5 space-y-2 text-sm sm:text-base leading-relaxed ${body}`}>
+                        <li>provide and maintain the Freedom Wall and Anonymous Chat;</li>
+                        <li>display submitted and approved community content;</li>
+                        <li>generate or maintain anonymous identities and session functionality;</li>
+                        <li>process reactions, replies, reports, and other requested interactions;</li>
+                        <li>moderate submissions and investigate reported content;</li>
+                        <li>protect the service from abuse, spam, or misuse; and</li>
+                        <li>maintain, troubleshoot, and improve Tambayan&apos;s functionality.</li>
+                      </ul>
+                    </section>
 
-            <h2
-              className={`text-2xl font-extrabold tracking-tight mb-4 ${heading}`}
-            >
-              Encrypted and anonymous conversations
-            </h2>
-
-            <div
-              className={`space-y-4 text-sm sm:text-base leading-relaxed ${body}`}
-            >
-              <p>
-                Anonymous Chat uses an anonymous user ID stored in the user's
-                browser to distinguish users without requiring a traditional
-                account, real name, email address, or school ID.
-              </p>
-
-              <p>
-                Chat messages are encrypted so that conversations are not normally
-                readable by administrators. Messages are decrypted on the
-                participants' devices while they are using the chat.
-              </p>
-
-              <p>
-                If a user reports a chatroom, the conversation may be decrypted on
-                the reporting user's device and a copy of the conversation may
-                be submitted as evidence for moderation. Tambayan administrators
-                can then review the reported conversation to investigate possible
-                violations of the Community Guidelines.
-              </p>
-
-              <p>
-                Administrators do not normally have access to the readable contents
-                of private chat conversations. A readable copy becomes available
-                for moderation when a participant chooses to report the chatroom.
-              </p>
-
-              <p>
-                Tambayan may still process information necessary to operate
-                Anonymous Chat, such as anonymous user IDs, encrypted message data,
-                chatroom information, timestamps, and matching information.
-              </p>
-
-              <p>
-                When a chatroom is closed, the chatroom and its associated
-                conversation data are retained temporarily and are deleted after
-                24 hours.
-              </p>
-
-              <p>
-                Users should not share passwords, home addresses, financial
-                information, school credentials, or other sensitive personal
-                information with people they meet through Anonymous Chat.
-                Information you voluntarily reveal during a conversation may allow
-                another user to identify you.
-              </p>
-            </div>
-          </section>
-
-          <section className={`rounded-2xl border p-6 sm:p-8 ${card}`}>
-            <p className="font-mono text-[10px] font-bold uppercase tracking-widest text-emerald-600 mb-3">07 · How Information Is Used</p>
-            <h2 className={`text-2xl font-extrabold tracking-tight mb-4 ${heading}`}>Why the service processes this information</h2>
-            <p className={`text-sm sm:text-base leading-relaxed mb-4 ${body}`}>Information may be used to:</p>
-            <ul className={`list-disc pl-5 space-y-2 text-sm sm:text-base leading-relaxed ${body}`}>
-              <li>provide and maintain the Freedom Wall and Anonymous Chat;</li>
-              <li>display submitted and approved community content;</li>
-              <li>generate or maintain anonymous identities and session functionality;</li>
-              <li>process reactions, replies, reports, and other requested interactions;</li>
-              <li>moderate submissions and investigate reported content;</li>
-              <li>protect the service from abuse, spam, or misuse; and</li>
-              <li>maintain, troubleshoot, and improve Tambayan&apos;s functionality.</li>
-            </ul>
-          </section>
-
-          <section className={`rounded-2xl border p-6 sm:p-8 ${card}`}>
-            <p className="font-mono text-[10px] font-bold uppercase tracking-widest text-emerald-600 mb-3">08 · Service Providers</p>
-            <h2 className={`text-2xl font-extrabold tracking-tight mb-4 ${heading}`}>Third-party infrastructure</h2>
-            <div className={`space-y-4 text-sm sm:text-base leading-relaxed ${body}`}>
-              <p>
-                Tambayan relies on third-party services for parts of its infrastructure, such as
-                database storage, application hosting, content delivery, and other technical functions.
-                Information needed to provide these services may therefore be processed by the relevant
-                provider.
-              </p>
-              <p>
-                Tambayan currently uses technologies and infrastructure that may include Firebase /
-                Google Cloud services and Vercel. If additional providers are introduced for features
-                such as media storage, analytics, security, or advertising, this policy may be updated
-                to reflect those changes.
-              </p>
-            </div>
-          </section>
+                    <section className={`rounded-2xl border p-6 sm:p-8 ${card}`}>
+                      <p className="font-mono text-[10px] font-bold uppercase tracking-widest text-emerald-600 mb-3">08 · Service Providers</p>
+                      <h2 className={`text-2xl font-extrabold tracking-tight mb-4 ${heading}`}>Third-party infrastructure</h2>
+                      <div className={`space-y-4 text-sm sm:text-base leading-relaxed ${body}`}>
+                        <p>
+                          Tambayan relies on third-party services for parts of its infrastructure, such as
+                          database storage, application hosting, content delivery, and other technical functions.
+                          Information needed to provide these services may therefore be processed by the relevant
+                          provider.
+                        </p>
+                        <p>
+                          Tambayan currently uses technologies and infrastructure that may include Firebase /
+                          Google Cloud services and Vercel. If additional providers are introduced for features
+                          such as media storage, analytics, security, or advertising, this policy may be updated
+                          to reflect those changes.
+                        </p>
+                      </div>
+                    </section>
 
           <section className={`rounded-2xl border p-6 sm:p-8 ${card}`}>
             <p className="font-mono text-[10px] font-bold uppercase tracking-widest text-emerald-600 mb-3">09 · Advertising & Cookies</p>
