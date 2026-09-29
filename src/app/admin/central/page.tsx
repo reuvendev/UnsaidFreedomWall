@@ -47,6 +47,12 @@ const portals = [
     href: '/admin/reports',
     icon: '🚩',
   },
+  {
+    title: 'Polls',
+    description: 'Create, manage, and control live community polls.',
+    href: '/admin/polls',
+    icon: '📊',
+  },
 ];
 
 const ShieldIcon = () => (

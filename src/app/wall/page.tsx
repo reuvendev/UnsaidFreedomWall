@@ -27,6 +27,7 @@ import {
   DocumentData,
   QueryDocumentSnapshot,
   Query,
+  runTransaction,
 } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 
@@ -141,6 +142,21 @@ const CARD_BORDERS = [
 interface CardTheme {
   background: string;
   border: string;
+}
+
+interface CommunityPollOption {
+  id: string;
+  text: string;
+  votes: number;
+}
+
+interface CommunityPoll {
+  id: string;
+  question: string;
+  description?: string;
+  options: CommunityPollOption[];
+  active: boolean;
+  status?: 'active' | 'closed';
 }
 
 interface StreakData {
@@ -468,8 +484,10 @@ export default function WallPage() {
   const [rawPosts, setRawPosts] =
     useState<PostProps[]>([]);
 
+  /* TEMP: COMMUNITY FAVORITES HIDDEN
   const [topPosts, setTopPosts] =
-  useState<PostProps[]>([]);
+    useState<PostProps[]>([]);
+  */
 
   const [loading, setLoading] =
     useState<boolean>(true);
@@ -526,6 +544,22 @@ export default function WallPage() {
 
   const [isDarkMode, setIsDarkMode] =
   useState<boolean>(false);
+
+  /* COMMUNITY POLL */
+  const [activePoll, setActivePoll] =
+    useState<CommunityPoll | null>(null);
+
+  const [pollLoading, setPollLoading] =
+    useState<boolean>(true);
+
+  const [pollVoting, setPollVoting] =
+    useState<boolean>(false);
+
+  const [pollVotedOptionId, setPollVotedOptionId] =
+    useState<string | null>(null);
+
+  const [pollError, setPollError] =
+    useState<string>('');
 
   /* TEMP: LETTER IN A BOTTLE START */
   const [bottleLetterOpen, setBottleLetterOpen] =
@@ -995,54 +1029,181 @@ useEffect(() => {
   ]);
 
   /* =========================================================
-   TOP 5 MOST UPVOTED
+   TEMP: COMMUNITY FAVORITES HIDDEN
+   The old Top 5 Firestore listener is intentionally disabled
+   so hidden content does not keep generating reads.
 ========================================================= */
 
-useEffect(() => {
-  const postsRef =
-    collection(db, 'posts');
+  /* =========================================================
+     COMMUNITY POLL
+  ========================================================= */
 
-  const topPostsQuery = query(
-    postsRef,
-    where(
-      'status',
-      '==',
-      'approved'
-    ),
-    orderBy(
-      'upvotes',
-      'desc'
-    ),
-    limit(5)
-  );
+  useEffect(() => {
+    const pollsRef = collection(db, 'polls');
 
-  const unsubscribe =
-    onSnapshot(
-      topPostsQuery,
-      (querySnapshot) => {
-        const formatted =
-          formatPosts(
-            querySnapshot
+    const activePollQuery = query(
+      pollsRef,
+      where('active', '==', true),
+      limit(1)
+    );
+
+    const unsubscribe = onSnapshot(
+      activePollQuery,
+      (snapshot) => {
+        if (snapshot.empty) {
+          setActivePoll(null);
+          setPollVotedOptionId(null);
+          setPollLoading(false);
+          return;
+        }
+
+        const pollDoc = snapshot.docs[0];
+        const data = pollDoc.data();
+
+        const options: CommunityPollOption[] =
+          Array.isArray(data.options)
+            ? data.options.map((option: any) => ({
+                id: String(option.id),
+                text: String(option.text || ''),
+                votes:
+                  typeof option.votes === 'number'
+                    ? option.votes
+                    : 0,
+              }))
+            : [];
+
+        const nextPoll: CommunityPoll = {
+          id: pollDoc.id,
+          question: data.question || 'Community Poll',
+          description: data.description || '',
+          options,
+          active: data.active === true,
+          status: data.status || 'active',
+        };
+
+        setActivePoll(nextPoll);
+
+        try {
+          const storedVote = localStorage.getItem(
+            `tambayan_poll_vote_${pollDoc.id}`
           );
 
-        setTopPosts(
-          formatted
-        );
+          setPollVotedOptionId(storedVote);
+        } catch {
+          setPollVotedOptionId(null);
+        }
+
+        setPollLoading(false);
       },
       (error) => {
-        console.error(
-          'Error loading top posts:',
-          error
-        );
-
-        setTopPosts([]);
+        console.error('Error loading active poll:', error);
+        setPollError('Could not load the community poll.');
+        setPollLoading(false);
       }
     );
 
-  return () => {
-    unsubscribe();
+    return () => unsubscribe();
+  }, []);
+
+  const handlePollVote = async (
+    optionId: string
+  ) => {
+    if (
+      !activePoll ||
+      pollVoting ||
+      pollVotedOptionId
+    ) {
+      return;
+    }
+
+    setPollVoting(true);
+    setPollError('');
+
+    try {
+      const pollRef = doc(
+        db,
+        'polls',
+        activePoll.id
+      );
+
+      await runTransaction(
+        db,
+        async (transaction) => {
+          const pollSnapshot =
+            await transaction.get(pollRef);
+
+          if (!pollSnapshot.exists()) {
+            throw new Error('Poll no longer exists.');
+          }
+
+          const data = pollSnapshot.data();
+
+          if (
+            data.active !== true ||
+            data.status === 'closed'
+          ) {
+            throw new Error('This poll is already closed.');
+          }
+
+          const options = Array.isArray(data.options)
+            ? data.options
+            : [];
+
+          const optionExists = options.some(
+            (option: any) =>
+              String(option.id) === optionId
+          );
+
+          if (!optionExists) {
+            throw new Error('Poll option not found.');
+          }
+
+          const updatedOptions = options.map(
+            (option: any) => ({
+              ...option,
+              votes:
+                String(option.id) === optionId
+                  ? (Number(option.votes) || 0) + 1
+                  : Number(option.votes) || 0,
+            })
+          );
+
+          transaction.update(
+            pollRef,
+            {
+              options: updatedOptions,
+            }
+          );
+        }
+      );
+
+      localStorage.setItem(
+        `tambayan_poll_vote_${activePoll.id}`,
+        optionId
+      );
+
+      setPollVotedOptionId(optionId);
+    } catch (error: any) {
+      console.error(
+        'Error submitting poll vote:',
+        error
+      );
+
+      setPollError(
+        error?.message ||
+          'Could not submit your vote.'
+      );
+    } finally {
+      setPollVoting(false);
+    }
   };
-}, []);
+
+  const pollTotalVotes =
+    activePoll?.options.reduce(
+      (total, option) =>
+        total + option.votes,
+      0
+    ) || 0;
 
   /* =========================================================
      DARK MODE
@@ -2195,212 +2356,204 @@ const copyPostLink =
   </div>
 </Link> */}
 
-        {/* TOP 5 MOST UPVOTED */}
-{topPosts.length > 0 && (
-  <section className="mb-10">
-
-    {/* HEADER */}
-    <div className="flex items-end justify-between gap-4 mb-4">
-      <div>
-        <p
-          className={`font-mono text-[10px] font-bold uppercase tracking-widest mb-1 ${
-            isDarkMode
-              ? 'text-emerald-400'
-              : 'text-emerald-600'
-          }`}
-        >
-          Community Favorites
-        </p>
-
-        <h2
-          className={`text-xl font-extrabold tracking-tight ${
-            isDarkMode
-              ? 'text-white'
-              : 'text-neutral-900'
-          }`}
-        >
-          Most Upvoted
-        </h2>
-      </div>
-
-      <span
-        className={`font-mono text-[10px] uppercase tracking-wider ${
-          isDarkMode
-            ? 'text-neutral-500'
-            : 'text-neutral-400'
-        }`}
-      >
-        Top 5
-      </span>
-    </div>
-
-    {/* SLIDER */}
-    <div
-      className="
-        flex gap-3
-        overflow-x-auto
-        snap-x snap-mandatory
-        pb-3
-        hide-scrollbar
-      "
-    >
-      {topPosts.map(
-        (post, index) => (
-          <Link
-            key={post.id}
-            href={`/post/${post.id}`}
-            onClick={() => {
-              sessionStorage.setItem(
-                'tambayan_wall_return_post',
-                post.id
-              );
-
-              sessionStorage.setItem(
-                'tambayan_wall_loaded_count',
-                rawPosts.length.toString()
-              );
-            }}
-            className={`group relative shrink-0 w-[88%] sm:w-[60%]
-              snap-start rounded-2xl border p-5
-              transition-all duration-200
-              hover:-translate-y-0.5 ${
-                isDarkMode
-                  ? 'bg-neutral-900 border-neutral-800 hover:border-neutral-700'
-                  : 'bg-white border-neutral-200 hover:border-neutral-300'
-              }`}
+        {/* =====================================================
+            COMMUNITY POLL
+            Replaces Community Favorites temporarily.
+        ====================================================== */}
+        {!pollLoading && activePoll && (
+          <section
+            className={`mb-10 overflow-hidden rounded-2xl border ${
+              isDarkMode
+                ? 'bg-neutral-900 border-neutral-800'
+                : 'bg-white border-neutral-200'
+            }`}
           >
-
-            {/* TOP */}
-            <div className="flex items-start justify-between gap-3 mb-4">
-
-              <div className="flex items-center gap-3 min-w-0">
-
-                {/* RANK */}
-                <div
-                  className={`w-9 h-9 shrink-0 flex items-center justify-center
-                    rounded-xl font-mono text-sm font-black ${
-                      index === 0
-                        ? isDarkMode
-                          ? 'bg-emerald-500/15 text-emerald-400 border border-emerald-500/20'
-                          : 'bg-emerald-50 text-emerald-700 border border-emerald-200'
-                        : isDarkMode
-                          ? 'bg-neutral-800 text-neutral-300 border border-neutral-700'
-                          : 'bg-neutral-100 text-neutral-600 border border-neutral-200'
-                    }`}
-                >
-                  #{index + 1}
-                </div>
-
-                {/* AUTHOR */}
-                <div className="min-w-0">
-                  <p
-                    className={`font-mono text-[11px] font-bold truncate ${
-                      isDarkMode
-                        ? 'text-neutral-200'
-                        : 'text-neutral-800'
-                    }`}
-                  >
-                    {post.authorAlias}
+            <div className="p-5 sm:p-6">
+              <div className="mb-5 flex items-start justify-between gap-4">
+                <div>
+                  <p className="mb-1 font-mono text-[10px] font-bold uppercase tracking-widest text-emerald-600">
+                    Community Poll
                   </p>
 
-                  <p
-                    className={`font-mono text-[9px] uppercase tracking-wider mt-0.5 ${
+                  <h2
+                    className={`text-xl font-extrabold tracking-tight sm:text-2xl ${
                       isDarkMode
-                        ? 'text-neutral-600'
-                        : 'text-neutral-400'
+                        ? 'text-white'
+                        : 'text-neutral-900'
                     }`}
                   >
-                    {getCategoryLabel(post.category)}
-                  </p>
+                    {activePoll.question}
+                  </h2>
+
+                  {activePoll.description && (
+                    <p
+                      className={`mt-2 text-sm leading-relaxed ${
+                        isDarkMode
+                          ? 'text-neutral-400'
+                          : 'text-neutral-600'
+                      }`}
+                    >
+                      {activePoll.description}
+                    </p>
+                  )}
                 </div>
 
-              </div>
-
-              {/* UPVOTES */}
-              <div
-                className={`flex items-center gap-1.5 font-mono text-xs font-bold shrink-0 ${
-                  isDarkMode
-                    ? 'text-rose-400'
-                    : 'text-rose-500'
-                }`}
-              >
-                <Icons.Heart filled />
-
-                <span>
-                  {post.upvotes}
-                </span>
-              </div>
-
-            </div>
-
-            {/* CONTENT */}
-            <p
-              className={`text-sm leading-relaxed line-clamp-4 break-words ${
-                isDarkMode
-                  ? 'text-neutral-300'
-                  : 'text-neutral-700'
-              }`}
-            >
-              {post.content}
-            </p>
-
-            {/* BOTTOM */}
-            <div
-              className={`mt-5 pt-4 border-t flex items-center justify-between ${
-                isDarkMode
-                  ? 'border-neutral-800'
-                  : 'border-neutral-100'
-              }`}
-            >
-
-              <div
-                className={`flex items-center gap-1.5 font-mono text-[10px] ${
-                  isDarkMode
-                    ? 'text-neutral-500'
-                    : 'text-neutral-400'
-                }`}
-              >
-                <Icons.Message />
-
-                <span>
-                  {post.replies}{' '}
-                  {post.replies === 1
-                    ? 'reply'
-                    : 'replies'}
-                </span>
-              </div>
-
-              <span
-                className={`font-mono text-[10px] font-bold uppercase tracking-wider
-                  transition-transform group-hover:translate-x-1 ${
+                <span
+                  className={`shrink-0 rounded-full px-2.5 py-1 font-mono text-[9px] font-bold uppercase tracking-wider ${
                     isDarkMode
-                      ? 'text-neutral-400'
-                      : 'text-neutral-600'
+                      ? 'bg-emerald-500/10 text-emerald-400'
+                      : 'bg-emerald-50 text-emerald-700'
                   }`}
+                >
+                  Live
+                </span>
+              </div>
+
+              <div className="space-y-2.5">
+                {activePoll.options.map((option) => {
+                  const hasVoted =
+                    Boolean(pollVotedOptionId);
+
+                  const isSelected =
+                    pollVotedOptionId === option.id;
+
+                  const percentage =
+                    pollTotalVotes > 0
+                      ? Math.round(
+                          (option.votes /
+                            pollTotalVotes) *
+                            100
+                        )
+                      : 0;
+
+                  return (
+                    <button
+                      key={option.id}
+                      type="button"
+                      disabled={
+                        hasVoted ||
+                        pollVoting
+                      }
+                      onClick={() =>
+                        handlePollVote(option.id)
+                      }
+                      className={`relative w-full overflow-hidden rounded-xl border p-4 text-left transition-all ${
+                        hasVoted
+                          ? isSelected
+                            ? isDarkMode
+                              ? 'border-emerald-500/50 bg-emerald-500/10'
+                              : 'border-emerald-300 bg-emerald-50'
+                            : isDarkMode
+                              ? 'border-neutral-800 bg-neutral-950/40'
+                              : 'border-neutral-200 bg-neutral-50'
+                          : isDarkMode
+                            ? 'border-neutral-800 bg-neutral-950/40 hover:border-neutral-700 hover:bg-neutral-800/60'
+                            : 'border-neutral-200 bg-neutral-50 hover:border-neutral-300 hover:bg-neutral-100'
+                      } disabled:cursor-default`}
+                    >
+                      {hasVoted && (
+                        <div
+                          className={`absolute inset-y-0 left-0 transition-all duration-500 ${
+                            isSelected
+                              ? isDarkMode
+                                ? 'bg-emerald-500/10'
+                                : 'bg-emerald-100/70'
+                              : isDarkMode
+                                ? 'bg-neutral-800/60'
+                                : 'bg-neutral-200/50'
+                          }`}
+                          style={{
+                            width: `${percentage}%`,
+                          }}
+                        />
+                      )}
+
+                      <div className="relative flex items-center justify-between gap-4">
+                        <div className="flex min-w-0 items-center gap-3">
+                          <span
+                            className={`flex h-5 w-5 shrink-0 items-center justify-center rounded-full border ${
+                              isSelected
+                                ? 'border-emerald-500 bg-emerald-500 text-white'
+                                : isDarkMode
+                                  ? 'border-neutral-600'
+                                  : 'border-neutral-300'
+                            }`}
+                          >
+                            {isSelected && (
+                              <span className="text-[10px]">
+                                ✓
+                              </span>
+                            )}
+                          </span>
+
+                          <span
+                            className={`text-sm font-semibold ${
+                              isDarkMode
+                                ? 'text-neutral-200'
+                                : 'text-neutral-800'
+                            }`}
+                          >
+                            {option.text}
+                          </span>
+                        </div>
+
+                        {hasVoted && (
+                          <span
+                            className={`shrink-0 font-mono text-xs font-bold ${
+                              isSelected
+                                ? 'text-emerald-600'
+                                : isDarkMode
+                                  ? 'text-neutral-400'
+                                  : 'text-neutral-500'
+                            }`}
+                          >
+                            {percentage}%
+                          </span>
+                        )}
+                      </div>
+                    </button>
+                  );
+                })}
+              </div>
+
+              <div
+                className={`mt-4 flex items-center justify-between gap-3 border-t pt-4 font-mono text-[9px] uppercase tracking-wider ${
+                  isDarkMode
+                    ? 'border-neutral-800 text-neutral-500'
+                    : 'border-neutral-100 text-neutral-400'
+                }`}
               >
-                Read →
-              </span>
+                <span>
+                  {pollVotedOptionId
+                    ? `${pollTotalVotes} ${
+                        pollTotalVotes === 1
+                          ? 'vote'
+                          : 'votes'
+                      }`
+                    : 'Vote to reveal results'}
+                </span>
 
+                {pollVotedOptionId && (
+                  <span className="font-bold text-emerald-600">
+                    Vote recorded
+                  </span>
+                )}
+              </div>
+
+              {pollError && (
+                <p className="mt-3 text-xs text-rose-500">
+                  {pollError}
+                </p>
+              )}
             </div>
+          </section>
+        )}
 
-          </Link>
-        )
-      )}
-    </div>
-
-    {/* MOBILE HINT */}
-    <p
-      className={`mt-1 font-mono text-[9px] uppercase tracking-widest sm:hidden ${
-        isDarkMode
-          ? 'text-neutral-600'
-          : 'text-neutral-400'
-      }`}
-    >
-      Swipe to explore →
-    </p>
-
-  </section>
-)}
+        {/* TEMP: COMMUNITY FAVORITES HIDDEN
+            The previous "Community Favorites / Most Upvoted"
+            UI was removed from rendering while the poll is active.
+            Its Top 5 Firestore listener is also disabled above.
+        */}
 
         {/* LATEST FEED HEADER */}
         <section className="mb-4 flex items-end justify-between gap-4">
