@@ -21,6 +21,8 @@ import imageCompression from 'browser-image-compression';
 import { getPresignedUploadUrl } from '@/app/actions/r2-upload';
 import { Image } from 'lucide-react';
 
+import Advertisement from '@/components/Advertisement';
+
 interface PostData {
   id: string;
   authorAlias: string;
@@ -1552,6 +1554,9 @@ export default function PostDetailPage() {
             </p>
           )}
         </div>
+
+        <Advertisement isDarkMode={isDarkMode} />
+        
       </main>
 
       {/* =====================================================

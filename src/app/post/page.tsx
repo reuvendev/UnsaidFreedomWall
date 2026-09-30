@@ -17,6 +17,8 @@ import { db } from '@/lib/firebase';
 import { censorText } from '@/lib/moderation';
 import { getPresignedUploadUrl } from '@/app/actions/r2-upload';
 
+import Advertisement from '@/components/Advertisement';
+
 const CATEGORIES = [
   { id: 'thoughts', label: 'Thoughts' },
   { id: 'love', label: 'Love & Connections' },
@@ -1232,6 +1234,9 @@ export default function PostPage() {
             </div>
           </div>
         </form>
+
+        <Advertisement isDarkMode={isDarkMode} />
+
       </main>
 
       {/* Spotify URL Modal Popup */}
