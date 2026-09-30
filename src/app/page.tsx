@@ -5,6 +5,8 @@ import Link from 'next/link';
 import { doc, getDoc } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 
+import Advertisement from '@/components/Advertisement';
+
 const STREAK_STORAGE_KEY = 'unsaid_chat_user_id';
 
 const STREAK_MILESTONES = [
