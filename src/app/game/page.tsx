@@ -114,7 +114,7 @@ interface VoteData {
   submittedAt?: unknown;
 }
 
-interface DiscussionMessageData {
+interface RoomMessageData {
   id: string;
   playerId: string;
   alias: string;
@@ -487,7 +487,7 @@ export default function TambayBluffPage() {
   const [
     discussionMessages,
     setDiscussionMessages,
-  ] = useState<DiscussionMessageData[]>(
+  ] = useState<RoomMessageData[]>(
     []
   );
 
@@ -550,6 +550,25 @@ export default function TambayBluffPage() {
 
   const leaveSentRef =
     useRef(false);
+
+
+  const hostEndingRef =
+    useRef(false);
+
+  const [
+    endGameConfirmOpen,
+    setEndGameConfirmOpen,
+  ] = useState(false);
+
+  const [
+    gameEndedModalOpen,
+    setGameEndedModalOpen,
+  ] = useState(false);
+
+  const [
+    endingGame,
+    setEndingGame,
+  ] = useState(false);
 
   useEffect(() => {
     const id =
@@ -758,12 +777,34 @@ export default function TambayBluffPage() {
           if (
             !snapshot.exists()
           ) {
-            setMessage(
-              'This room no longer exists.'
-            );
+            const shouldShowEndedModal =
+              !leaveSentRef.current &&
+              !hostEndingRef.current;
 
+            if (
+              shouldShowEndedModal
+            ) {
+              setGameEndedModalOpen(
+                true
+              );
+            }
+
+            setMessage('');
             setActiveRoomCode(
               null
+            );
+            setRoom(null);
+            setPlayers([]);
+            setAnswers([]);
+            setVotes([]);
+            setDiscussionMessages([]);
+            setAnswerText('');
+            setChatText('');
+
+            window.history.replaceState(
+              null,
+              '',
+              window.location.pathname
             );
 
             return;
@@ -829,7 +870,7 @@ export default function TambayBluffPage() {
               (entry) => ({
                 id: entry.id,
                 ...entry.data(),
-              } as DiscussionMessageData)
+              } as RoomMessageData)
             )
           );
         }
@@ -977,7 +1018,9 @@ export default function TambayBluffPage() {
   useEffect(() => {
     if (
       room?.phase !==
-      'discussion'
+        'discussion' &&
+      room?.phase !==
+        'lobby'
     ) {
       return;
     }
@@ -1833,14 +1876,18 @@ export default function TambayBluffPage() {
       ]
     );
 
-  const sendDiscussionMessage =
+  const sendRoomMessage =
     async () => {
       if (
         !ownerId ||
         !activeRoomCode ||
         !room ||
-        room.phase !==
-          'discussion' ||
+        (
+          room.phase !==
+            'discussion' &&
+          room.phase !==
+            'lobby'
+        ) ||
         !me ||
         chatSending
       ) {
@@ -2749,6 +2796,147 @@ export default function TambayBluffPage() {
       }
     };
 
+  const endGameForEveryone =
+    async () => {
+      if (
+        !isHost ||
+        !activeRoomCode ||
+        endingGame
+      ) {
+        return;
+      }
+
+      const roomCode =
+        activeRoomCode;
+
+      const roomRef =
+        doc(
+          db,
+          'tambayBluffRooms',
+          roomCode
+        );
+
+      hostEndingRef.current =
+        true;
+
+      setEndingGame(true);
+      setBusy(true);
+      setMessage('');
+
+      try {
+        /*
+         * Close joining first so nobody can enter while
+         * the host is deleting the room.
+         */
+        await updateDoc(
+          roomRef,
+          {
+            closing: true,
+            joinable: false,
+            phaseEndsAt: null,
+          }
+        );
+
+        const [
+          playerDocs,
+          answerDocs,
+          voteDocs,
+          messageDocs,
+        ] =
+          await Promise.all([
+            getDocs(
+              collection(
+                roomRef,
+                'players'
+              )
+            ),
+            getDocs(
+              collection(
+                roomRef,
+                'answers'
+              )
+            ),
+            getDocs(
+              collection(
+                roomRef,
+                'votes'
+              )
+            ),
+            getDocs(
+              collection(
+                roomRef,
+                'messages'
+              )
+            ),
+          ]);
+
+        /*
+         * Firestore batches are capped at 500 writes.
+         * Use smaller chunks so a very active chat room
+         * can still be ended cleanly.
+         */
+        const documents = [
+          ...playerDocs.docs,
+          ...answerDocs.docs,
+          ...voteDocs.docs,
+          ...messageDocs.docs,
+        ];
+
+        for (
+          let index = 0;
+          index < documents.length;
+          index += 400
+        ) {
+          const batch =
+            writeBatch(db);
+
+          documents
+            .slice(
+              index,
+              index + 400
+            )
+            .forEach(
+              (entry) =>
+                batch.delete(
+                  entry.ref
+                )
+            );
+
+          await batch.commit();
+        }
+
+        /*
+         * Delete the parent last. Other connected clients
+         * see the room disappear, leave automatically,
+         * and get the "Game ended" modal.
+         */
+        await deleteDoc(
+          roomRef
+        );
+
+        setEndGameConfirmOpen(
+          false
+        );
+
+        clearLocalRoomState();
+      } catch (error) {
+        console.error(
+          'Could not end game:',
+          error
+        );
+
+        hostEndingRef.current =
+          false;
+
+        setMessage(
+          'Could not end the game. Please try again.'
+        );
+      } finally {
+        setEndingGame(false);
+        setBusy(false);
+      }
+    };
+
   const copyRoomCode =
     async () => {
       if (
@@ -3205,6 +3393,24 @@ export default function TambayBluffPage() {
                       ? 'Link Copied'
                       : 'Copy Link'}
                   </button>
+
+
+                  {isHost && (
+                    <button
+                      type="button"
+                      onClick={() =>
+                        setEndGameConfirmOpen(
+                          true
+                        )
+                      }
+                      disabled={
+                        endingGame
+                      }
+                      className="rounded-xl border border-rose-200 bg-rose-50 px-4 py-2.5 font-mono text-[9px] font-black uppercase tracking-wider text-rose-700 transition hover:border-rose-300 hover:bg-rose-100 active:scale-[0.98] disabled:opacity-40 dark:border-rose-900/60 dark:bg-rose-950/30 dark:text-rose-300 dark:hover:bg-rose-950/50"
+                    >
+                      End Game
+                    </button>
+                  )}
                 </div>
               </div>
 
@@ -3276,6 +3482,156 @@ export default function TambayBluffPage() {
                           to start.
                         </p>
                       )}
+
+                      <div className="mt-5 overflow-hidden rounded-3xl border border-neutral-200 bg-white dark:border-neutral-800 dark:bg-neutral-900">
+                        <div className="flex items-center justify-between gap-3 border-b border-neutral-100 px-4 py-3 dark:border-neutral-800">
+                          <div>
+                            <p className="text-sm font-black text-neutral-950 dark:text-white">
+                              Lobby Chat
+                            </p>
+                            <p className="mt-0.5 text-[10px] text-neutral-500 dark:text-neutral-400">
+                              Say hi while waiting for the game to start.
+                            </p>
+                          </div>
+
+                          <span className="rounded-full bg-emerald-50 px-2.5 py-1 font-mono text-[8px] font-black uppercase tracking-wider text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-300">
+                            Live
+                          </span>
+                        </div>
+
+                        <div className="max-h-[250px] min-h-[170px] overflow-y-auto px-4 py-4">
+                          {currentRoundMessages.length ===
+                          0 ? (
+                            <div className="flex min-h-[135px] items-center justify-center text-center">
+                              <div>
+                                <p className="text-sm font-black text-neutral-800 dark:text-white">
+                                  No messages yet
+                                </p>
+                                <p className="mt-1 text-xs text-neutral-500 dark:text-neutral-400">
+                                  Start the lobby conversation.
+                                </p>
+                              </div>
+                            </div>
+                          ) : (
+                            <div className="space-y-3">
+                              {currentRoundMessages.map(
+                                (chatMessage) => {
+                                  const mine =
+                                    chatMessage.playerId ===
+                                    ownerId;
+
+                                  return (
+                                    <div
+                                      key={
+                                        chatMessage.id
+                                      }
+                                      className={`flex ${
+                                        mine
+                                          ? 'justify-end'
+                                          : 'justify-start'
+                                      }`}
+                                    >
+                                      <div className="max-w-[86%]">
+                                        <p
+                                          className={`mb-1 px-1 font-mono text-[7px] font-black uppercase tracking-wider ${
+                                            mine
+                                              ? 'text-right text-emerald-700 dark:text-emerald-300'
+                                              : 'text-neutral-400 dark:text-neutral-500'
+                                          }`}
+                                        >
+                                          {mine
+                                            ? 'You'
+                                            : chatMessage.alias}
+                                        </p>
+
+                                        <div
+                                          className={`break-words rounded-2xl px-3.5 py-2.5 text-sm font-semibold leading-relaxed ${
+                                            mine
+                                              ? 'rounded-br-md bg-emerald-600 text-white'
+                                              : 'rounded-bl-md bg-neutral-100 text-neutral-900 dark:bg-neutral-800 dark:text-white'
+                                          }`}
+                                        >
+                                          {
+                                            chatMessage.text
+                                          }
+                                        </div>
+                                      </div>
+                                    </div>
+                                  );
+                                }
+                              )}
+
+                              <div
+                                ref={
+                                  chatEndRef
+                                }
+                              />
+                            </div>
+                          )}
+                        </div>
+
+                        <div className="border-t border-neutral-100 p-3 dark:border-neutral-800">
+                          <div className="flex items-end gap-2">
+                            <textarea
+                              value={
+                                chatText
+                              }
+                              onChange={(
+                                event
+                              ) =>
+                                setChatText(
+                                  event.target.value.slice(
+                                    0,
+                                    220
+                                  )
+                                )
+                              }
+                              onKeyDown={(
+                                event
+                              ) => {
+                                if (
+                                  event.key ===
+                                    'Enter' &&
+                                  !event.shiftKey
+                                ) {
+                                  event.preventDefault();
+                                  void sendRoomMessage();
+                                }
+                              }}
+                              rows={1}
+                              maxLength={220}
+                              placeholder="Message the lobby..."
+                              className="min-h-[44px] flex-1 resize-none rounded-2xl border border-neutral-200 bg-neutral-50 px-3.5 py-3 text-sm font-semibold outline-none transition placeholder:text-neutral-400 focus:border-emerald-400 focus:ring-4 focus:ring-emerald-500/10 dark:border-neutral-700 dark:bg-neutral-950 dark:text-white dark:placeholder:text-neutral-600"
+                            />
+
+                            <button
+                              type="button"
+                              onClick={() =>
+                                void sendRoomMessage()
+                              }
+                              disabled={
+                                chatSending ||
+                                !chatText.trim()
+                              }
+                              className="min-h-[44px] shrink-0 rounded-2xl bg-emerald-600 px-4 font-mono text-[9px] font-black uppercase tracking-wider text-white transition hover:bg-emerald-700 active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-40"
+                            >
+                              {chatSending
+                                ? '...'
+                                : 'Send'}
+                            </button>
+                          </div>
+
+                          <div className="mt-2 flex items-center justify-between gap-2 px-1">
+                            <p className="text-[9px] text-neutral-400 dark:text-neutral-500">
+                              Enter to send
+                            </p>
+
+                            <span className="font-mono text-[8px] font-bold text-neutral-400 dark:text-neutral-500">
+                              {chatText.length}/220
+                            </span>
+                          </div>
+                        </div>
+                      </div>
                     </div>
 
                     <div className="rounded-3xl border border-neutral-200 bg-neutral-50 p-5 dark:border-neutral-800 dark:bg-neutral-950/55">
@@ -3574,7 +3930,7 @@ export default function TambayBluffPage() {
                                   !event.shiftKey
                                 ) {
                                   event.preventDefault();
-                                  void sendDiscussionMessage();
+                                  void sendRoomMessage();
                                 }
                               }}
                               rows={1}
@@ -3585,7 +3941,7 @@ export default function TambayBluffPage() {
 
                             <button
                               type="button"
-                              onClick={() => void sendDiscussionMessage()}
+                              onClick={() => void sendRoomMessage()}
                               disabled={chatSending || !chatText.trim()}
                               className="min-h-[44px] shrink-0 rounded-2xl bg-emerald-600 px-4 font-mono text-[9px] font-black uppercase tracking-wider text-white transition hover:bg-emerald-700 active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-40"
                             >
@@ -3963,6 +4319,107 @@ export default function TambayBluffPage() {
         {message && (
           <div className="mb-5 rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm font-semibold text-amber-900 dark:border-amber-900/60 dark:bg-amber-950/30 dark:text-amber-200">
             {message}
+          </div>
+        )}
+
+        {endGameConfirmOpen &&
+          isHost && (
+          <div
+            className="fixed inset-0 z-[80] flex items-center justify-center bg-neutral-950/70 px-4 backdrop-blur-sm"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="end-game-title"
+          >
+            <div className="w-full max-w-sm rounded-3xl border border-neutral-200 bg-white p-5 shadow-2xl dark:border-neutral-800 dark:bg-neutral-900 sm:p-6">
+              <p className="font-mono text-[9px] font-black uppercase tracking-[0.18em] text-rose-600 dark:text-rose-300">
+                Host control
+              </p>
+
+              <h2
+                id="end-game-title"
+                className="mt-2 text-2xl font-black text-neutral-950 dark:text-white"
+              >
+                End the game?
+              </h2>
+
+              <p className="mt-2 text-sm leading-relaxed text-neutral-500 dark:text-neutral-400">
+                Everyone in this room will be disconnected.
+              </p>
+
+              <div className="mt-5 grid gap-2 sm:grid-cols-2">
+                <button
+                  type="button"
+                  onClick={() =>
+                    setEndGameConfirmOpen(
+                      false
+                    )
+                  }
+                  disabled={
+                    endingGame
+                  }
+                  className="rounded-2xl border border-neutral-200 bg-white px-4 py-3 font-mono text-[10px] font-black uppercase tracking-wider text-neutral-700 transition hover:bg-neutral-50 disabled:opacity-40 dark:border-neutral-700 dark:bg-neutral-900 dark:text-white dark:hover:bg-neutral-800"
+                >
+                  Cancel
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() =>
+                    void endGameForEveryone()
+                  }
+                  disabled={
+                    endingGame
+                  }
+                  className="rounded-2xl bg-rose-600 px-4 py-3 font-mono text-[10px] font-black uppercase tracking-wider text-white transition hover:bg-rose-700 active:scale-[0.99] disabled:opacity-40"
+                >
+                  {endingGame
+                    ? 'Ending...'
+                    : 'End for everyone'}
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {gameEndedModalOpen && (
+          <div
+            className="fixed inset-0 z-[90] flex items-center justify-center bg-neutral-950/70 px-4 backdrop-blur-sm"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="game-ended-title"
+          >
+            <div className="w-full max-w-sm rounded-3xl border border-neutral-200 bg-white p-6 text-center shadow-2xl dark:border-neutral-800 dark:bg-neutral-900">
+              <div className="mx-auto flex h-11 w-11 items-center justify-center rounded-2xl bg-neutral-100 font-mono text-lg font-black text-neutral-500 dark:bg-neutral-800 dark:text-neutral-300">
+                ×
+              </div>
+
+              <p className="mt-4 font-mono text-[9px] font-black uppercase tracking-[0.18em] text-neutral-500 dark:text-neutral-400">
+                Tambay Bluff
+              </p>
+
+              <h2
+                id="game-ended-title"
+                className="mt-1 text-2xl font-black text-neutral-950 dark:text-white"
+              >
+                Game ended
+              </h2>
+
+              <p className="mt-2 text-sm leading-relaxed text-neutral-500 dark:text-neutral-400">
+                The host ended this game. You have been returned to the lobby.
+              </p>
+
+              <button
+                type="button"
+                onClick={() =>
+                  setGameEndedModalOpen(
+                    false
+                  )
+                }
+                className="mt-5 w-full rounded-2xl bg-emerald-600 px-4 py-3.5 font-mono text-[10px] font-black uppercase tracking-wider text-white transition hover:bg-emerald-700 active:scale-[0.99]"
+              >
+                Back to lobby
+              </button>
+            </div>
           </div>
         )}
 
