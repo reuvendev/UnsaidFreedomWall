@@ -17,8 +17,6 @@ import { db } from '@/lib/firebase';
 import { censorText } from '@/lib/moderation';
 import { getPresignedUploadUrl } from '@/app/actions/r2-upload';
 
-import Advertisement from '@/components/Advertisement';
-
 const CATEGORIES = [
   { id: 'thoughts', label: 'Thoughts' },
   { id: 'love', label: 'Love & Connections' },
@@ -234,49 +232,6 @@ async function updateUserStreak(userId: string) {
       'streak.lastActiveDate': today,
     });
   });
-}
-
-// Component to handle third-party ad banner injection safely with a labeled header
-function BannerAd({ isDarkMode }: { isDarkMode: boolean }) {
-  const bannerRef = useRef<HTMLDivElement>(null);
-
-  useEffect(() => {
-    if (!bannerRef.current) return;
-    
-    // Clear container to avoid duplicate scripts on re-renders
-    bannerRef.current.innerHTML = '';
-
-    // Create configuration script
-    const confScript = document.createElement('script');
-    confScript.text = `
-      atOptions = {
-        'key' : '2c7e18080e4e82b954dd29fff1dc3355',
-        'format' : 'iframe',
-        'height' : 50,
-        'width' : 320,
-        'params' : {}
-      };
-    `;
-
-    // Create invocation script
-    const invokeScript = document.createElement('script');
-    invokeScript.src = 'https://plentyhelium.com/2c7e18080e4e82b954dd29fff1dc3355/invoke.js';
-    invokeScript.async = true;
-
-    bannerRef.current.appendChild(confScript);
-    bannerRef.current.appendChild(invokeScript);
-  }, []);
-
-  return (
-    <div className="my-4 w-full flex flex-col items-center">
-      <div className={`font-mono text-[9px] uppercase tracking-widest mb-1.5 ${isDarkMode ? 'text-neutral-600' : 'text-neutral-400'}`}>
-        Advertisement
-      </div>
-      <div className="overflow-hidden w-full flex justify-center">
-        <div ref={bannerRef} className="min-w-[320px] min-h-[50px] flex items-center justify-center" />
-      </div>
-    </div>
-  );
 }
 
 // Robust Doxxing Detection Utility
@@ -712,8 +667,6 @@ export default function PostPage() {
       </header>
 
       <main className="max-w-2xl mx-auto px-6 pt-8 pb-24">
-        {/* Labeled Ad Banner
-        <BannerAd isDarkMode={isDarkMode} /> */}
 
         <div className="mb-8 mt-4">
           <h1
@@ -1234,8 +1187,6 @@ export default function PostPage() {
             </div>
           </div>
         </form>
-
-        <Advertisement isDarkMode={isDarkMode} />
 
       </main>
 
