@@ -2987,13 +2987,6 @@ export default function TambayBluffPage() {
                     </button>
                   </div>
 
-                  <p className="mt-3 text-[11px] leading-relaxed text-neutral-500 dark:text-neutral-400">
-                    {createVisibility ===
-                    'public'
-                      ? 'Public lobbies appear in the lobby browser while waiting for players. Once the host starts the round, the lobby disappears from the public list. Empty rooms are deleted automatically when the last player leaves.'
-                      : 'Private lobbies stay out of the public browser. Friends join using your code or invite link. Empty rooms are deleted automatically when the last player leaves.'}
-                  </p>
-
                   <button
                     type="button"
                     disabled={
