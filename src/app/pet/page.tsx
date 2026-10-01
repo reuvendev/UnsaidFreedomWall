@@ -8,6 +8,8 @@ import React, {
   useState,
 } from 'react';
 
+import { createPortal } from 'react-dom';
+
 import {
   collection,
   deleteDoc,
@@ -4157,10 +4159,10 @@ function PetParkScene({
         <p className="font-mono text-[8px] font-black uppercase tracking-[0.22em] text-emerald-700 dark:text-emerald-400">
           Tambayan Pet Park
         </p>
-        <p className="mt-0.5 text-[9px] font-medium text-neutral-500 dark:text-neutral-400">
+        <p className="mt-0.5 text-[9px] font-medium text-neutral-600 dark:text-neutral-400">
           pets wander around while you hang out
         </p>
-        <p className="mt-1 font-mono text-[6px] font-black uppercase tracking-wider text-neutral-400">
+        <p className="mt-1 font-mono text-[6px] font-black uppercase tracking-wider text-neutral-500 dark:text-neutral-400">
           {parkTime === 'day'
             ? 'Daytime'
             : parkTime === 'sunset'
@@ -4406,10 +4408,10 @@ function PetParkScene({
 
       {pets.length === 0 && (
         <div className="absolute bottom-5 left-1/2 z-[100] w-[min(88%,380px)] -translate-x-1/2 rounded-2xl border border-white/60 bg-white/75 px-4 py-3 text-center shadow-lg backdrop-blur dark:border-neutral-700 dark:bg-neutral-900/80">
-          <p className="text-sm font-bold">
+          <p className="text-sm font-bold text-neutral-900 dark:text-white">
             Quiet day at the park.
           </p>
-          <p className="mt-1 text-[10px] leading-relaxed text-neutral-500">
+          <p className="mt-1 text-[10px] leading-relaxed text-neutral-600 dark:text-neutral-300">
             Your pet can still wander around. Other pets will appear here when their owners enter the park.
           </p>
         </div>
@@ -4488,7 +4490,7 @@ function PetActionEffects({
           <div className="absolute left-1/2 bottom-[14px] -translate-x-1/2 w-[110px] h-[28px] rounded-full border border-neutral-200 bg-white/90 shadow-sm" />
 
           {/* ZZZ */}
-          <div className="absolute right-[34px] top-[18px] text-neutral-500 font-black">
+          <div className="absolute right-[34px] top-[18px] text-neutral-600 dark:text-neutral-300 font-black">
             <span className="absolute text-[12px] pet-sleep-z-1">
               z
             </span>
@@ -5674,29 +5676,560 @@ function StatBar({
 }) {
   return (
     <div>
-      <div className="flex items-center justify-between gap-3 mb-2">
-        <div className="flex items-center gap-2 text-xs font-medium text-neutral-500">
-          {icon}
+      <div className="mb-2 flex items-center justify-between gap-3">
+        <div className="flex items-center gap-2 text-xs font-semibold text-neutral-700 dark:text-white">
+          <span className="text-emerald-600 dark:text-emerald-400">
+            {icon}
+          </span>
 
           <span>
             {label}
           </span>
         </div>
 
-        <span className="font-mono text-xs font-bold">
+        <span className="font-mono text-xs font-black text-neutral-900 dark:text-white">
           {Math.round(value)}
         </span>
       </div>
 
-      <div className="h-2 rounded-full overflow-hidden bg-neutral-200 dark:bg-neutral-800">
+      <div className="h-2.5 overflow-hidden rounded-full bg-neutral-200 dark:bg-neutral-800">
         <div
-          className="h-full rounded-full bg-emerald-500 transition-all duration-500"
+          className="h-full rounded-full bg-gradient-to-r from-emerald-400 to-emerald-600 shadow-[0_0_10px_rgba(16,185,129,0.24)] transition-all duration-500"
           style={{
             width: `${clamp(value)}%`,
           }}
         />
       </div>
     </div>
+  );
+}
+
+/* =========================================================
+   FLOATING PET PANEL
+========================================================= */
+
+function usePetDarkMode() {
+  const [isDarkMode, setIsDarkMode] =
+    useState(false);
+
+  useEffect(() => {
+    const readTheme = () => {
+      let nextDark = false;
+
+      try {
+        const storedTheme =
+          localStorage.getItem(
+            'unsaid_dark_mode'
+          );
+
+        if (
+          storedTheme === 'true' ||
+          storedTheme === '"true"' ||
+          storedTheme === 'dark' ||
+          storedTheme === '1'
+        ) {
+          nextDark = true;
+        } else if (
+          storedTheme === 'false' ||
+          storedTheme === '"false"' ||
+          storedTheme === 'light' ||
+          storedTheme === '0'
+        ) {
+          nextDark = false;
+        } else {
+          const html =
+            document.documentElement;
+
+          const body =
+            document.body;
+
+          const explicitTheme =
+            html.getAttribute(
+              'data-theme'
+            ) ||
+            body.getAttribute(
+              'data-theme'
+            );
+
+          if (
+            explicitTheme === 'dark'
+          ) {
+            nextDark = true;
+          } else if (
+            explicitTheme === 'light'
+          ) {
+            nextDark = false;
+          } else if (
+            html.classList.contains(
+              'dark'
+            ) ||
+            body.classList.contains(
+              'dark'
+            )
+          ) {
+            nextDark = true;
+          } else {
+            nextDark =
+              window.matchMedia(
+                '(prefers-color-scheme: dark)'
+              ).matches;
+          }
+        }
+      } catch {
+        nextDark =
+          window.matchMedia?.(
+            '(prefers-color-scheme: dark)'
+          ).matches ?? false;
+      }
+
+      setIsDarkMode(
+        nextDark
+      );
+    };
+
+    readTheme();
+
+    const mediaQuery =
+      window.matchMedia(
+        '(prefers-color-scheme: dark)'
+      );
+
+    const observer =
+      new MutationObserver(
+        readTheme
+      );
+
+    observer.observe(
+      document.documentElement,
+      {
+        attributes: true,
+        attributeFilter: [
+          'class',
+          'data-theme',
+        ],
+      }
+    );
+
+    observer.observe(
+      document.body,
+      {
+        attributes: true,
+        attributeFilter: [
+          'class',
+          'data-theme',
+        ],
+      }
+    );
+
+    window.addEventListener(
+      'storage',
+      readTheme
+    );
+
+    mediaQuery.addEventListener?.(
+      'change',
+      readTheme
+    );
+
+    // Same-tab localStorage changes do not fire a storage event.
+    // This keeps the pet UI in sync with Tambayan's theme toggle.
+    const themeTimer =
+      window.setInterval(
+        readTheme,
+        400
+      );
+
+    return () => {
+      observer.disconnect();
+
+      window.removeEventListener(
+        'storage',
+        readTheme
+      );
+
+      mediaQuery.removeEventListener?.(
+        'change',
+        readTheme
+      );
+
+      window.clearInterval(
+        themeTimer
+      );
+    };
+  }, []);
+
+  return isDarkMode;
+}
+
+function FloatingPetPanel({
+  title,
+  onClose,
+  children,
+}: {
+  title: string;
+  onClose: () => void;
+  children: React.ReactNode;
+}) {
+  const isDarkMode =
+    usePetDarkMode();
+
+  if (
+    typeof document ===
+    'undefined'
+  ) {
+    return null;
+  }
+
+  return createPortal(
+    <div
+      className={`fixed inset-0 z-[1000] ${
+        isDarkMode ? 'dark' : ''
+      }`}
+      style={{
+        colorScheme:
+          isDarkMode
+            ? 'dark'
+            : 'light',
+      }}
+    >
+      <button
+        type="button"
+        aria-label={`Close ${title}`}
+        onClick={onClose}
+        className="
+          absolute
+          inset-0
+          h-full
+          w-full
+          cursor-default
+          bg-neutral-950/40
+          backdrop-blur-[6px]
+          dark:bg-black/65
+        "
+      />
+
+      <div
+        role="dialog"
+        aria-modal="true"
+        aria-label={title}
+        className="
+          absolute
+          inset-x-0
+          bottom-0
+          z-10
+          flex
+          max-h-[88dvh]
+          min-h-0
+          flex-col
+          overflow-hidden
+          rounded-t-[28px]
+          border
+          border-neutral-200
+          bg-white
+          text-neutral-900
+          shadow-[0_-18px_55px_rgba(0,0,0,0.18)]
+          ring-1
+          ring-black/[0.03]
+
+          dark:border-neutral-800
+          dark:bg-[#0b0c0c]
+          dark:text-white
+          dark:shadow-[0_-20px_70px_rgba(0,0,0,0.55)]
+          dark:ring-white/[0.05]
+
+          sm:left-1/2
+          sm:right-auto
+          sm:top-1/2
+          sm:bottom-auto
+          sm:w-[min(92vw,920px)]
+          sm:max-h-[84dvh]
+          sm:-translate-x-1/2
+          sm:-translate-y-1/2
+          sm:rounded-[28px]
+          sm:shadow-[0_28px_90px_rgba(0,0,0,0.22)]
+
+          dark:sm:shadow-[0_28px_100px_rgba(0,0,0,0.65)]
+        "
+        style={{
+          paddingBottom:
+            'env(safe-area-inset-bottom, 0px)',
+        }}
+        onClick={(event) =>
+          event.stopPropagation()
+        }
+      >
+        {/* Mobile grab handle */}
+        <div className="absolute left-1/2 top-2 z-40 h-1 w-10 -translate-x-1/2 rounded-full bg-neutral-300 dark:bg-neutral-700 sm:hidden" />
+
+        <div
+          className="
+            z-30
+            flex
+            shrink-0
+            items-center
+            justify-between
+            gap-3
+            border-b
+            border-neutral-200
+            bg-white/95
+            px-4
+            pb-3.5
+            pt-5
+            backdrop-blur-xl
+
+            dark:border-neutral-800
+            dark:bg-[#0b0c0c]/95
+
+            sm:px-5
+            sm:py-4
+          "
+        >
+          <div className="min-w-0">
+            <p className="font-mono text-[9px] font-black uppercase tracking-[0.2em] text-neutral-600 dark:text-white">
+              Tambayan Pet
+            </p>
+
+            <h2 className="mt-0.5 truncate text-base font-black tracking-tight text-neutral-950 dark:text-white sm:text-lg">
+              {title}
+            </h2>
+          </div>
+
+          <button
+            type="button"
+            onClick={onClose}
+            className="
+              flex
+              h-10
+              w-10
+              shrink-0
+              items-center
+              justify-center
+              rounded-full
+              border
+              border-neutral-200
+              bg-neutral-100
+              text-xl
+              font-bold
+              text-neutral-600
+              shadow-sm
+              transition
+              active:scale-95
+              hover:bg-neutral-200
+              hover:text-neutral-950
+
+              dark:border-neutral-700
+              dark:bg-neutral-900
+              dark:text-white
+              dark:hover:border-neutral-600
+              dark:hover:bg-neutral-800
+            "
+            aria-label="Close"
+          >
+            ×
+          </button>
+        </div>
+
+        <div
+          className="
+            min-h-0
+            flex-1
+            overflow-y-auto
+            overscroll-contain
+            bg-neutral-50/70
+            p-3
+            pb-5
+            text-neutral-900
+
+            dark:bg-[#0b0c0c]
+            dark:text-white
+
+            sm:p-5
+
+            [&>section]:mt-0
+            [&>section]:border-0
+            [&>section]:bg-transparent
+            [&>section]:p-1
+            [&>section]:shadow-none
+            sm:[&>section]:p-1
+          "
+        >
+          {children}
+        </div>
+      </div>
+    </div>,
+    document.body
+  );
+}
+
+function FloatingPetDock({
+  activePanel,
+  onSelect,
+  bottomInset,
+}: {
+  activePanel:
+    | 'activities'
+    | 'jobs'
+    | 'food'
+    | 'wardrobe'
+    | null;
+  onSelect: (
+    panel:
+      | 'activities'
+      | 'jobs'
+      | 'food'
+      | 'wardrobe'
+  ) => void;
+  bottomInset: number;
+}) {
+  const isDarkMode =
+    usePetDarkMode();
+
+  if (
+    typeof document ===
+    'undefined'
+  ) {
+    return null;
+  }
+
+  const items = [
+    {
+      key: 'activities' as const,
+      label: 'Activities',
+      short: 'Act',
+      icon: <Icon.Play />,
+    },
+    {
+      key: 'jobs' as const,
+      label: 'Tambay Jobs',
+      short: 'Jobs',
+      icon: <Icon.Coins />,
+    },
+    {
+      key: 'food' as const,
+      label: 'Food Store',
+      short: 'Food',
+      icon: <Icon.Food />,
+    },
+    {
+      key: 'wardrobe' as const,
+      label: 'Wardrobe',
+      short: 'Style',
+      icon: <Icon.Spark />,
+    },
+  ];
+
+  return createPortal(
+    <div
+      className={`pointer-events-none fixed inset-x-0 z-[900] flex justify-center px-2 sm:px-4 ${
+        isDarkMode ? 'dark' : ''
+      }`}
+      style={{
+        bottom: `calc(${bottomInset}px + env(safe-area-inset-bottom, 0px) + 10px)`,
+        colorScheme:
+          isDarkMode
+            ? 'dark'
+            : 'light',
+      }}
+    >
+      <nav
+        aria-label="Pet quick actions"
+        className="
+          pointer-events-auto
+          flex
+          max-w-[calc(100vw-1rem)]
+          items-center
+          gap-1
+          overflow-x-auto
+          rounded-2xl
+          border
+          border-neutral-200
+          bg-white/92
+          p-1.5
+          shadow-[0_14px_40px_rgba(0,0,0,0.16)]
+          ring-1
+          ring-black/[0.03]
+          backdrop-blur-2xl
+
+          [-ms-overflow-style:none]
+          [scrollbar-width:none]
+          [&::-webkit-scrollbar]:hidden
+
+          dark:border-neutral-800
+          dark:bg-[#111212]/94
+          dark:ring-white/[0.05]
+
+          sm:gap-1.5
+          sm:rounded-3xl
+          sm:p-2
+        "
+      >
+        {items.map((item) => {
+          const selected =
+            activePanel ===
+            item.key;
+
+          return (
+            <button
+              key={item.key}
+              type="button"
+              onClick={() =>
+                onSelect(
+                  item.key
+                )
+              }
+              className={`
+                flex
+                min-w-[64px]
+                shrink-0
+                flex-col
+                items-center
+                justify-center
+                gap-1
+                rounded-xl
+                px-2.5
+                py-2
+                font-semibold
+                transition-all
+                duration-200
+                active:scale-95
+
+                sm:min-w-0
+                sm:flex-row
+                sm:gap-2
+                sm:rounded-2xl
+                sm:px-3.5
+                sm:py-2.5
+
+                ${
+                  selected
+                    ? 'bg-emerald-600 text-white shadow-md shadow-emerald-900/15 dark:bg-emerald-500 dark:text-white'
+                    : 'text-neutral-700 hover:bg-neutral-100 hover:text-neutral-950 dark:text-white dark:hover:bg-neutral-800 dark:hover:text-white'
+                }
+              `}
+            >
+              <span
+                className={`shrink-0 ${
+                  selected
+                    ? 'text-white'
+                    : 'text-emerald-600 dark:text-emerald-400'
+                }`}
+              >
+                {item.icon}
+              </span>
+
+              <span className="font-mono text-[8px] font-black uppercase tracking-wider sm:hidden">
+                {item.short}
+              </span>
+
+              <span className="hidden whitespace-nowrap font-mono text-[9px] font-black uppercase tracking-wider sm:inline">
+                {item.label}
+              </span>
+            </button>
+          );
+        })}
+      </nav>
+    </div>,
+    document.body
   );
 }
 
@@ -5795,6 +6328,79 @@ export default function PetPage() {
     useState<string | null>(
       null
     );
+
+  const [
+    activePetPanel,
+    setActivePetPanel,
+  ] = useState<
+    | 'activities'
+    | 'jobs'
+    | 'food'
+    | 'wardrobe'
+    | null
+  >(null);
+
+  const [
+    petDockBottomInset,
+    setPetDockBottomInset,
+  ] = useState(0);
+
+  useEffect(() => {
+    const updateDockInset = () => {
+      const viewport =
+        window.visualViewport;
+
+      if (!viewport) {
+        setPetDockBottomInset(0);
+        return;
+      }
+
+      const inset = Math.max(
+        0,
+        window.innerHeight -
+          viewport.height -
+          viewport.offsetTop
+      );
+
+      setPetDockBottomInset(
+        inset
+      );
+    };
+
+    updateDockInset();
+
+    window.visualViewport?.addEventListener(
+      'resize',
+      updateDockInset
+    );
+
+    window.visualViewport?.addEventListener(
+      'scroll',
+      updateDockInset
+    );
+
+    window.addEventListener(
+      'orientationchange',
+      updateDockInset
+    );
+
+    return () => {
+      window.visualViewport?.removeEventListener(
+        'resize',
+        updateDockInset
+      );
+
+      window.visualViewport?.removeEventListener(
+        'scroll',
+        updateDockInset
+      );
+
+      window.removeEventListener(
+        'orientationchange',
+        updateDockInset
+      );
+    };
+  }, []);
 
   /* =========================================================
      PET PARK STATE
@@ -10223,7 +10829,7 @@ const performAction =
   if (loading) {
     return (
       <main className="min-h-screen bg-neutral-50 dark:bg-neutral-950 flex items-center justify-center">
-        <div className="font-mono text-xs text-neutral-500 animate-pulse">
+        <div className="font-mono text-xs text-neutral-600 dark:text-neutral-300 animate-pulse">
           Loading Tambayan Pet...
         </div>
       </main>
@@ -10247,7 +10853,7 @@ const performAction =
                 setPetName('');
                 setMessage('');
               }}
-              className="inline-flex items-center gap-2 text-xs font-mono text-neutral-500 hover:text-neutral-900 dark:hover:text-white mb-10"
+              className="inline-flex items-center gap-2 text-xs font-mono text-neutral-600 dark:text-neutral-300 hover:text-neutral-900 dark:hover:text-white mb-10"
             >
               <Icon.ArrowLeft />
               Back to {pet.name}
@@ -10255,7 +10861,7 @@ const performAction =
           ) : (
             <a
               href="/"
-              className="inline-flex items-center gap-2 text-xs font-mono text-neutral-500 hover:text-neutral-900 dark:hover:text-white mb-10"
+              className="inline-flex items-center gap-2 text-xs font-mono text-neutral-600 dark:text-neutral-300 hover:text-neutral-900 dark:hover:text-white mb-10"
             >
               <Icon.ArrowLeft />
               Back to Tambayan
@@ -10273,7 +10879,7 @@ const performAction =
                 : 'Pick your companion.'}
             </h1>
 
-            <p className="mt-4 max-w-lg text-sm sm:text-base leading-relaxed text-neutral-500">
+            <p className="mt-4 max-w-lg text-sm sm:text-base leading-relaxed text-neutral-600 dark:text-neutral-300">
               {readoptMode
                 ? 'Pick carefully. Confirming a new pet will reset your current Tambayan Pet progress.'
                 : 'Adopt a pet, take care of it, earn Tambay Coins, level up, and unlock more as you keep coming back.'}
@@ -10445,7 +11051,7 @@ const performAction =
                       {candidate.name}
                     </p>
 
-                    <p className="mt-1 text-[11px] leading-relaxed text-neutral-500">
+                    <p className="mt-1 text-[11px] leading-relaxed text-neutral-600 dark:text-neutral-300">
                       {
                         candidate.description
                       }
@@ -10456,8 +11062,8 @@ const performAction =
             )}
           </div>
 
-          <div className="mt-8 rounded-2xl border border-neutral-200 dark:border-neutral-800 bg-white dark:bg-neutral-900 p-5">
-            <label className="font-mono text-[10px] uppercase tracking-wider font-bold text-neutral-500">
+          <div className="mt-8 rounded-2xl border border-neutral-200/80 dark:border-neutral-800 bg-white/90 dark:bg-neutral-900/90 shadow-sm backdrop-blur p-5">
+            <label className="font-mono text-[10px] uppercase tracking-wider font-bold text-neutral-600 dark:text-neutral-300">
               Pet name
             </label>
 
@@ -10475,7 +11081,7 @@ const performAction =
               className="mt-3 w-full rounded-xl border border-neutral-200 dark:border-neutral-700 bg-neutral-50 dark:bg-neutral-950 px-4 py-3 text-base outline-none focus:border-emerald-500"
             />
 
-            <div className="flex justify-between mt-2 font-mono text-[9px] text-neutral-400">
+            <div className="flex justify-between mt-2 font-mono text-[9px] text-neutral-500 dark:text-neutral-400">
               <span>
                 You can change this later.
               </span>
@@ -10486,7 +11092,7 @@ const performAction =
             </div>
 
             {message && (
-              <p className="mt-4 text-xs text-neutral-500">
+              <p className="mt-4 text-xs text-neutral-600 dark:text-neutral-300">
                 {message}
               </p>
             )}
@@ -10551,7 +11157,7 @@ const performAction =
     );
 
   return (
-    <main className="min-h-screen bg-neutral-50 dark:bg-neutral-950 text-neutral-900 dark:text-neutral-100 px-4 sm:px-6 py-8">
+    <main className="min-h-screen bg-[radial-gradient(circle_at_top,_rgba(16,185,129,0.08),_transparent_34%),linear-gradient(to_bottom,#fafcf9,#f5f7f5)] dark:bg-[radial-gradient(circle_at_top,_rgba(16,185,129,0.08),_transparent_30%),linear-gradient(to_bottom,#0a0a0a,#111)] text-neutral-900 dark:text-neutral-100 px-4 sm:px-6 py-6 sm:py-8">
 
       <div className="max-w-4xl mx-auto">
 
@@ -10561,21 +11167,21 @@ const performAction =
 
           <a
             href="/"
-            className="inline-flex items-center gap-2 font-mono text-[10px] sm:text-xs font-bold uppercase tracking-wider text-neutral-500 hover:text-neutral-900 dark:hover:text-white"
+            className="inline-flex items-center gap-2 rounded-xl px-2 py-2 font-mono text-[10px] sm:text-xs font-bold uppercase tracking-wider text-neutral-600 dark:text-neutral-300 transition hover:bg-white/70 hover:text-emerald-700 dark:hover:bg-neutral-900 dark:hover:text-emerald-300"
           >
             <Icon.ArrowLeft />
 
             Tambayan
           </a>
 
-          <div className="inline-flex items-center gap-2 px-3 py-2 rounded-xl border border-neutral-200 dark:border-neutral-800 bg-white dark:bg-neutral-900">
+          <div className="inline-flex items-center gap-2 rounded-2xl border border-emerald-100 bg-white/85 px-3.5 py-2.5 shadow-sm backdrop-blur dark:border-emerald-950 dark:bg-neutral-900/90">
             <Icon.Coins />
 
             <span className="font-mono text-xs font-black">
               {pet.coins}
             </span>
 
-            <span className="hidden sm:inline font-mono text-[9px] uppercase text-neutral-500">
+            <span className="hidden sm:inline font-mono text-[9px] uppercase text-neutral-600 dark:text-neutral-300">
               Tambay Coins
             </span>
           </div>
@@ -10632,7 +11238,7 @@ const performAction =
                     null
                   )
                 }
-                className="text-neutral-400 hover:text-neutral-700 dark:hover:text-white"
+                className="text-neutral-500 dark:text-neutral-400 hover:text-neutral-700 dark:hover:text-white"
                 aria-label="Dismiss Pet Park notification"
               >
                 ×
@@ -10702,7 +11308,7 @@ const performAction =
                       font-bold
                       uppercase
                       tracking-wider
-                      text-neutral-400
+                      text-neutral-500 dark:text-neutral-400
                       transition-colors
                       hover:bg-neutral-100
                       hover:text-emerald-600
@@ -10720,7 +11326,7 @@ const performAction =
                     Level {pet.level}
                   </span>
 
-                  <span className="px-2.5 py-1 rounded-full bg-neutral-100 dark:bg-neutral-800 text-neutral-500">
+                  <span className="px-2.5 py-1 rounded-full bg-neutral-100 dark:bg-neutral-800 text-neutral-600 dark:text-neutral-300">
                     {
                       pet.personality
                     }
@@ -10781,7 +11387,7 @@ const performAction =
                       font-bold
                       uppercase
                       tracking-wider
-                      text-neutral-400
+                      text-neutral-500 dark:text-neutral-400
                       transition-colors
                       hover:text-rose-500
                     "
@@ -10799,7 +11405,7 @@ const performAction =
             <div className="px-5 sm:px-6 pb-6">
 
               <div className="flex items-center justify-between mb-2">
-                <span className="flex items-center gap-2 font-mono text-[10px] uppercase tracking-wider text-neutral-500">
+                <span className="flex items-center gap-2 font-mono text-[10px] uppercase tracking-wider text-neutral-600 dark:text-neutral-300">
                   <Icon.Spark />
                   Experience
                 </span>
@@ -10828,9 +11434,9 @@ const performAction =
 
             {/* STATS */}
 
-            <section className="rounded-2xl border border-neutral-200 dark:border-neutral-800 bg-white dark:bg-neutral-900 p-5">
+            <section className="rounded-2xl border border-neutral-200/80 dark:border-neutral-800 bg-white/90 dark:bg-neutral-900/90 shadow-sm backdrop-blur p-5">
 
-              <p className="font-mono text-[10px] font-bold uppercase tracking-[0.18em] text-neutral-400 mb-5">
+              <p className="font-mono text-[10px] font-bold uppercase tracking-[0.18em] text-neutral-500 dark:text-neutral-400 mb-5">
                 Pet Status
               </p>
 
@@ -10877,7 +11483,7 @@ const performAction =
                     : 'border-amber-200 bg-amber-50 text-amber-700 dark:border-amber-900/40 dark:bg-amber-950/30 dark:text-amber-300'
                 }`}
               >
-                <p className="text-sm font-bold">
+                <p className="text-sm font-bold text-neutral-900 dark:text-white">
                   {petAlert.title}
                 </p>
 
@@ -10893,7 +11499,7 @@ const performAction =
 
             {/* DAILY */}
 
-            <section className="rounded-2xl border border-neutral-200 dark:border-neutral-800 bg-white dark:bg-neutral-900 p-5">
+            <section className="rounded-2xl border border-neutral-200/80 dark:border-neutral-800 bg-white/90 dark:bg-neutral-900/90 shadow-sm backdrop-blur p-5">
 
               <div className="flex items-start justify-between gap-4">
 
@@ -10906,7 +11512,7 @@ const performAction =
                     </p>
                   </div>
 
-                  <p className="mt-1 text-xs leading-relaxed text-neutral-500">
+                  <p className="mt-1 text-xs leading-relaxed text-neutral-600 dark:text-neutral-300">
                     Day {
                       pet.dailyRewardDay ||
                       0
@@ -10941,18 +11547,29 @@ const performAction =
 
         {/* ACTIONS */}
 
-        <section className="mt-5 rounded-2xl border border-neutral-200 dark:border-neutral-800 bg-white dark:bg-neutral-900 p-5 sm:p-6">
+        {activePetPanel === 'activities' && (
+  <FloatingPetPanel
+    title="Activities"
+    onClose={() =>
+      setActivePetPanel(null)
+    }
+  >
+<section className="rounded-2xl border border-neutral-200/80 dark:border-neutral-800 bg-white/90 dark:bg-neutral-900/90 shadow-sm backdrop-blur p-4 sm:p-5">
 
           <div className="flex items-end justify-between gap-4 mb-5">
 
             <div>
-              <p className="font-mono text-[10px] font-bold uppercase tracking-[0.18em] text-emerald-600">
+              <p className="font-mono text-[10px] font-black uppercase tracking-[0.18em] text-emerald-700 dark:text-white">
                 Activities
               </p>
 
-              <h2 className="mt-1 text-xl font-black">
+              <h2 className="mt-1 text-xl font-black tracking-tight sm:text-2xl text-neutral-900 dark:text-white">
                 Spend time together
               </h2>
+
+              <p className="mt-1 max-w-lg text-xs leading-relaxed text-neutral-600 dark:text-neutral-300">
+                Care for your pet, earn XP, and keep their needs balanced.
+              </p>
             </div>
 
           </div>
@@ -11048,12 +11665,14 @@ const performAction =
           </div>
 
           {message && (
-            <div className="mt-5 rounded-xl border border-neutral-200 dark:border-neutral-800 bg-neutral-50 dark:bg-neutral-950 px-4 py-3 text-xs text-neutral-500">
+            <div className="mt-5 rounded-2xl border border-emerald-100 bg-emerald-50/70 px-4 py-3 text-xs leading-relaxed text-emerald-800 dark:border-emerald-950 dark:bg-emerald-950/20 dark:text-emerald-300">
               {message}
             </div>
           )}
 
         </section>
+  </FloatingPetPanel>
+)}
 
 {/* =========================================================
     MANUAL FEED PICKER
@@ -11064,7 +11683,7 @@ const performAction =
     className="
       fixed
       inset-0
-      z-[100]
+      z-[1100]
       flex
       items-end
       sm:items-center
@@ -11097,10 +11716,10 @@ const performAction =
         rounded-t-3xl
         sm:rounded-3xl
         border
-        border-neutral-200
-        dark:border-neutral-800
-        bg-white
-        dark:bg-neutral-900
+        border-emerald-100
+        dark:border-emerald-950
+        bg-[#fcfdfb]
+        dark:bg-neutral-950
         shadow-2xl
       "
     >
@@ -11132,17 +11751,17 @@ const performAction =
               font-bold
               uppercase
               tracking-[0.18em]
-              text-emerald-600
+              text-emerald-700 dark:text-white
             "
           >
             Pantry
           </p>
 
-          <h2 className="mt-1 text-xl font-black">
+          <h2 className="mt-1 text-xl font-black text-neutral-900 dark:text-white">
             Feed {pet.name}
           </h2>
 
-          <p className="mt-1 text-xs text-neutral-500">
+          <p className="mt-1 text-xs text-neutral-600 dark:text-neutral-300">
             Choose what you want {pet.name} to eat.
           </p>
         </div>
@@ -11170,7 +11789,7 @@ const performAction =
             items-center
             justify-center
             text-lg
-            text-neutral-500
+            text-neutral-600 dark:text-neutral-300
             hover:bg-neutral-100
             dark:hover:bg-neutral-800
             disabled:opacity-40
@@ -11198,7 +11817,7 @@ const performAction =
             <div className="flex items-center gap-2">
               <Icon.Hunger />
 
-              <span className="font-mono text-[10px] font-bold uppercase tracking-wider text-neutral-500">
+              <span className="font-mono text-[10px] font-bold uppercase tracking-wider text-neutral-600 dark:text-neutral-300">
                 Hunger
               </span>
             </div>
@@ -11235,7 +11854,7 @@ const performAction =
 
           {pet.hunger >=
             100 && (
-            <p className="mt-3 text-xs text-emerald-600">
+            <p className="mt-3 text-xs text-emerald-700 dark:text-white">
               {pet.name} is already full.
             </p>
           )}
@@ -11257,7 +11876,7 @@ const performAction =
                 rounded-2xl
                 bg-neutral-100
                 dark:bg-neutral-800
-                text-neutral-400
+                text-neutral-600 dark:text-neutral-300
               "
             >
               <Icon.Food />
@@ -11267,7 +11886,7 @@ const performAction =
               No food available.
             </p>
 
-            <p className="mt-1 text-xs text-neutral-500">
+            <p className="mt-1 text-xs text-neutral-600 dark:text-neutral-300">
               Buy food for {pet.name} from the Food Store first.
             </p>
 
@@ -11282,20 +11901,8 @@ const performAction =
                   'shop'
                 );
 
-                window.setTimeout(
-                  () => {
-                    document
-                      .getElementById(
-                        'food-store'
-                      )
-                      ?.scrollIntoView({
-                        behavior:
-                          'smooth',
-                        block:
-                          'start',
-                      });
-                  },
-                  100
+                setActivePetPanel(
+                  'food'
                 );
               }}
               className="
@@ -11413,7 +12020,7 @@ const performAction =
                                     font-bold
                                     uppercase
                                     tracking-wider
-                                    text-emerald-600
+                                    text-emerald-700 dark:text-white
                                   "
                                 >
                                   Favorite
@@ -11422,7 +12029,7 @@ const performAction =
 
                             </div>
 
-                            <p className="mt-1 text-[10px] leading-relaxed text-neutral-500">
+                            <p className="mt-1 text-[10px] leading-relaxed text-neutral-600 dark:text-neutral-300">
                               {
                                 food.description
                               }
@@ -11430,7 +12037,7 @@ const performAction =
                           </div>
 
                           <div className="shrink-0 text-right">
-                            <p className="font-mono text-[8px] uppercase tracking-wider text-neutral-400">
+                            <p className="font-mono text-[8px] uppercase tracking-wider text-neutral-600 dark:text-neutral-300">
                               Qty
                             </p>
 
@@ -11452,7 +12059,7 @@ const performAction =
                               font-mono
                               text-[8px]
                               font-bold
-                              text-emerald-600
+                              text-emerald-700 dark:text-white
                             "
                           >
                             +{
@@ -11493,7 +12100,7 @@ const performAction =
                             pt-3
                           "
                         >
-                          <span className="font-mono text-[9px] text-neutral-400">
+                          <span className="font-mono text-[9px] text-neutral-600 dark:text-neutral-300">
                             {pet.hunger}
                             {' → '}
                             {
@@ -11501,7 +12108,7 @@ const performAction =
                             }
                           </span>
 
-                          <span className="font-mono text-[9px] font-bold uppercase tracking-wider text-emerald-600">
+                          <span className="font-mono text-[9px] font-bold uppercase tracking-wider text-emerald-700 dark:text-white">
                             {loading
                               ? 'Feeding...'
                               : 'Feed'}
@@ -11526,21 +12133,28 @@ const performAction =
 )}
 
 {/* TAMBAY JOBS */}
-<section className="mt-5 rounded-2xl border border-neutral-200 dark:border-neutral-800 bg-white dark:bg-neutral-900 p-5 sm:p-6">
+{activePetPanel === 'jobs' && (
+  <FloatingPetPanel
+    title="Tambay Jobs"
+    onClose={() =>
+      setActivePetPanel(null)
+    }
+  >
+<section className="rounded-2xl border border-neutral-200/80 dark:border-neutral-800 bg-white/90 dark:bg-neutral-900/90 shadow-sm backdrop-blur p-4 sm:p-5">
   <div className="flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
     <div>
-      <p className="font-mono text-[10px] font-bold uppercase tracking-[0.18em] text-emerald-600">
+      <p className="font-mono text-[10px] font-bold uppercase tracking-[0.18em] text-emerald-700 dark:text-white">
         Tambay Jobs
       </p>
-      <h2 className="mt-1 text-lg font-black">Earn Tambay Coins</h2>
-      <p className="mt-1 text-xs leading-relaxed text-neutral-500">
+      <h2 className="mt-1 text-lg font-black text-neutral-900 dark:text-white">Earn Tambay Coins</h2>
+      <p className="mt-1 text-xs leading-relaxed text-neutral-600 dark:text-neutral-300">
         Do small jobs to earn coins for food and accessories. You can finish up to {MAX_JOBS_PER_DAY} jobs per day.
       </p>
     </div>
 
     <div className="shrink-0 rounded-xl border border-neutral-200 dark:border-neutral-800 px-3 py-2 text-center">
-      <p className="font-mono text-[8px] uppercase tracking-wider text-neutral-400">Today</p>
-      <p className="text-sm font-black">{jobsCompletedToday}/{MAX_JOBS_PER_DAY}</p>
+      <p className="font-mono text-[8px] uppercase tracking-wider text-neutral-600 dark:text-neutral-300">Today</p>
+      <p className="text-sm font-black text-neutral-900 dark:text-white">{jobsCompletedToday}/{MAX_JOBS_PER_DAY}</p>
     </div>
   </div>
 
@@ -11560,12 +12174,12 @@ const performAction =
         >
           <div className="flex items-start justify-between gap-3">
             <div>
-              <p className="text-sm font-black">{job.name}</p>
-              <p className="mt-1 text-[10px] leading-relaxed text-neutral-500">
+              <p className="text-sm font-black text-neutral-900 dark:text-white">{job.name}</p>
+              <p className="mt-1 text-[10px] leading-relaxed text-neutral-600 dark:text-neutral-300">
                 {job.description}
               </p>
             </div>
-            <div className="flex shrink-0 items-center gap-1 font-mono text-xs font-black text-emerald-600">
+            <div className="flex shrink-0 items-center gap-1 font-mono text-xs font-black text-emerald-700 dark:text-white">
               <Icon.Coins />
               +{job.coins}
             </div>
@@ -11591,11 +12205,20 @@ const performAction =
     </p>
   )}
 </section>
+  </FloatingPetPanel>
+)}
 
+{activePetPanel === 'food' && (
+  <FloatingPetPanel
+    title="Food Store"
+    onClose={() =>
+      setActivePetPanel(null)
+    }
+  >
 <section
   id="food-store"
   className="
-    mt-5
+    mt-0
     rounded-2xl
     border
     border-neutral-200
@@ -11630,17 +12253,17 @@ const performAction =
           font-bold
           uppercase
           tracking-[0.18em]
-          text-emerald-600
+          text-emerald-700 dark:text-white
         "
       >
         Food Store
       </p>
 
-      <h2 className="mt-1 text-xl font-black">
+      <h2 className="mt-1 text-xl font-black text-neutral-900 dark:text-white">
         Buy food for {pet.name}
       </h2>
 
-      <p className="mt-1 text-xs text-neutral-500">
+      <p className="mt-1 text-xs text-neutral-600 dark:text-neutral-300">
         Buy food, keep it in your pantry, and choose what to feed your pet.
       </p>
     </div>
@@ -11664,7 +12287,7 @@ const performAction =
         className={`px-4 py-2 rounded-lg font-mono text-[10px] font-bold uppercase tracking-wider transition-all ${
           foodTab === 'shop'
             ? 'bg-white dark:bg-neutral-700 shadow-sm text-neutral-900 dark:text-white'
-            : 'text-neutral-500'
+            : 'text-neutral-600 dark:text-white/75'
         }`}
       >
         Store
@@ -11681,7 +12304,7 @@ const performAction =
           foodTab ===
           'pantry'
             ? 'bg-white dark:bg-neutral-700 shadow-sm text-neutral-900 dark:text-white'
-            : 'text-neutral-500'
+            : 'text-neutral-600 dark:text-white/75'
         }`}
       >
         Pantry
@@ -11747,7 +12370,7 @@ const performAction =
                   className={`shrink-0 rounded-full px-2 py-1 font-mono text-[8px] uppercase tracking-wider ${
                     food.species ===
                     pet.species
-                      ? 'bg-emerald-500/10 text-emerald-600'
+                      ? 'bg-emerald-500/10 text-emerald-700 dark:text-white'
                       : 'bg-neutral-200 text-neutral-600 dark:bg-neutral-800 dark:text-neutral-300'
                   }`}
                 >
@@ -11758,13 +12381,13 @@ const performAction =
                 </span>
               </div>
 
-              <p className="mt-1 min-h-[32px] text-[10px] leading-relaxed text-neutral-500">
+              <p className="mt-1 min-h-[32px] text-[10px] leading-relaxed text-neutral-600 dark:text-neutral-300">
                 {
                   food.description
                 }
               </p>
 
-              <div className="mt-3 space-y-1 text-[10px] text-neutral-500">
+              <div className="mt-3 space-y-1 text-[10px] text-neutral-600 dark:text-neutral-300">
                 <p>
                   +{
                     food.hungerGain
@@ -11856,7 +12479,7 @@ const performAction =
             Your pantry is empty.
           </p>
 
-          <p className="mt-2 text-xs text-neutral-500">
+          <p className="mt-2 text-xs text-neutral-600 dark:text-neutral-300">
             Buy food so {pet.name} can eat.
           </p>
 
@@ -11921,23 +12544,23 @@ const performAction =
                 item={food}
               />
 
-              <p className="mt-3 font-bold text-sm">
+              <p className="mt-3 text-sm font-black tracking-tight text-neutral-900 dark:text-white">
                 {
                   food.name
                 }
               </p>
 
-              <p className="mt-1 text-[10px] text-neutral-500">
+              <p className="mt-1 text-[10px] text-neutral-600 dark:text-neutral-300">
                 {
                   food.description
                 }
               </p>
 
-              <p className="mt-3 font-mono text-[10px] uppercase tracking-wider text-neutral-400">
+              <p className="mt-3 font-mono text-[10px] uppercase tracking-wider text-neutral-600 dark:text-neutral-300">
                 Quantity
               </p>
 
-              <p className="mt-1 text-lg font-black">
+              <p className="mt-1 text-lg font-black text-neutral-900 dark:text-white">
                 {
                   pantry[
                     food.id
@@ -11951,10 +12574,31 @@ const performAction =
     </div>
   )}
 </section>
+  </FloatingPetPanel>
+)}
 
 {/* =========================================================
     SHOP + INVENTORY
 ========================================================= */}
+
+{/* TRUE FLOATING PET QUICK DOCK */}
+{pet && !parkOpen && (
+  <FloatingPetDock
+    activePanel={
+      activePetPanel
+    }
+    bottomInset={
+      petDockBottomInset
+    }
+    onSelect={(
+      panel
+    ) =>
+      setActivePetPanel(
+        panel
+      )
+    }
+  />
+)}
 
 {/* READOPT WARNING MODAL */}
 {readoptWarningOpen && pet && (
@@ -12024,7 +12668,7 @@ const performAction =
         Readopt a new pet?
       </h2>
 
-      <p className="mt-2 text-sm leading-relaxed text-neutral-500">
+      <p className="mt-2 text-sm leading-relaxed text-neutral-600 dark:text-neutral-300">
         You can choose another companion, but your current Tambayan Pet progress will be reset when you confirm the new adoption.
       </p>
 
@@ -12171,12 +12815,12 @@ const performAction =
 
           <h2
             id="rename-pet-title"
-            className="mt-1 text-xl font-black"
+            className="mt-1 text-xl font-black text-neutral-900 dark:text-white"
           >
             Change nickname
           </h2>
 
-          <p className="mt-1 text-xs text-neutral-500">
+          <p className="mt-1 text-xs text-neutral-600 dark:text-neutral-300">
             Give your pet a new name.
           </p>
         </div>
@@ -12197,7 +12841,7 @@ const performAction =
             rounded-full
             bg-neutral-100
             text-lg
-            text-neutral-500
+            text-neutral-600 dark:text-neutral-300
             hover:text-neutral-900
             disabled:opacity-50
             dark:bg-neutral-800
@@ -12218,7 +12862,7 @@ const performAction =
       >
         <label
           htmlFor="pet-nickname"
-          className="font-mono text-[9px] font-bold uppercase tracking-wider text-neutral-500"
+          className="font-mono text-[9px] font-bold uppercase tracking-wider text-neutral-600 dark:text-neutral-300"
         >
           Pet nickname
         </label>
@@ -12259,11 +12903,11 @@ const performAction =
         />
 
         <div className="mt-2 flex items-center justify-between gap-3">
-          <p className="text-[10px] text-neutral-400">
+          <p className="text-[10px] text-neutral-500 dark:text-neutral-400">
             2–20 characters
           </p>
 
-          <p className="font-mono text-[9px] text-neutral-400">
+          <p className="font-mono text-[9px] text-neutral-500 dark:text-neutral-400">
             {renameValue.trim().length}/20
           </p>
         </div>
@@ -12305,9 +12949,16 @@ const performAction =
   </div>
 )}
 
+{activePetPanel === 'wardrobe' && (
+  <FloatingPetPanel
+    title="Wardrobe"
+    onClose={() =>
+      setActivePetPanel(null)
+    }
+  >
 <section
   className="
-    mt-5
+    mt-0
     rounded-2xl
     border
     border-neutral-200
@@ -12349,7 +13000,7 @@ const performAction =
         Wardrobe
       </p>
 
-      <h2 className="mt-1 text-xl font-black">
+      <h2 className="mt-1 text-xl font-black text-neutral-900 dark:text-white">
         Customize {pet.name}
       </h2>
     </div>
@@ -12375,7 +13026,7 @@ const performAction =
           wardrobeTab ===
           'shop'
             ? 'bg-white dark:bg-neutral-700 shadow-sm text-neutral-900 dark:text-white'
-            : 'text-neutral-500'
+            : 'text-neutral-600 dark:text-neutral-300'
         }`}
       >
         Shop
@@ -12392,7 +13043,7 @@ const performAction =
           wardrobeTab ===
           'inventory'
             ? 'bg-white dark:bg-neutral-700 shadow-sm text-neutral-900 dark:text-white'
-            : 'text-neutral-500'
+            : 'text-neutral-600 dark:text-neutral-300'
         }`}
       >
         Inventory
@@ -12475,7 +13126,7 @@ const performAction =
                       text-[8px]
                       uppercase
                       tracking-wider
-                      text-neutral-400
+                      text-neutral-500 dark:text-neutral-400
                     "
                   >
                     {
@@ -12485,7 +13136,7 @@ const performAction =
 
                 </div>
 
-                <p className="mt-1 min-h-[32px] text-[10px] leading-relaxed text-neutral-500">
+                <p className="mt-1 min-h-[32px] text-[10px] leading-relaxed text-neutral-600 dark:text-neutral-300">
                   {
                     item.description
                   }
@@ -12587,7 +13238,7 @@ const performAction =
             Your inventory is empty.
           </p>
 
-          <p className="mt-2 text-xs text-neutral-500">
+          <p className="mt-2 text-xs text-neutral-600 dark:text-neutral-300">
             Buy something from the shop for {pet.name}.
           </p>
 
@@ -12681,7 +13332,7 @@ const performAction =
                       className={`mt-1 font-mono text-[9px] uppercase tracking-wider ${
                         equipped
                           ? 'text-emerald-600'
-                          : 'text-neutral-400'
+                          : 'text-neutral-500 dark:text-neutral-400'
                       }`}
                     >
                       {equipped
@@ -12701,6 +13352,8 @@ const performAction =
   )}
 
 </section>
+  </FloatingPetPanel>
+)}
 
 {/* =========================================================
     TAMBAYAN PET PARK
@@ -12797,7 +13450,7 @@ const performAction =
             </span>
           </div>
 
-          <p className="mt-1 truncate text-[10px] text-neutral-500 sm:text-xs">
+          <p className="mt-1 truncate text-[10px] text-neutral-600 dark:text-neutral-300 sm:text-xs">
             {activeParkPets.length ===
             0
               ? `${pet.name} has the park for now.`
@@ -12828,7 +13481,7 @@ const performAction =
             border-neutral-200
             bg-white
             text-lg
-            text-neutral-500
+            text-neutral-600 dark:text-neutral-300
             transition
             active:scale-95
             dark:border-neutral-700
@@ -12934,7 +13587,7 @@ const performAction =
                     null
                   )
                 }
-                className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-neutral-400 hover:bg-neutral-100 dark:hover:bg-neutral-800"
+                className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-neutral-500 dark:text-neutral-400 hover:bg-neutral-100 dark:hover:bg-neutral-800"
                 aria-label="Dismiss notification"
               >
                 ×
@@ -13006,7 +13659,7 @@ const performAction =
                 {parkChatNotice.petName}
               </p>
 
-              <p className="mt-0.5 line-clamp-2 text-[10px] leading-relaxed text-neutral-500 sm:text-xs">
+              <p className="mt-0.5 line-clamp-2 text-[10px] leading-relaxed text-neutral-600 dark:text-neutral-300 sm:text-xs">
                 {parkChatNotice.text}
               </p>
             </div>
@@ -13155,7 +13808,7 @@ const performAction =
                   parkPanelTab ===
                   'actions'
                     ? 'text-emerald-600'
-                    : 'text-neutral-400'
+                    : 'text-neutral-500 dark:text-neutral-400'
                 }
               `}
             >
@@ -13198,7 +13851,7 @@ const performAction =
                   parkPanelTab ===
                   'chat'
                     ? 'text-emerald-600'
-                    : 'text-neutral-400'
+                    : 'text-neutral-500 dark:text-neutral-400'
                 }
               `}
             >
@@ -13237,7 +13890,7 @@ const performAction =
                     Pick another pet
                   </p>
 
-                  <p className="mt-1 max-w-[280px] text-[11px] leading-relaxed text-neutral-500">
+                  <p className="mt-1 max-w-[280px] text-[11px] leading-relaxed text-neutral-600 dark:text-neutral-300">
                     Tap any wandering pet in the park, then choose how your pets interact.
                   </p>
 
@@ -13278,7 +13931,7 @@ const performAction =
                         )}
                     </div>
                   ) : (
-                    <p className="mt-3 text-[10px] text-neutral-400">
+                    <p className="mt-3 text-[10px] text-neutral-500 dark:text-neutral-400">
                       No other pets are in the park yet.
                     </p>
                   )}
@@ -13331,7 +13984,7 @@ const performAction =
                         }
                       </h3>
 
-                      <p className="mt-0.5 truncate text-[9px] text-neutral-500">
+                      <p className="mt-0.5 truncate text-[9px] text-neutral-600 dark:text-neutral-300">
                         {
                           selectedParkPet.species
                         }{' '}
@@ -13361,7 +14014,7 @@ const performAction =
                           ''
                         );
                       }}
-                      className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-neutral-200 text-neutral-400 active:scale-95 dark:border-neutral-800"
+                      className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-neutral-200 text-neutral-500 dark:text-neutral-400 active:scale-95 dark:border-neutral-800"
                       aria-label="Close selected pet"
                     >
                       ×
@@ -13387,7 +14040,7 @@ const performAction =
                         <p className="text-[11px] font-black">
                           Wave
                         </p>
-                        <p className="mt-0.5 text-[9px] leading-relaxed text-neutral-500">
+                        <p className="mt-0.5 text-[9px] leading-relaxed text-neutral-600 dark:text-neutral-300">
                           Walk closer and say hi.
                         </p>
                       </button>
@@ -13409,7 +14062,7 @@ const performAction =
                         <p className="text-[11px] font-black">
                           Play
                         </p>
-                        <p className="mt-0.5 text-[9px] leading-relaxed text-neutral-500">
+                        <p className="mt-0.5 text-[9px] leading-relaxed text-neutral-600 dark:text-neutral-300">
                           Meet by the play area.
                         </p>
                       </button>
@@ -13431,7 +14084,7 @@ const performAction =
                         <p className="text-[11px] font-black">
                           Sit Together
                         </p>
-                        <p className="mt-0.5 text-[9px] leading-relaxed text-neutral-500">
+                        <p className="mt-0.5 text-[9px] leading-relaxed text-neutral-600 dark:text-neutral-300">
                           Hang out by the bench.
                         </p>
                       </button>
@@ -13529,12 +14182,12 @@ const performAction =
                   <p className="text-[11px] font-black">
                     Park-wide Chat
                   </p>
-                  <p className="mt-0.5 truncate text-[9px] text-neutral-500">
+                  <p className="mt-0.5 truncate text-[9px] text-neutral-600 dark:text-neutral-300">
                     Everyone in the Pet Park can see and join the conversation.
                   </p>
                 </div>
 
-                <span className="inline-flex shrink-0 items-center gap-1.5 rounded-full bg-emerald-500/10 px-2 py-1 font-mono text-[7px] font-bold uppercase tracking-wider text-emerald-700 dark:text-emerald-300">
+                <span className="inline-flex shrink-0 items-center gap-1.5 rounded-full bg-emerald-500/10 px-2 py-1 font-mono text-[7px] font-bold uppercase tracking-wider text-neutral-900 dark:text-white">
                   <span className="h-1.5 w-1.5 rounded-full bg-emerald-500" />
                   {activeParkPets.length + 1} here
                 </span>
@@ -13558,14 +14211,14 @@ const performAction =
                         onClick={
                           loadOlderParkChatMessages
                         }
-                        className="min-h-[36px] rounded-full border border-neutral-200 bg-white px-3.5 py-2 font-mono text-[8px] font-black uppercase tracking-wider text-neutral-500 shadow-sm transition active:scale-95 disabled:opacity-50 dark:border-neutral-800 dark:bg-neutral-900 dark:text-neutral-400 touch-manipulation"
+                        className="min-h-[36px] rounded-full border border-neutral-200 bg-white px-3.5 py-2 font-mono text-[8px] font-black uppercase tracking-wider text-neutral-600 dark:text-neutral-300 shadow-sm transition active:scale-95 disabled:opacity-50 dark:border-neutral-800 dark:bg-neutral-900 dark:text-neutral-400 touch-manipulation"
                       >
                         {parkChatLoadingOlder
                           ? 'Loading...'
                           : 'Load 10 older'}
                       </button>
                     ) : (
-                      <span className="font-mono text-[7px] uppercase tracking-wider text-neutral-400">
+                      <span className="font-mono text-[7px] uppercase tracking-wider text-neutral-500 dark:text-neutral-400">
                         Beginning of chat
                       </span>
                     )}
@@ -13574,7 +14227,7 @@ const performAction =
 
                 <div className="mb-2 flex items-center gap-2 px-1">
                   <div className="h-px flex-1 bg-neutral-200 dark:bg-neutral-800" />
-                  <span className="font-mono text-[7px] font-black uppercase tracking-wider text-neutral-400">
+                  <span className="font-mono text-[7px] font-black uppercase tracking-wider text-neutral-500 dark:text-neutral-400">
                     Today · resets 12 AM PH
                   </span>
                   <div className="h-px flex-1 bg-neutral-200 dark:bg-neutral-800" />
@@ -13587,7 +14240,7 @@ const performAction =
                       <p className="text-[12px] font-black">
                         The park is quiet.
                       </p>
-                      <p className="mx-auto mt-1 max-w-[260px] text-[10px] leading-relaxed text-neutral-500">
+                      <p className="mx-auto mt-1 max-w-[260px] text-[10px] leading-relaxed text-neutral-600 dark:text-neutral-300">
                         Say something and every pet currently hanging out here can see it.
                       </p>
                     </div>
@@ -13733,7 +14386,7 @@ const performAction =
                     />
 
                     <div className="mt-1 flex items-center justify-between gap-2">
-                      <span className="truncate text-[8px] text-neutral-400">
+                      <span className="truncate text-[8px] text-neutral-500 dark:text-neutral-400">
                         {parkChatCooldownRemaining > 0
                           ? `Slow mode · ${Math.ceil(
                               parkChatCooldownRemaining /
@@ -13741,7 +14394,7 @@ const performAction =
                             )}s`
                           : `Chat as ${pet.name}`}
                       </span>
-                      <span className="shrink-0 font-mono text-[7px] text-neutral-400">
+                      <span className="shrink-0 font-mono text-[7px] text-neutral-500 dark:text-neutral-400">
                         {parkChatText.length}/180
                       </span>
                     </div>
@@ -13906,7 +14559,7 @@ const performAction =
                       Choose something for {giftTarget.petName}
                     </h3>
 
-                    <p className="mt-0.5 text-[10px] leading-relaxed text-neutral-500">
+                    <p className="mt-0.5 text-[10px] leading-relaxed text-neutral-600 dark:text-neutral-300">
                       One item will be transferred from your pantry to theirs.
                     </p>
                   </div>
@@ -13934,7 +14587,7 @@ const performAction =
                       border-neutral-200
                       bg-white
                       text-lg
-                      text-neutral-500
+                      text-neutral-600 dark:text-neutral-300
                       transition
                       active:scale-95
                       disabled:opacity-40
@@ -13978,11 +14631,11 @@ const performAction =
                       dark:bg-neutral-900
                     "
                   >
-                    <p className="text-sm font-black">
+                    <p className="text-sm font-black text-neutral-900 dark:text-white">
                       No compatible treats yet
                     </p>
 
-                    <p className="mx-auto mt-2 max-w-[260px] text-[11px] leading-relaxed text-neutral-500">
+                    <p className="mx-auto mt-2 max-w-[260px] text-[11px] leading-relaxed text-neutral-600 dark:text-neutral-300">
                       You do not have food that {giftTarget.petName} can eat right now. Universal food works for every pet.
                     </p>
                   </div>
@@ -14098,7 +14751,7 @@ const performAction =
                                       font-black
                                       uppercase
                                       tracking-wider
-                                      text-neutral-500
+                                      text-neutral-600 dark:text-neutral-300
                                       dark:bg-neutral-800
                                     "
                                   >
@@ -14106,7 +14759,7 @@ const performAction =
                                   </span>
                                 </div>
 
-                                <p className="mt-1 line-clamp-2 text-[9px] leading-relaxed text-neutral-500">
+                                <p className="mt-1 line-clamp-2 text-[9px] leading-relaxed text-neutral-600 dark:text-neutral-300">
                                   {
                                     food.description
                                   }
@@ -14161,7 +14814,7 @@ const performAction =
                   sm:px-5
                 "
               >
-                <p className="text-center text-[9px] leading-relaxed text-neutral-500">
+                <p className="text-center text-[9px] leading-relaxed text-neutral-600 dark:text-neutral-300">
                   The treat goes to their pantry. They can choose when to feed it to their pet.
                 </p>
               </div>
@@ -14212,7 +14865,7 @@ const performAction =
                       Sending treat...
                     </p>
 
-                    <p className="mt-1 text-[10px] text-neutral-500">
+                    <p className="mt-1 text-[10px] text-neutral-600 dark:text-neutral-300">
                       Bringing it to {giftTarget.petName}.
                     </p>
                   </div>
@@ -14342,6 +14995,10 @@ const performAction =
         }
       `}</style>
 
+      <div
+        aria-hidden="true"
+        className="h-16 sm:h-14"
+      />
     </main>
   );
 }
@@ -14372,35 +15029,64 @@ function ActionButton({
   return (
     <button
       type="button"
-      disabled={
-        unavailable
-      }
-      onClick={
-        onClick
-      }
+      disabled={unavailable}
+      onClick={onClick}
       className={`
-        min-h-[112px]
+        group
+        min-h-[118px]
         rounded-2xl
         border
         p-4
         text-left
+        shadow-sm
         transition-all
+        duration-200
+
         ${
           unavailable
-            ? 'border-neutral-200 dark:border-neutral-800 bg-neutral-50 dark:bg-neutral-950 opacity-55'
-            : 'border-neutral-200 dark:border-neutral-700 bg-neutral-50 dark:bg-neutral-800/50 hover:border-emerald-500/50 active:scale-[0.98]'
+            ? 'cursor-not-allowed border-neutral-200 bg-neutral-100/80 dark:border-neutral-800 dark:bg-neutral-900/75'
+            : 'border-neutral-200 bg-white hover:-translate-y-0.5 hover:border-emerald-300 hover:shadow-md active:translate-y-0 active:scale-[0.98] dark:border-neutral-800 dark:bg-neutral-900 dark:hover:border-emerald-800 dark:hover:bg-neutral-900/95'
         }
       `}
     >
-      <div className="w-9 h-9 rounded-xl flex items-center justify-center bg-white dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-700">
+      <div
+        className={`
+          flex
+          h-10
+          w-10
+          items-center
+          justify-center
+          rounded-xl
+          border
+          transition-colors
+
+          ${
+            unavailable
+              ? 'border-neutral-200 bg-neutral-200/60 text-neutral-500 dark:border-neutral-700 dark:bg-neutral-800 dark:text-neutral-300'
+              : 'border-emerald-100 bg-emerald-50 text-emerald-700 group-hover:border-emerald-200 group-hover:bg-emerald-100 dark:border-emerald-900/50 dark:bg-emerald-950/30 dark:text-emerald-400'
+          }
+        `}
+      >
         {icon}
       </div>
 
-      <p className="mt-3 font-bold text-sm">
+      <p
+        className={`mt-3 text-sm font-black tracking-tight ${
+          unavailable
+            ? 'text-neutral-600 dark:text-white/70'
+            : 'text-neutral-950 dark:text-white'
+        }`}
+      >
         {label}
       </p>
 
-      <p className="mt-1 font-mono text-[9px] text-neutral-500">
+      <p
+        className={`mt-1 font-mono text-[9px] font-medium leading-relaxed ${
+          unavailable
+            ? 'text-neutral-500 dark:text-neutral-400'
+            : 'text-neutral-600 dark:text-neutral-300'
+        }`}
+      >
         {remaining > 0
           ? `Ready in ${formatCooldown(
               remaining
@@ -14430,11 +15116,11 @@ function FeatureCard({
         {title}
       </p>
 
-      <p className="mt-1 text-[11px] leading-relaxed text-neutral-500">
+      <p className="mt-1 text-[11px] leading-relaxed text-neutral-600 dark:text-neutral-300">
         {description}
       </p>
 
-      <p className="mt-4 font-mono text-[9px] uppercase tracking-wider text-neutral-400">
+      <p className="mt-4 font-mono text-[9px] uppercase tracking-wider text-neutral-500 dark:text-neutral-400">
         Coming next
       </p>
     </div>
