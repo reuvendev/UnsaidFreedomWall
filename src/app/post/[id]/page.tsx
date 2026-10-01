@@ -45,6 +45,9 @@ interface ReplyData {
   createdAt: string;
   imageUrl?: string;
   isDeveloperReply?: boolean;
+  parentReplyId?: string;
+  replyingToAlias?: string;
+  replyingToContent?: string;
 }
 
 const Icons = {
@@ -157,6 +160,16 @@ export default function PostDetailPage() {
   const [replyContent, setReplyContent] =
     useState('');
 
+  const [replyingTo, setReplyingTo] =
+    useState<{
+      id: string;
+      authorAlias: string;
+      content: string;
+    } | null>(null);
+
+  const replyTextareaRef =
+    useRef<HTMLTextAreaElement>(null);
+
   const [replyError, setReplyError] =
     useState('');
 
@@ -174,6 +187,11 @@ export default function PostDetailPage() {
 
   const [isDarkMode, setIsDarkMode] =
     useState<boolean>(false);
+
+  // Keeps the floating reply composer inside the actually visible
+  // viewport on Android/iOS when browser chrome or the keyboard is open.
+  const [viewportBottomInset, setViewportBottomInset] =
+    useState(0);
 
   // =========================================================
   // REPORT MODAL STATE
@@ -197,6 +215,64 @@ export default function PostDetailPage() {
 
   const [isSubmittingReport, setIsSubmittingReport] =
     useState(false);
+
+  // =========================================================
+  // MOBILE VISUAL VIEWPORT / KEYBOARD SAFE AREA
+  // =========================================================
+
+  useEffect(() => {
+    const updateViewportInset = () => {
+      const viewport = window.visualViewport;
+
+      if (!viewport) {
+        setViewportBottomInset(0);
+        return;
+      }
+
+      const inset = Math.max(
+        0,
+        window.innerHeight -
+          viewport.height -
+          viewport.offsetTop
+      );
+
+      setViewportBottomInset(inset);
+    };
+
+    updateViewportInset();
+
+    window.visualViewport?.addEventListener(
+      'resize',
+      updateViewportInset
+    );
+
+    window.visualViewport?.addEventListener(
+      'scroll',
+      updateViewportInset
+    );
+
+    window.addEventListener(
+      'orientationchange',
+      updateViewportInset
+    );
+
+    return () => {
+      window.visualViewport?.removeEventListener(
+        'resize',
+        updateViewportInset
+      );
+
+      window.visualViewport?.removeEventListener(
+        'scroll',
+        updateViewportInset
+      );
+
+      window.removeEventListener(
+        'orientationchange',
+        updateViewportInset
+      );
+    };
+  }, []);
 
   // =========================================================
   // DARK MODE
@@ -510,7 +586,7 @@ export default function PostDetailPage() {
       ),
       orderBy(
         'createdAt',
-        'desc'
+        'asc'
       )
     );
 
@@ -572,6 +648,18 @@ export default function PostDetailPage() {
                 isDeveloperReply:
                   rData.isDeveloperReply ||
                   false,
+
+                parentReplyId:
+                  rData.parentReplyId ||
+                  undefined,
+
+                replyingToAlias:
+                  rData.replyingToAlias ||
+                  undefined,
+
+                replyingToContent:
+                  rData.replyingToContent ||
+                  undefined,
               });
             }
           );
@@ -796,6 +884,15 @@ export default function PostDetailPage() {
           createdAt:
             serverTimestamp(),
 
+          ...(replyingTo && {
+            parentReplyId:
+              replyingTo.id,
+            replyingToAlias:
+              replyingTo.authorAlias,
+            replyingToContent:
+              replyingTo.content,
+          }),
+
           // Only add imageUrl when there is an image
           ...(imageUrl && {
             imageUrl,
@@ -840,6 +937,7 @@ export default function PostDetailPage() {
         // ---------------------------------------------------
 
         setReplyContent('');
+        setReplyingTo(null);
 
         removeReplyImage();
       } catch (error) {
@@ -857,6 +955,33 @@ export default function PostDetailPage() {
         );
       }
     };
+
+  // =========================================================
+  // REPLY TO A SPECIFIC REPLY
+  // =========================================================
+
+  const handleReplyToReply = (
+    reply: ReplyData
+  ) => {
+    setReplyingTo({
+      id: reply.id,
+      authorAlias: reply.authorAlias,
+      content: reply.content,
+    });
+
+    setReplyError('');
+
+    requestAnimationFrame(() => {
+      replyTextareaRef.current?.focus();
+    });
+  };
+
+  const cancelReplyTo = () => {
+    setReplyingTo(null);
+    requestAnimationFrame(() => {
+      replyTextareaRef.current?.focus();
+    });
+  };
 
   // =========================================================
   // REPORT MODAL
@@ -1058,7 +1183,7 @@ export default function PostDetailPage() {
         </div>
       </header>
 
-      <main className="max-w-2xl mx-auto px-6 pt-8 pb-24">
+      <main className="max-w-2xl mx-auto px-4 sm:px-6 pt-8 pb-52 sm:pb-56">
 
         {/* ===================================================
             MAIN POST
@@ -1250,155 +1375,6 @@ export default function PostDetailPage() {
         </article>
 
         {/* ===================================================
-            REPLY FORM
-        =================================================== */}
-
-        <form
-          onSubmit={handleAddReply}
-          className="mb-12 space-y-4"
-        >
-          <label
-            className={`block font-mono text-xs font-bold uppercase tracking-wider ${
-              isDarkMode
-                ? 'text-neutral-300'
-                : 'text-neutral-700'
-            }`}
-          >
-            Leave an Anonymous Reply
-          </label>
-
-          <textarea
-            rows={3}
-            maxLength={300}
-            value={replyContent}
-            onChange={(e) => {
-              setReplyContent(
-                e.target.value
-              );
-
-              if (replyError) {
-                setReplyError('');
-              }
-            }}
-            placeholder="Add your thoughts to this entry..."
-            className={`w-full p-4 border rounded-lg text-sm leading-relaxed resize-none focus:outline-none ${
-              replyError
-                ? 'border-rose-500 focus:border-rose-500'
-                : isDarkMode
-                ? 'bg-neutral-900 border-neutral-800 text-neutral-100 placeholder:text-neutral-600 focus:bg-neutral-950 focus:border-neutral-700'
-                : 'bg-neutral-50 border-neutral-200 text-neutral-900 placeholder:text-neutral-400 focus:bg-white focus:border-neutral-900'
-            }`}
-            required
-          />
-
-          {/* HIDDEN IMAGE INPUT */}
-
-          <input
-            type="file"
-            ref={replyFileInputRef}
-            accept="image/jpeg,image/png,image/webp"
-            onChange={
-              handleReplyImageChange
-            }
-            className="hidden"
-          />
-
-          {/* IMAGE PREVIEW */}
-
-          {replyImagePreview && (
-            <div
-              className={`relative w-fit rounded-lg border overflow-hidden ${
-                isDarkMode
-                  ? 'border-neutral-800 bg-neutral-900'
-                  : 'border-neutral-200 bg-neutral-50'
-              }`}
-            >
-              <img
-                src={replyImagePreview}
-                alt="Reply preview"
-                className="max-h-48 max-w-full rounded-lg object-contain"
-              />
-
-              <button
-                type="button"
-                onClick={
-                  removeReplyImage
-                }
-                disabled={isSubmitting}
-                className="absolute right-2 top-2 rounded-full bg-black/70 px-2.5 py-1 text-[10px] font-mono uppercase tracking-wider text-white hover:bg-black disabled:opacity-50"
-              >
-                Remove
-              </button>
-            </div>
-          )}
-
-          {/* ERROR */}
-
-          {replyError && (
-            <div
-              className={`p-3 border rounded-md font-mono text-xs ${
-                isDarkMode
-                  ? 'bg-rose-950/50 border-rose-900 text-rose-400'
-                  : 'bg-rose-50 border-rose-200 text-rose-600'
-              }`}
-            >
-              {replyError}
-            </div>
-          )}
-
-          {/* FORM ACTIONS */}
-
-          <div className="flex justify-end items-center gap-2">
-            {/* IMAGE BUTTON */}
-
-            <button
-              type="button"
-              onClick={() =>
-                replyFileInputRef.current?.click()
-              }
-              disabled={
-                isSubmitting ||
-                isCompressingReplyImage
-              }
-              className={`p-2 rounded-lg transition-colors ${
-                isDarkMode
-                  ? 'text-neutral-400 hover:bg-neutral-800 hover:text-neutral-200'
-                  : 'text-neutral-500 hover:bg-neutral-100 hover:text-neutral-700'
-              } disabled:opacity-50 disabled:cursor-not-allowed`}
-              aria-label="Add image"
-              title="Add image"
-            >
-              <Image
-                size={20}
-                strokeWidth={2}
-              />
-            </button>
-
-            {/* SUBMIT BUTTON */}
-
-            <button
-              type="submit"
-              disabled={
-                isSubmitting ||
-                !replyContent.trim() ||
-                isCompressingReplyImage
-              }
-              className={`px-5 py-2.5 font-mono text-xs font-bold uppercase tracking-wider rounded active:scale-95 shadow-sm disabled:opacity-50 ${
-                isDarkMode
-                  ? 'bg-white text-neutral-950 hover:bg-neutral-200'
-                  : 'bg-neutral-900 text-white hover:bg-neutral-800'
-              }`}
-            >
-              {isSubmitting
-                ? 'Replying...'
-                : isCompressingReplyImage
-                ? 'Processing...'
-                : 'Post Reply'}
-            </button>
-          </div>
-        </form>
-
-        {/* ===================================================
             REPLIES
         =================================================== */}
 
@@ -1518,6 +1494,53 @@ export default function PostDetailPage() {
                   </p>
                 )}
 
+                {/* REPLY TARGET CONTEXT */}
+
+                {reply.replyingToAlias && (
+                  <div
+                    className={`mt-2 rounded-lg border-l-2 px-3 py-2.5 ${
+                      isDarkMode
+                        ? 'border-neutral-700 bg-neutral-900/80'
+                        : 'border-neutral-300 bg-white'
+                    }`}
+                  >
+                    <div
+                      className={`font-mono text-[10px] font-bold uppercase tracking-wider ${
+                        isDarkMode
+                          ? 'text-neutral-500'
+                          : 'text-neutral-400'
+                      }`}
+                    >
+                      Replying to{' '}
+                      <span
+                        className={
+                          isDarkMode
+                            ? 'text-neutral-300'
+                            : 'text-neutral-700'
+                        }
+                      >
+                        {reply.replyingToAlias}
+                      </span>
+                    </div>
+
+                    <p
+                      className={`mt-1 line-clamp-3 whitespace-pre-wrap break-words text-xs leading-relaxed ${
+                        isDarkMode
+                          ? 'text-neutral-400'
+                          : 'text-neutral-600'
+                      }`}
+                    >
+                      {reply.replyingToContent ||
+                        replies.find(
+                          (item) =>
+                            item.id ===
+                            reply.parentReplyId
+                        )?.content ||
+                        'Original reply'}
+                    </p>
+                  </div>
+                )}
+
                 {/* REPLY IMAGE */}
 
                 {reply.imageUrl && (
@@ -1536,6 +1559,31 @@ export default function PostDetailPage() {
                     />
                   </div>
                 )}
+
+                {/* REPLY ACTIONS */}
+
+                <div
+                  className={`mt-3 flex items-center gap-4 border-t pt-3 ${
+                    isDarkMode
+                      ? 'border-neutral-800'
+                      : 'border-neutral-200'
+                  }`}
+                >
+                  <button
+                    type="button"
+                    onClick={() =>
+                      handleReplyToReply(reply)
+                    }
+                    className={`inline-flex items-center gap-1.5 font-mono text-[11px] font-semibold uppercase tracking-wider ${
+                      isDarkMode
+                        ? 'text-neutral-400 hover:text-white'
+                        : 'text-neutral-500 hover:text-neutral-900'
+                    }`}
+                  >
+                    <Icons.Message />
+                    Reply
+                  </button>
+                </div>
               </div>
             );
           })}
@@ -1554,6 +1602,237 @@ export default function PostDetailPage() {
         </div>
         
       </main>
+
+      {/* =====================================================
+          FLOATING REPLY COMPOSER
+      ===================================================== */}
+
+      <div
+        className="pointer-events-none fixed inset-x-0 z-40 px-2 sm:px-4"
+        style={{
+          bottom: `calc(${viewportBottomInset}px + env(safe-area-inset-bottom, 0px) + 8px)`,
+        }}
+      >
+        <form
+          onSubmit={handleAddReply}
+          className={`pointer-events-auto mx-auto w-full max-w-2xl rounded-2xl border px-2.5 py-2 shadow-2xl backdrop-blur-xl sm:px-3 sm:py-2.5 md:px-4 ${
+            isDarkMode
+              ? 'border-neutral-800 bg-neutral-950/95'
+              : 'border-neutral-200 bg-white/95'
+          }`}
+        >
+          {replyingTo && (
+            <div
+              className={`mb-2 flex items-start justify-between gap-3 rounded-lg border px-3 py-2 ${
+                isDarkMode
+                  ? 'border-neutral-800 bg-neutral-900'
+                  : 'border-neutral-200 bg-neutral-50'
+              }`}
+            >
+              <div className="min-w-0">
+                <div
+                  className={`font-mono text-[10px] font-bold uppercase tracking-wider ${
+                    isDarkMode
+                      ? 'text-neutral-500'
+                      : 'text-neutral-400'
+                  }`}
+                >
+                  Replying to {replyingTo.authorAlias}
+                </div>
+
+                <p
+                  className={`mt-1 line-clamp-2 whitespace-pre-wrap break-words text-xs leading-relaxed ${
+                    isDarkMode
+                      ? 'text-neutral-300'
+                      : 'text-neutral-600'
+                  }`}
+                >
+                  {replyingTo.content || 'Image reply'}
+                </p>
+              </div>
+
+              <button
+                type="button"
+                onClick={cancelReplyTo}
+                className={`shrink-0 font-mono text-[10px] font-semibold uppercase tracking-wider ${
+                  isDarkMode
+                    ? 'text-neutral-500 hover:text-white'
+                    : 'text-neutral-400 hover:text-neutral-900'
+                }`}
+              >
+                Cancel
+              </button>
+            </div>
+          )}
+
+          {replyImagePreview && (
+            <div
+              className={`relative mb-2 w-fit overflow-hidden rounded-lg border ${
+                isDarkMode
+                  ? 'border-neutral-800 bg-neutral-900'
+                  : 'border-neutral-200 bg-neutral-50'
+              }`}
+            >
+              <img
+                src={replyImagePreview}
+                alt="Reply preview"
+                className="max-h-28 max-w-[220px] object-contain"
+              />
+
+              <button
+                type="button"
+                onClick={removeReplyImage}
+                disabled={isSubmitting}
+                className="absolute right-1.5 top-1.5 rounded-full bg-black/70 px-2 py-1 font-mono text-[9px] uppercase tracking-wider text-white hover:bg-black disabled:opacity-50"
+              >
+                Remove
+              </button>
+            </div>
+          )}
+
+          {replyError && (
+            <div
+              className={`mb-2 rounded-md border px-3 py-2 font-mono text-[11px] ${
+                isDarkMode
+                  ? 'border-rose-900 bg-rose-950/50 text-rose-400'
+                  : 'border-rose-200 bg-rose-50 text-rose-600'
+              }`}
+            >
+              {replyError}
+            </div>
+          )}
+
+          <input
+            type="file"
+            ref={replyFileInputRef}
+            accept="image/jpeg,image/png,image/webp"
+            onChange={handleReplyImageChange}
+            className="hidden"
+          />
+
+          <div
+            className={`flex w-full min-w-0 items-end gap-1 rounded-xl border p-1 sm:gap-2 sm:rounded-2xl sm:p-2 ${
+              isDarkMode
+                ? 'border-neutral-800 bg-neutral-900'
+                : 'border-neutral-200 bg-white'
+            }`}
+          >
+            <button
+              type="button"
+              onClick={() =>
+                replyFileInputRef.current?.click()
+              }
+              disabled={
+                isSubmitting ||
+                isCompressingReplyImage
+              }
+              className={`mb-0.5 shrink-0 rounded-lg p-2 transition-colors sm:mb-1 sm:rounded-xl sm:p-2.5 disabled:cursor-not-allowed disabled:opacity-50 ${
+                isDarkMode
+                  ? 'text-neutral-400 hover:bg-neutral-800 hover:text-white'
+                  : 'text-neutral-500 hover:bg-neutral-100 hover:text-neutral-900'
+              }`}
+              aria-label="Add image"
+              title="Add image"
+            >
+              <Image
+                size={19}
+                strokeWidth={2}
+              />
+            </button>
+
+            <textarea
+              ref={replyTextareaRef}
+              rows={1}
+              maxLength={300}
+              value={replyContent}
+              onChange={(e) => {
+                setReplyContent(e.target.value);
+
+                if (replyError) {
+                  setReplyError('');
+                }
+              }}
+              onKeyDown={(e) => {
+                if (
+                  e.key === 'Enter' &&
+                  !e.shiftKey
+                ) {
+                  e.preventDefault();
+
+                  if (
+                    replyContent.trim() &&
+                    !isSubmitting &&
+                    !isCompressingReplyImage
+                  ) {
+                    e.currentTarget.form?.requestSubmit();
+                  }
+                }
+              }}
+              placeholder={
+                replyingTo
+                  ? `Reply to ${replyingTo.authorAlias}...`
+                  : 'Write an anonymous reply...'
+              }
+              className={`max-h-36 min-h-[42px] min-w-0 flex-1 resize-none bg-transparent px-1 py-2.5 text-[16px] leading-5 outline-none sm:min-h-[44px] sm:px-2 sm:py-3 sm:text-sm ${
+                isDarkMode
+                  ? 'text-neutral-100 placeholder:text-neutral-600'
+                  : 'text-neutral-900 placeholder:text-neutral-400'
+              }`}
+              required
+            />
+
+            {replyingTo && (
+              <button
+                type="button"
+                onClick={cancelReplyTo}
+                className={`mb-1 hidden shrink-0 rounded-xl px-3 py-2.5 font-mono text-[10px] font-semibold uppercase tracking-wider md:block ${
+                  isDarkMode
+                    ? 'text-neutral-400 hover:bg-neutral-800 hover:text-white'
+                    : 'text-neutral-500 hover:bg-neutral-100 hover:text-neutral-900'
+                }`}
+              >
+                Cancel
+              </button>
+            )}
+
+            <button
+              type="submit"
+              disabled={
+                isSubmitting ||
+                !replyContent.trim() ||
+                isCompressingReplyImage
+              }
+              className={`mb-0.5 shrink-0 rounded-lg px-2.5 py-2.5 font-mono text-[10px] font-bold uppercase tracking-wider shadow-sm active:scale-95 sm:mb-1 sm:rounded-xl sm:px-4 disabled:cursor-not-allowed disabled:opacity-50 ${
+                isDarkMode
+                  ? 'bg-white text-neutral-950 hover:bg-neutral-200'
+                  : 'bg-neutral-900 text-white hover:bg-neutral-800'
+              }`}
+            >
+              {isSubmitting
+                ? 'Sending...'
+                : isCompressingReplyImage
+                ? 'Processing...'
+                : 'Reply'}
+            </button>
+          </div>
+
+          <div
+            className={`mt-1.5 flex items-center justify-between px-1 font-mono text-[9px] ${
+              isDarkMode
+                ? 'text-neutral-600'
+                : 'text-neutral-400'
+            }`}
+          >
+            <span className="hidden sm:inline">
+              Enter to send · Shift + Enter for new line
+            </span>
+
+            <span className="ml-auto">
+              {replyContent.length}/300
+            </span>
+          </div>
+        </form>
+      </div>
 
       {/* =====================================================
           REPORT MODAL

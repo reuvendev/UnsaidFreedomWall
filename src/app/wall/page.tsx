@@ -3066,7 +3066,6 @@ const copyPostLink =
               )}
 
                 <Advertisement isDarkMode={isDarkMode} />
-
           </div>
         )}
       </main>
