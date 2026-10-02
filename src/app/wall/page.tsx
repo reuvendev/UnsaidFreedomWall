@@ -31,8 +31,6 @@ import {
 } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 
-import Advertisement from '@/components/Advertisement';
-
 export interface PostProps {
   id: string;
   userId?: string;
@@ -3065,7 +3063,6 @@ const copyPostLink =
                 </div>
               )}
 
-                <Advertisement isDarkMode={isDarkMode} />
           </div>
         )}
       </main>
