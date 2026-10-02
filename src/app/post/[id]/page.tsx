@@ -1480,25 +1480,11 @@ export default function PostDetailPage() {
                   </div>
                 </div>
 
-                {/* REPLY TEXT */}
-
-                {reply.content && (
-                  <p
-                    className={`text-sm md:text-base leading-relaxed ${
-                      isDarkMode
-                        ? 'text-neutral-300'
-                        : 'text-neutral-700'
-                    }`}
-                  >
-                    {reply.content}
-                  </p>
-                )}
-
                 {/* REPLY TARGET CONTEXT */}
 
                 {reply.replyingToAlias && (
                   <div
-                    className={`mt-2 rounded-lg border-l-2 px-3 py-2.5 ${
+                    className={`rounded-lg border-l-2 px-3 py-2.5 ${
                       isDarkMode
                         ? 'border-neutral-700 bg-neutral-900/80'
                         : 'border-neutral-300 bg-white'
@@ -1539,6 +1525,20 @@ export default function PostDetailPage() {
                         'Original reply'}
                     </p>
                   </div>
+                )}
+
+                {/* REPLY TEXT */}
+
+                {reply.content && (
+                  <p
+                    className={`text-sm md:text-base leading-relaxed ${
+                      isDarkMode
+                        ? 'text-neutral-300'
+                        : 'text-neutral-700'
+                    }`}
+                  >
+                    {reply.content}
+                  </p>
                 )}
 
                 {/* REPLY IMAGE */}
