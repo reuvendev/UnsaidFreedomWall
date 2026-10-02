@@ -16,6 +16,16 @@ export default function sitemap(): MetadataRoute.Sitemap {
       changeFrequency: 'daily',
       priority: 0.9,
     },
+
+    // Tambayan Reads
+    {
+      url: `${baseUrl}/articles`,
+      lastModified: new Date(),
+      changeFrequency: 'weekly',
+      priority: 0.8,
+    },
+
+    // About Tambayan
     {
       url: `${baseUrl}/about`,
       lastModified: new Date(),
@@ -40,6 +50,8 @@ export default function sitemap(): MetadataRoute.Sitemap {
       changeFrequency: 'monthly',
       priority: 0.6,
     },
+
+    // Legal
     {
       url: `${baseUrl}/privacy`,
       lastModified: new Date(),
