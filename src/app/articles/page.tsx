@@ -240,12 +240,22 @@ export default function ArticlesIndexPage() {
     >
 
       {/* Header */}
-      <header className={`sticky top-0 z-50 border-b border-neutral-200/80 bg-white/90 backdrop-blur-xl${isDarkMode ? " border-neutral-800 bg-[#09090b]/90" : ""}`}>
+      <header
+        className={`sticky top-0 z-50 border-b backdrop-blur-xl ${
+          isDarkMode
+            ? 'border-neutral-800 bg-[#09090b]/90'
+            : 'border-neutral-200/80 bg-white/90'
+        }`}
+      >
         <div className="mx-auto flex h-16 max-w-4xl items-center justify-between px-5 sm:px-6">
 
           <Link
             href="/"
-            className={`inline-flex items-center gap-2 text-sm font-medium text-neutral-500 transition-colors hover:text-neutral-900${isDarkMode ? " text-neutral-400 hover:text-white" : ""}`}
+            className={`inline-flex items-center gap-2 text-sm font-medium transition-colors ${
+              isDarkMode
+                ? 'text-neutral-400 hover:text-white'
+                : 'text-neutral-500 hover:text-neutral-900'
+            }`}
           >
             <Icons.Back />
             <span className="hidden sm:inline">Back to Tambayan</span>
@@ -254,7 +264,9 @@ export default function ArticlesIndexPage() {
 
           <Link
             href="/"
-            className={`text-lg font-black tracking-tight text-neutral-900${isDarkMode ? " text-white" : ""}`}
+            className={`text-lg font-black tracking-tight ${
+              isDarkMode ? 'text-white' : 'text-neutral-900'
+            }`}
           >
             Tambayan<span className="text-emerald-600">.</span>
           </Link>
@@ -265,18 +277,30 @@ export default function ArticlesIndexPage() {
       <main className="mx-auto max-w-4xl px-5 pb-24 pt-10 sm:px-6 sm:pt-14">
 
         {/* Hero */}
-        <section className={`relative mb-12 overflow-hidden rounded-3xl border border-emerald-100 bg-gradient-to-br from-emerald-50 via-white to-green-50 px-6 py-9 sm:px-10 sm:py-12${isDarkMode ? " border-emerald-900/40 from-emerald-950/30 via-[#111113] to-[#0c1712]" : ""}`}>
+        <section
+          className={`relative mb-12 overflow-hidden rounded-3xl border bg-gradient-to-br px-6 py-9 sm:px-10 sm:py-12 ${
+            isDarkMode
+              ? 'border-emerald-900/40 from-emerald-950/30 via-[#111113] to-[#0c1712]'
+              : 'border-emerald-100 from-emerald-50 via-white to-green-50'
+          }`}
+        >
 
           <div className="relative">
-            <p className={`mb-3 text-sm font-semibold${isDarkMode ? " text-emerald-400" : " text-emerald-700"}`}>
+            <p className={`mb-3 text-sm font-semibold ${
+              isDarkMode ? 'text-emerald-400' : 'text-emerald-700'
+            }`}>
               Tambayan Reads
             </p>
 
-            <h1 className={`max-w-2xl text-3xl font-bold tracking-tight sm:text-4xl${isDarkMode ? " text-white" : " text-neutral-900"}`}>
+            <h1 className={`max-w-2xl text-3xl font-bold tracking-tight sm:text-4xl ${
+              isDarkMode ? 'text-white' : 'text-neutral-900'
+            }`}>
               The Tambayan Journal
             </h1>
 
-            <p className={`mt-3 max-w-xl text-sm leading-6 sm:text-base${isDarkMode ? " text-neutral-400" : " text-neutral-600"}`}>
+            <p className={`mt-3 max-w-xl text-sm leading-6 sm:text-base ${
+              isDarkMode ? 'text-neutral-400' : 'text-neutral-600'
+            }`}>
               Stories, tips, and updates from around the Tambayan.
             </p>
           </div>
@@ -285,7 +309,9 @@ export default function ArticlesIndexPage() {
         {/* Section title */}
         <section className="mb-6 flex items-end justify-between">
           <div>
-            <p className={`mb-1 text-xs font-semibold uppercase tracking-widest text-emerald-600${isDarkMode ? " text-emerald-400" : ""}`}>
+            <p className={`mb-1 text-xs font-semibold uppercase tracking-widest ${
+              isDarkMode ? 'text-emerald-400' : 'text-emerald-600'
+            }`}>
               Latest
             </p>
 
@@ -299,7 +325,9 @@ export default function ArticlesIndexPage() {
           </div>
 
           {!loading && articles.length > 0 && (
-            <span className={`hidden text-xs sm:block${isDarkMode ? " text-neutral-500" : " text-neutral-400"}`}>
+            <span className={`hidden text-xs sm:block ${
+              isDarkMode ? 'text-neutral-500' : 'text-neutral-400'
+            }`}>
               {articles.length} article{articles.length !== 1 ? 's' : ''}
             </span>
           )}
@@ -311,12 +339,24 @@ export default function ArticlesIndexPage() {
             {[1, 2, 3].map((item) => (
               <div
                 key={item}
-                className={`animate-pulse rounded-2xl border border-neutral-200 bg-white p-6${isDarkMode ? " border-neutral-800 bg-[#111113]" : ""}`}
+                className={`animate-pulse rounded-2xl border p-6 ${
+                  isDarkMode
+                    ? 'border-neutral-800 bg-[#111113]'
+                    : 'border-neutral-200 bg-white'
+                }`}
               >
-                <div className={`mb-4 h-3 w-24 rounded bg-neutral-200${isDarkMode ? " bg-neutral-800" : ""}`} />
-                <div className={`mb-3 h-6 w-3/4 rounded bg-neutral-200${isDarkMode ? " bg-neutral-800" : ""}`} />
-                <div className={`h-4 w-full rounded bg-neutral-100${isDarkMode ? " bg-neutral-800/70" : ""}`} />
-                <div className={`mt-2 h-4 w-2/3 rounded bg-neutral-100${isDarkMode ? " bg-neutral-800/70" : ""}`} />
+                <div className={`mb-4 h-3 w-24 rounded ${
+                  isDarkMode ? 'bg-neutral-800' : 'bg-neutral-200'
+                }`} />
+                <div className={`mb-3 h-6 w-3/4 rounded ${
+                  isDarkMode ? 'bg-neutral-800' : 'bg-neutral-200'
+                }`} />
+                <div className={`h-4 w-full rounded ${
+                  isDarkMode ? 'bg-neutral-800/70' : 'bg-neutral-100'
+                }`} />
+                <div className={`mt-2 h-4 w-2/3 rounded ${
+                  isDarkMode ? 'bg-neutral-800/70' : 'bg-neutral-100'
+                }`} />
               </div>
             ))}
           </div>
@@ -324,8 +364,16 @@ export default function ArticlesIndexPage() {
 
         {/* Empty */}
         {!loading && articles.length === 0 && (
-          <div className={`rounded-3xl border border-dashed border-neutral-300 bg-white px-6 py-16 text-center${isDarkMode ? " border-neutral-700 bg-[#111113]" : ""}`}>
-            <div className={`mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-2xl bg-emerald-50 text-emerald-600${isDarkMode ? " bg-emerald-950/50 text-emerald-400" : ""}`}>
+          <div className={`rounded-3xl border border-dashed px-6 py-16 text-center ${
+            isDarkMode
+              ? 'border-neutral-700 bg-[#111113]'
+              : 'border-neutral-300 bg-white'
+          }`}>
+            <div className={`mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-2xl ${
+              isDarkMode
+                ? 'bg-emerald-950/50 text-emerald-400'
+                : 'bg-emerald-50 text-emerald-600'
+            }`}>
               <Icons.Book />
             </div>
 
@@ -333,7 +381,7 @@ export default function ArticlesIndexPage() {
               Wala pang articles.
             </h3>
 
-            <p className={`mt-1 text-sm text-neutral-500${isDarkMode ? " text-neutral-500" : ""}`}>
+            <p className="mt-1 text-sm text-neutral-500">
               May ilalagay din dito. Balik ka soon.
             </p>
           </div>
@@ -349,12 +397,20 @@ export default function ArticlesIndexPage() {
                 key={article.id}
                 className="group block"
               >
-                <article className={`rounded-2xl border border-neutral-200 bg-white p-5 transition-all duration-200 hover:-translate-y-0.5 hover:border-emerald-200 hover:shadow-lg hover:shadow-neutral-200/50 sm:p-6${isDarkMode ? " border-neutral-800 bg-[#111113] hover:border-emerald-800/70 hover:bg-[#141416] hover:shadow-black/20" : ""}`}>
+                <article className={`rounded-2xl border p-5 transition-all duration-200 hover:-translate-y-0.5 hover:shadow-lg sm:p-6 ${
+                  isDarkMode
+                    ? 'border-neutral-800 bg-[#111113] hover:border-emerald-800/70 hover:bg-[#141416] hover:shadow-black/20'
+                    : 'border-neutral-200 bg-white hover:border-emerald-200 hover:shadow-neutral-200/50'
+                }`}>
 
                   {/* Metadata */}
                   <div className="mb-3 flex flex-wrap items-center gap-2 text-xs">
 
-                    <span className={`rounded-full bg-emerald-50 px-2.5 py-1 font-semibold text-emerald-700${isDarkMode ? " bg-emerald-950/50 text-emerald-400" : ""}`}>
+                    <span className={`rounded-full px-2.5 py-1 font-semibold ${
+                      isDarkMode
+                        ? 'bg-emerald-950/50 text-emerald-400'
+                        : 'bg-emerald-50 text-emerald-700'
+                    }`}>
                       {article.category}
                     </span>
 
@@ -373,28 +429,42 @@ export default function ArticlesIndexPage() {
                   </div>
 
                   {/* Title */}
-                  <h3 className={`text-xl font-bold leading-snug tracking-tight transition-colors sm:text-2xl${isDarkMode ? " text-neutral-100 group-hover:text-emerald-400" : " text-neutral-900 group-hover:text-emerald-700"}`}>
+                  <h3 className={`text-xl font-bold leading-snug tracking-tight transition-colors sm:text-2xl ${
+                    isDarkMode
+                      ? 'text-neutral-100 group-hover:text-emerald-400'
+                      : 'text-neutral-900 group-hover:text-emerald-700'
+                  }`}>
                     {article.title}
                   </h3>
 
                   {/* Excerpt */}
                   {article.excerpt && (
-                    <p className={`mt-2 line-clamp-3 text-sm leading-6 sm:text-[15px]${isDarkMode ? " text-neutral-400" : " text-neutral-600"}`}>
+                    <p className={`mt-2 line-clamp-3 text-sm leading-6 sm:text-[15px] ${
+                      isDarkMode ? 'text-neutral-400' : 'text-neutral-600'
+                    }`}>
                       {article.excerpt}
                     </p>
                   )}
 
                   {/* Footer */}
-                  <div className={`mt-5 flex items-center justify-between border-t border-neutral-100 pt-4${isDarkMode ? " border-neutral-800" : ""}`}>
+                  <div className={`mt-5 flex items-center justify-between border-t pt-4 ${
+                    isDarkMode ? 'border-neutral-800' : 'border-neutral-100'
+                  }`}>
 
-                    <span className={`text-xs${isDarkMode ? " text-neutral-500" : " text-neutral-400"}`}>
+                    <span className={`text-xs ${
+                      isDarkMode ? 'text-neutral-500' : 'text-neutral-400'
+                    }`}>
                       By{' '}
-                      <span className={`font-medium text-neutral-600${isDarkMode ? " text-neutral-300" : ""}`}>
+                      <span className={`font-medium ${
+                          isDarkMode ? 'text-neutral-300' : 'text-neutral-600'
+                        }`}>
                         {article.author}
                       </span>
                     </span>
 
-                    <div className={`inline-flex items-center gap-1.5 text-xs font-semibold text-emerald-700${isDarkMode ? " text-emerald-400" : ""}`}>
+                    <div className={`inline-flex items-center gap-1.5 text-xs font-semibold ${
+                      isDarkMode ? 'text-emerald-400' : 'text-emerald-700'
+                    }`}>
                       Read article
 
                       <span className="transition-transform group-hover:translate-x-1">
@@ -414,7 +484,11 @@ export default function ArticlesIndexPage() {
                 <button
                   onClick={handleLoadMore}
                   disabled={loadingMore}
-                  className={`rounded-xl border border-neutral-200 bg-white px-6 py-3 text-sm font-semibold text-neutral-700 shadow-sm transition-all hover:border-emerald-200 hover:bg-emerald-50 hover:text-emerald-700 active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-50${isDarkMode ? " border-neutral-800 bg-[#111113] text-neutral-300 hover:border-emerald-800 hover:bg-emerald-950/30 hover:text-emerald-400" : ""}`}
+                  className={`rounded-xl border px-6 py-3 text-sm font-semibold shadow-sm transition-all active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-50 ${
+                    isDarkMode
+                      ? 'border-neutral-800 bg-[#111113] text-neutral-300 hover:border-emerald-800 hover:bg-emerald-950/30 hover:text-emerald-400'
+                      : 'border-neutral-200 bg-white text-neutral-700 hover:border-emerald-200 hover:bg-emerald-50 hover:text-emerald-700'
+                  }`}
                 >
                   {loadingMore ? 'Loading...' : 'Load more articles'}
                 </button>
@@ -425,8 +499,14 @@ export default function ArticlesIndexPage() {
         )}
 
         {/* About section */}
-        <section className={`mt-16 rounded-2xl border border-neutral-200 bg-white p-6 sm:p-8${isDarkMode ? " border-neutral-800 bg-[#111113]" : ""}`}>
-          <p className={`text-xs font-semibold uppercase tracking-widest text-emerald-600${isDarkMode ? " text-emerald-400" : ""}`}>
+        <section className={`mt-16 rounded-2xl border p-6 sm:p-8 ${
+          isDarkMode
+            ? 'border-neutral-800 bg-[#111113]'
+            : 'border-neutral-200 bg-white'
+        }`}>
+          <p className={`text-xs font-semibold uppercase tracking-widest ${
+            isDarkMode ? 'text-emerald-400' : 'text-emerald-600'
+          }`}>
             About Tambayan Reads
           </p>
 
@@ -441,7 +521,9 @@ export default function ArticlesIndexPage() {
             online space for the student community.
           </p>
 
-          <p className={`mt-4 text-xs leading-5 text-neutral-400${isDarkMode ? " text-neutral-600" : ""}`}>
+          <p className={`mt-4 text-xs leading-5 ${
+            isDarkMode ? 'text-neutral-500' : 'text-neutral-400'
+          }`}>
             TambayanSLU is an independently operated student project and is
             not officially affiliated with Saint Louis University.
           </p>
