@@ -20,7 +20,7 @@ const portals = [
   {
     title: 'Articles',
     description: 'Create, edit, and manage articles.',
-    href: '/admin/articles',
+    href: '/admin/articles/new',
     icon: '📰',
   },
   {
