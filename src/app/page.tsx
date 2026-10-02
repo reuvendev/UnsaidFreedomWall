@@ -195,6 +195,24 @@ const Icons = {
     </svg>
   ),
 
+
+  Book: () => (
+    <svg
+      xmlns="http://www.w3.org/2000/svg"
+      width="15"
+      height="15"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    >
+      <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20" />
+      <path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z" />
+    </svg>
+  ),
+
   Sun: () => (
     <svg
       xmlns="http://www.w3.org/2000/svg"
@@ -777,7 +795,7 @@ export default function HomePage() {
                     isDarkMode ? 'text-neutral-400' : 'text-neutral-500'
                   }`}
                 >
-                  Post, chat, play, or take a break.
+                  Post, chat, play, read, or take a break.
                 </p>
               </div>
             </div>
@@ -1105,6 +1123,85 @@ export default function HomePage() {
                   </span>
                 </div>
               </Link>
+
+              <Link
+                href="/articles"
+                className={`group flex min-h-[205px] flex-col rounded-2xl border p-5 transition-all duration-200 hover:-translate-y-0.5 hover:shadow-md active:scale-[0.99] ${
+                  isDarkMode
+                    ? 'border-neutral-800 bg-neutral-900 hover:border-emerald-800'
+                    : 'border-neutral-200 bg-white hover:border-emerald-300'
+                }`}
+              >
+                <div className="flex items-center gap-3">
+                  <span
+                    className={`inline-flex h-9 w-9 items-center justify-center rounded-xl ${
+                      isDarkMode
+                        ? 'bg-emerald-950 text-emerald-300'
+                        : 'bg-emerald-50 text-emerald-700'
+                    }`}
+                  >
+                    <Icons.Book />
+                  </span>
+
+                  <div>
+                    <p
+                      className={`text-sm font-black ${
+                        isDarkMode ? 'text-white' : 'text-neutral-950'
+                      }`}
+                    >
+                      Tambayan Reads
+                    </p>
+                    <p className="mt-0.5 font-mono text-[8px] font-bold uppercase tracking-wider text-neutral-400">
+                      Articles & guides
+                    </p>
+                  </div>
+                </div>
+
+                <div
+                  className={`mt-5 rounded-xl px-3 py-2.5 ${
+                    isDarkMode
+                      ? 'bg-neutral-950/50'
+                      : 'bg-neutral-50'
+                  }`}
+                >
+                  <p className="font-mono text-[8px] font-bold uppercase tracking-wider text-emerald-600">
+                    Worth a read
+                  </p>
+                  <p
+                    className={`mt-1.5 text-xs font-semibold leading-relaxed ${
+                      isDarkMode ? 'text-neutral-300' : 'text-neutral-700'
+                    }`}
+                  >
+                    Student life · Baguio · Online safety · Tambayan
+                  </p>
+                </div>
+
+                <p
+                  className={`mt-4 text-xs leading-relaxed ${
+                    isDarkMode ? 'text-neutral-500' : 'text-neutral-500'
+                  }`}
+                >
+                  Read stories, guides, and useful posts from Tambayan.
+                </p>
+
+                <div className="mt-auto pt-5">
+                  <span
+                    className={`flex w-full items-center justify-center gap-2 rounded-xl border px-4 py-3 font-mono text-[10px] font-black uppercase tracking-wider transition ${
+                      isDarkMode
+                        ? 'border-neutral-700 bg-neutral-800 text-white group-hover:border-emerald-700'
+                        : 'border-neutral-200 bg-neutral-950 text-white group-hover:bg-neutral-800'
+                    }`}
+                  >
+                    Browse articles
+                    <span
+                      aria-hidden="true"
+                      className="transition-transform group-hover:translate-x-1"
+                    >
+                      →
+                    </span>
+                  </span>
+                </div>
+              </Link>
             </div>
 
             <Link
@@ -1139,8 +1236,7 @@ export default function HomePage() {
           </div>
 
         </div>
-
-        {/* COMMUNITY INTRO */}
+{/* COMMUNITY INTRO */}
         <section className="mb-14">
           <div
             className={`rounded-2xl border p-6 sm:p-8 ${

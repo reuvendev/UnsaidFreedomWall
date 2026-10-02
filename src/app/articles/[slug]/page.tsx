@@ -19,74 +19,34 @@ interface ArticleData {
 
 const Icons = {
   Back: () => (
-    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-      <line x1="19" y1="12" x2="5" y2="12"></line>
-      <polyline points="12 19 5 12 12 5"></polyline>
+    <svg
+      xmlns="http://www.w3.org/2000/svg"
+      width="16"
+      height="16"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    >
+      <line x1="19" y1="12" x2="5" y2="12" />
+      <polyline points="12 19 5 12 12 5" />
     </svg>
   ),
 };
 
 function formatArticleDate(timestamp: Timestamp | null): string {
-  if (!timestamp) return "Recently";
-  return timestamp.toDate().toLocaleDateString([], { 
-    month: 'long', 
-    day: 'numeric', 
-    year: 'numeric' 
+  if (!timestamp) return 'Recently';
+
+  return timestamp.toDate().toLocaleDateString('en-PH', {
+    month: 'long',
+    day: 'numeric',
+    year: 'numeric',
   });
 }
 
-// Simple parser to convert custom markdown text blocks into styled JSX elements
-function renderMarkdownContent(content: string) {
-  if (!content) return null;
-
-  const lines = content.split('\n');
-  return lines.map((line, index) => {
-    const trimmed = line.trim();
-
-    // Headings (### Heading)
-    if (trimmed.startsWith('### ')) {
-      return (
-        <h3 key={index} className="text-xl md:text-2xl font-bold tracking-tight text-neutral-900 mt-8 mb-4">
-          {formatInlineStyles(trimmed.replace('### ', ''))}
-        </h3>
-      );
-    }
-
-    // Blockquotes (> Quote)
-    if (trimmed.startsWith('> ')) {
-      return (
-        <blockquote key={index} className="border-l-2 border-neutral-900 pl-4 my-6 italic text-neutral-700 font-medium text-lg">
-          {formatInlineStyles(trimmed.replace('> ', ''))}
-        </blockquote>
-      );
-    }
-
-    // Bullet Lists (- Item)
-    if (trimmed.startsWith('- ')) {
-      return (
-        <ul key={index} className="list-disc list-inside my-2 space-y-1 text-neutral-800">
-          <li>{formatInlineStyles(trimmed.replace('- ', ''))}</li>
-        </ul>
-      );
-    }
-
-    // Empty lines act as natural paragraph spacing
-    if (trimmed === '') {
-      return <div key={index} className="h-4" />;
-    }
-
-    // Regular paragraphs
-    return (
-      <p key={index} className="leading-relaxed mb-4 text-neutral-800">
-        {formatInlineStyles(line)}
-      </p>
-    );
-  });
-}
-
-// Helper to handle inline bold (**text**), italics (*text*), and links ([text](url))
-function formatInlineStyles(text: string) {
-  // Replace links first: [text](url)
+function formatInlineStyles(text: string, isDarkMode: boolean) {
   const linkRegex = /\[([^\]]+)\]\(([^)]+)\)/g;
   const parts: (string | React.ReactNode)[] = [];
   let lastIndex = 0;
@@ -96,17 +56,23 @@ function formatInlineStyles(text: string) {
     if (match.index > lastIndex) {
       parts.push(text.substring(lastIndex, match.index));
     }
+
     parts.push(
-      <a 
-        key={match.index} 
-        href={match[2]} 
-        target="_blank" 
-        rel="noopener noreferrer" 
-        className="underline text-emerald-700 hover:text-emerald-900 font-semibold"
+      <a
+        key={`link-${match.index}`}
+        href={match[2]}
+        target="_blank"
+        rel="noopener noreferrer"
+        className={`font-semibold underline underline-offset-2 transition-colors ${
+          isDarkMode
+            ? 'text-emerald-400 hover:text-emerald-300'
+            : 'text-emerald-700 hover:text-emerald-900'
+        }`}
       >
         {match[1]}
       </a>
     );
+
     lastIndex = linkRegex.lastIndex;
   }
 
@@ -114,21 +80,101 @@ function formatInlineStyles(text: string) {
     parts.push(text.substring(lastIndex));
   }
 
-  // Next, map through text pieces to handle bold and italics safely
   return parts.map((part, i) => {
     if (typeof part !== 'string') return part;
 
-    // Split by bold (**...**) and italic (*...*) tokens
     const tokens = part.split(/(\*\*.*?\*\*|\*.*?\*)/g);
+
     return tokens.map((token, j) => {
       if (token.startsWith('**') && token.endsWith('**')) {
-        return <strong key={j} className="font-bold text-neutral-900">{token.slice(2, -2)}</strong>;
+        return (
+          <strong
+            key={`${i}-${j}`}
+            className={isDarkMode ? 'font-bold text-white' : 'font-bold text-neutral-900'}
+          >
+            {token.slice(2, -2)}
+          </strong>
+        );
       }
+
       if (token.startsWith('*') && token.endsWith('*')) {
-        return <em key={j} className="italic">{token.slice(1, -1)}</em>;
+        return (
+          <em key={`${i}-${j}`} className="italic">
+            {token.slice(1, -1)}
+          </em>
+        );
       }
+
       return token;
     });
+  });
+}
+
+function renderMarkdownContent(content: string, isDarkMode: boolean) {
+  if (!content) return null;
+
+  const lines = content.split('\n');
+
+  return lines.map((line, index) => {
+    const trimmed = line.trim();
+
+    if (trimmed.startsWith('### ')) {
+      return (
+        <h3
+          key={index}
+          className={`mt-9 mb-4 text-xl font-bold tracking-tight md:text-2xl ${
+            isDarkMode ? 'text-white' : 'text-neutral-900'
+          }`}
+        >
+          {formatInlineStyles(trimmed.replace('### ', ''), isDarkMode)}
+        </h3>
+      );
+    }
+
+    if (trimmed.startsWith('> ')) {
+      return (
+        <blockquote
+          key={index}
+          className={`my-6 border-l-2 pl-4 text-lg font-medium italic ${
+            isDarkMode
+              ? 'border-emerald-700 text-neutral-300'
+              : 'border-emerald-600 text-neutral-700'
+          }`}
+        >
+          {formatInlineStyles(trimmed.replace('> ', ''), isDarkMode)}
+        </blockquote>
+      );
+    }
+
+    if (trimmed.startsWith('- ')) {
+      return (
+        <ul
+          key={index}
+          className={`my-2 list-disc pl-5 ${
+            isDarkMode ? 'text-neutral-300' : 'text-neutral-800'
+          }`}
+        >
+          <li className="leading-7">
+            {formatInlineStyles(trimmed.replace('- ', ''), isDarkMode)}
+          </li>
+        </ul>
+      );
+    }
+
+    if (trimmed === '') {
+      return <div key={index} className="h-3" />;
+    }
+
+    return (
+      <p
+        key={index}
+        className={`mb-4 leading-7 ${
+          isDarkMode ? 'text-neutral-300' : 'text-neutral-800'
+        }`}
+      >
+        {formatInlineStyles(line, isDarkMode)}
+      </p>
+    );
   });
 }
 
@@ -138,13 +184,31 @@ export default function ArticlePage() {
 
   const [article, setArticle] = useState<ArticleData | null>(null);
   const [loading, setLoading] = useState(true);
+  const [isDarkMode, setIsDarkMode] = useState(false);
+
+  useEffect(() => {
+    const syncDarkMode = () => {
+      setIsDarkMode(localStorage.getItem('unsaid_dark_mode') === 'true');
+    };
+
+    syncDarkMode();
+    window.addEventListener('storage', syncDarkMode);
+
+    return () => {
+      window.removeEventListener('storage', syncDarkMode);
+    };
+  }, []);
 
   useEffect(() => {
     if (!slug) return;
 
     async function fetchArticle() {
       try {
-        const q = query(collection(db, "articles"), where("slug", "==", slug));
+        const q = query(
+          collection(db, 'articles'),
+          where('slug', '==', slug)
+        );
+
         const querySnapshot = await getDocs(q);
 
         if (!querySnapshot.empty) {
@@ -154,7 +218,8 @@ export default function ArticlePage() {
           setArticle(null);
         }
       } catch (error) {
-        console.error("Error fetching article:", error);
+        console.error('Error fetching article:', error);
+        setArticle(null);
       } finally {
         setLoading(false);
       }
@@ -165,7 +230,13 @@ export default function ArticlePage() {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-white flex items-center justify-center font-mono text-sm text-neutral-400 animate-pulse">
+      <div
+        className={`flex min-h-screen items-center justify-center text-sm ${
+          isDarkMode
+            ? 'bg-[#09090b] text-neutral-500'
+            : 'bg-[#fafafa] text-neutral-400'
+        }`}
+      >
         Loading article...
       </div>
     );
@@ -173,70 +244,169 @@ export default function ArticlePage() {
 
   if (!article) {
     return (
-      <div className="min-h-screen bg-white flex flex-col items-center justify-center px-4">
-        <h1 className="text-xl font-mono font-bold mb-2">Article not found</h1>
-        <p className="text-sm text-neutral-500 mb-6">The article you are looking for doesn't exist or has been removed.</p>
-        <Link href="/" className="px-4 py-2 bg-neutral-900 text-white font-mono text-xs uppercase rounded">
-          Return to Feed
+      <div
+        className={`flex min-h-screen flex-col items-center justify-center px-5 text-center ${
+          isDarkMode
+            ? 'bg-[#09090b] text-neutral-100'
+            : 'bg-[#fafafa] text-neutral-900'
+        }`}
+      >
+        <h1 className="mb-2 text-xl font-bold">Article not found</h1>
+
+        <p
+          className={`mb-6 max-w-md text-sm ${
+            isDarkMode ? 'text-neutral-400' : 'text-neutral-500'
+          }`}
+        >
+          This article may have been removed or the link is incorrect.
+        </p>
+
+        <Link
+          href="/articles"
+          className={`rounded-lg px-4 py-2.5 text-sm font-semibold transition-colors ${
+            isDarkMode
+              ? 'bg-white text-neutral-900 hover:bg-neutral-200'
+              : 'bg-neutral-900 text-white hover:bg-neutral-800'
+          }`}
+        >
+          Back to articles
         </Link>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-white text-neutral-900 font-sans selection:bg-neutral-900 selection:text-white">
-      {/* Top Header / Navigation */}
-      <header className="sticky top-0 z-50 bg-white/85 backdrop-blur-md border-b border-neutral-200">
-        <div className="max-w-2xl mx-auto px-6 h-16 flex items-center justify-between">
-          <Link href="/" className="inline-flex items-center gap-2 font-mono text-xs font-bold uppercase tracking-wider text-neutral-600 hover:text-neutral-900 transition-colors">
+    <div
+      className={`min-h-screen ${
+        isDarkMode
+          ? 'bg-[#09090b] text-neutral-100'
+          : 'bg-[#fafafa] text-neutral-900'
+      }`}
+    >
+      <header
+        className={`sticky top-0 z-50 border-b backdrop-blur-xl ${
+          isDarkMode
+            ? 'border-neutral-800 bg-[#09090b]/90'
+            : 'border-neutral-200/80 bg-white/90'
+        }`}
+      >
+        <div className="mx-auto flex h-16 max-w-3xl items-center justify-between px-5 sm:px-6">
+          <Link
+            href="/articles"
+            className={`inline-flex items-center gap-2 text-sm font-medium transition-colors ${
+              isDarkMode
+                ? 'text-neutral-400 hover:text-white'
+                : 'text-neutral-500 hover:text-neutral-900'
+            }`}
+          >
             <Icons.Back />
-            <span>Back to Feed</span>
+            <span>All articles</span>
           </Link>
-          <Link href="/" className="font-mono text-xl font-black tracking-tighter">
-            UNSAID.
+
+          <Link
+            href="/"
+            className={`text-lg font-black tracking-tight ${
+              isDarkMode ? 'text-white' : 'text-neutral-900'
+            }`}
+          >
+            Tambayan<span className="text-emerald-600">.</span>
           </Link>
         </div>
       </header>
 
-      {/* Article Content */}
-      <main className="max-w-2xl mx-auto px-6 pt-16 pb-24">
-        {/* Article Header Metadata */}
-        <div className="mb-8">
-          <div className="flex items-center gap-2 font-mono text-xs uppercase tracking-wider text-neutral-400 mb-4">
-            <span className="font-bold text-emerald-700 bg-emerald-50 px-2.5 py-1 rounded">{article.category}</span>
-            <span>•</span>
-            <span>{formatArticleDate(article.createdAt)}</span>
-            <span>•</span>
-            <span>{article.readTime}</span>
+      <main className="mx-auto max-w-3xl px-5 pb-24 pt-10 sm:px-6 sm:pt-14">
+        <header className="mb-9">
+          <div className="mb-4 flex flex-wrap items-center gap-2 text-xs">
+            <span
+              className={`rounded-full px-2.5 py-1 font-semibold ${
+                isDarkMode
+                  ? 'bg-emerald-950/50 text-emerald-400'
+                  : 'bg-emerald-50 text-emerald-700'
+              }`}
+            >
+              {article.category}
+            </span>
+
+            <span className={isDarkMode ? 'text-neutral-700' : 'text-neutral-300'}>
+              •
+            </span>
+
+            <span className={isDarkMode ? 'text-neutral-500' : 'text-neutral-400'}>
+              {formatArticleDate(article.createdAt)}
+            </span>
+
+            <span className={isDarkMode ? 'text-neutral-700' : 'text-neutral-300'}>
+              •
+            </span>
+
+            <span className={isDarkMode ? 'text-neutral-500' : 'text-neutral-400'}>
+              {article.readTime}
+            </span>
           </div>
 
-          <h1 className="text-3xl md:text-5xl font-extrabold tracking-tight mb-6 leading-tight text-neutral-900">
+          <h1
+            className={`mb-5 text-3xl font-black leading-tight tracking-tight sm:text-4xl md:text-5xl ${
+              isDarkMode ? 'text-white' : 'text-neutral-900'
+            }`}
+          >
             {article.title}
           </h1>
-          
-          <p className="text-lg text-neutral-600 leading-relaxed font-normal">
-            {article.excerpt}
-          </p>
-        </div>
 
-        {/* Divider */}
-        <hr className="border-neutral-200 mb-10" />
+          {article.excerpt && (
+            <p
+              className={`max-w-2xl text-base leading-7 sm:text-lg ${
+                isDarkMode ? 'text-neutral-400' : 'text-neutral-600'
+              }`}
+            >
+              {article.excerpt}
+            </p>
+          )}
+        </header>
 
-        {/* Article Body Typography (Parsed Markdown) */}
-        <article className="prose prose-neutral max-w-none text-base md:text-lg leading-relaxed">
-          {renderMarkdownContent(article.content)}
+        <div
+          className={`mb-10 border-t ${
+            isDarkMode ? 'border-neutral-800' : 'border-neutral-200'
+          }`}
+        />
+
+        <article className="max-w-none text-base sm:text-[17px]">
+          {renderMarkdownContent(article.content, isDarkMode)}
         </article>
 
-        {/* Article Footer / Author Tag */}
-        <div className="mt-16 pt-8 border-t border-neutral-200 flex items-center justify-between font-mono text-xs text-neutral-500">
+        <footer
+          className={`mt-14 flex flex-col gap-5 border-t pt-7 sm:flex-row sm:items-center sm:justify-between ${
+            isDarkMode ? 'border-neutral-800' : 'border-neutral-200'
+          }`}
+        >
           <div>
-            <p className="font-bold text-neutral-900 uppercase">Written by {article.author}</p>
-            <p className="text-[11px] text-neutral-400">UNSAID Operations</p>
+            <p
+              className={`text-sm font-semibold ${
+                isDarkMode ? 'text-neutral-200' : 'text-neutral-900'
+              }`}
+            >
+              Written by {article.author}
+            </p>
+
+            <p
+              className={`mt-1 text-xs ${
+                isDarkMode ? 'text-neutral-500' : 'text-neutral-400'
+              }`}
+            >
+              Tambayan Reads
+            </p>
           </div>
-          <Link href="/" className="hover:text-neutral-900 uppercase font-bold tracking-wider">
-            Explore Feed →
+
+          <Link
+            href="/"
+            className={`text-sm font-semibold transition-colors ${
+              isDarkMode
+                ? 'text-emerald-400 hover:text-emerald-300'
+                : 'text-emerald-700 hover:text-emerald-900'
+            }`}
+          >
+            Back to Tambayan →
           </Link>
-        </div>
+        </footer>
       </main>
     </div>
   );
