@@ -10,7 +10,8 @@ import {
   onSnapshot, 
   doc, 
   updateDoc, 
-  deleteDoc 
+  deleteDoc,
+  serverTimestamp
 } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import { loginAdmin, logoutAdmin, checkAdminAuth } from '../actions';
@@ -22,7 +23,8 @@ interface PendingPost {
   category: string;
   createdAt: string;
   spotifyTrackId?: string;
-  imageUrl?: string; // <-- Added imageUrl field
+  imageUrl?: string;
+  moderationOriginalContent?: string;
 }
 
 const Icons = {
@@ -41,6 +43,25 @@ const Icons = {
       <polyline points="3 6 5 6 21 6"></polyline>
       <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
     </svg>
+  ),
+  Edit: () => (
+    <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M12 20h9"></path>
+      <path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4Z"></path>
+    </svg>
+  ),
+  Save: () => (
+    <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2Z"></path>
+      <polyline points="17 21 17 13 7 13 7 21"></polyline>
+      <polyline points="7 3 7 8 15 8"></polyline>
+    </svg>
+  ),
+  X: () => (
+    <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M18 6 6 18"></path>
+      <path d="m6 6 12 12"></path>
+    </svg>
   )
 };
 
@@ -50,6 +71,8 @@ export default function AdminModerationPage() {
   const [pendingPosts, setPendingPosts] = useState<PendingPost[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
   const [processingId, setProcessingId] = useState<string | null>(null);
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [editContent, setEditContent] = useState<string>("");
 
   // Verify server-side authentication status on mount
   useEffect(() => {
@@ -109,7 +132,8 @@ export default function AdminModerationPage() {
           category: data.category || "thoughts",
           createdAt: formattedDate,
           spotifyTrackId: data.spotifyTrackId || null,
-          imageUrl: data.imageUrl || data.image || null, // <-- Extract image URL from Firestore
+          imageUrl: data.imageUrl || data.image || null,
+          moderationOriginalContent: data.moderationOriginalContent ?? data.content ?? "",
         });
       });
 
@@ -123,11 +147,70 @@ export default function AdminModerationPage() {
     return () => unsubscribe();
   };
 
-  const handleApprove = async (id: string) => {
-    setProcessingId(id);
+  const startEditing = (post: PendingPost) => {
+    setEditingId(post.id);
+    setEditContent(post.content);
+  };
+
+  const cancelEditing = () => {
+    setEditingId(null);
+    setEditContent("");
+  };
+
+  const handleSaveEdit = async (post: PendingPost) => {
+    const trimmedContent = editContent.trim();
+
+    if (!trimmedContent && !post.imageUrl && !post.spotifyTrackId) {
+      alert("An entry cannot be empty.");
+      return;
+    }
+
+    setProcessingId(post.id);
     try {
-      const postRef = doc(db, "posts", id);
-      await updateDoc(postRef, { status: 'approved' });
+      const postRef = doc(db, "posts", post.id);
+      await updateDoc(postRef, {
+        content: trimmedContent,
+        moderationEdited: trimmedContent !== post.moderationOriginalContent,
+        moderationOriginalContent: post.moderationOriginalContent ?? post.content,
+        moderationEditedAt: serverTimestamp(),
+      });
+
+      setEditingId(null);
+      setEditContent("");
+    } catch (error) {
+      console.error("Error saving moderated entry:", error);
+      alert("Failed to save changes.");
+    } finally {
+      setProcessingId(null);
+    }
+  };
+
+  const handleApprove = async (post: PendingPost) => {
+    const isCurrentlyEditing = editingId === post.id;
+    const contentToPublish = isCurrentlyEditing ? editContent.trim() : post.content.trim();
+
+    if (!contentToPublish && !post.imageUrl && !post.spotifyTrackId) {
+      alert("An entry cannot be empty.");
+      return;
+    }
+
+    setProcessingId(post.id);
+    try {
+      const postRef = doc(db, "posts", post.id);
+      const originalContent = post.moderationOriginalContent ?? post.content;
+
+      await updateDoc(postRef, {
+        content: contentToPublish,
+        status: 'approved',
+        moderationEdited: contentToPublish !== originalContent,
+        moderationOriginalContent: originalContent,
+        moderatedAt: serverTimestamp(),
+      });
+
+      if (isCurrentlyEditing) {
+        setEditingId(null);
+        setEditContent("");
+      }
     } catch (error) {
       console.error("Error approving post:", error);
       alert("Failed to approve entry.");
@@ -236,7 +319,7 @@ export default function AdminModerationPage() {
             Pending Submissions
           </h1>
           <p className="text-xs font-mono text-neutral-400">
-            Review user-submitted entries. Approved entries will instantly go live on the public feed.
+            Review and edit user-submitted entries before publishing them to the public feed.
           </p>
         </div>
 
@@ -269,10 +352,39 @@ export default function AdminModerationPage() {
                     </span>
                   </div>
 
-                  {post.content && (
-                    <p className="text-sm font-medium text-neutral-200 whitespace-pre-wrap leading-relaxed">
-                      {post.content}
-                    </p>
+                  {editingId === post.id ? (
+                    <div className="space-y-2">
+                      <div className="flex items-center justify-between">
+                        <label
+                          htmlFor={`edit-${post.id}`}
+                          className="font-mono text-[10px] uppercase tracking-wider text-amber-400 font-bold"
+                        >
+                          Moderation edit
+                        </label>
+                        <span className="font-mono text-[10px] text-neutral-500">
+                          {editContent.length} characters
+                        </span>
+                      </div>
+                      <textarea
+                        id={`edit-${post.id}`}
+                        value={editContent}
+                        onChange={(e) => setEditContent(e.target.value)}
+                        rows={6}
+                        disabled={isProcessing}
+                        className="w-full resize-y rounded-lg border border-amber-500/30 bg-neutral-950 p-3 text-sm font-medium leading-relaxed text-neutral-100 outline-none transition-colors placeholder:text-neutral-600 focus:border-amber-400 disabled:opacity-60"
+                        placeholder="Edit the entry before publishing..."
+                        autoFocus
+                      />
+                      <p className="font-mono text-[10px] leading-relaxed text-neutral-500">
+                        Changes are made for moderation purposes. The original submission is retained in Firestore under <span className="text-neutral-400">moderationOriginalContent</span>.
+                      </p>
+                    </div>
+                  ) : (
+                    post.content && (
+                      <p className="text-sm font-medium text-neutral-200 whitespace-pre-wrap leading-relaxed">
+                        {post.content}
+                      </p>
+                    )
                   )}
 
                   {/* Render Uploaded Image if available */}
@@ -301,24 +413,58 @@ export default function AdminModerationPage() {
                     </div>
                   )}
 
-                  <div className="flex items-center justify-end gap-3 pt-3 border-t border-neutral-800/60">
-                    <button
-                      onClick={() => handleDelete(post.id)}
-                      disabled={isProcessing}
-                      className="inline-flex items-center gap-1.5 px-3.5 py-2 bg-rose-500/10 hover:bg-rose-500/20 text-rose-400 border border-rose-500/20 font-mono text-[11px] font-bold uppercase tracking-wider rounded transition-colors disabled:opacity-50"
-                    >
-                      <Icons.Trash />
-                      <span>Reject & Delete</span>
-                    </button>
+                  <div className="flex flex-col gap-3 pt-3 border-t border-neutral-800/60 sm:flex-row sm:items-center sm:justify-between">
+                    <div>
+                      {editingId === post.id ? (
+                        <div className="flex flex-wrap items-center gap-2">
+                          <button
+                            onClick={() => handleSaveEdit(post)}
+                            disabled={isProcessing}
+                            className="inline-flex items-center gap-1.5 px-3.5 py-2 bg-amber-500/10 hover:bg-amber-500/20 text-amber-300 border border-amber-500/20 font-mono text-[11px] font-bold uppercase tracking-wider rounded transition-colors disabled:opacity-50"
+                          >
+                            <Icons.Save />
+                            <span>{isProcessing ? 'Saving...' : 'Save Changes'}</span>
+                          </button>
+                          <button
+                            onClick={cancelEditing}
+                            disabled={isProcessing}
+                            className="inline-flex items-center gap-1.5 px-3.5 py-2 bg-neutral-800 hover:bg-neutral-700 text-neutral-300 border border-neutral-700 font-mono text-[11px] font-bold uppercase tracking-wider rounded transition-colors disabled:opacity-50"
+                          >
+                            <Icons.X />
+                            <span>Cancel</span>
+                          </button>
+                        </div>
+                      ) : (
+                        <button
+                          onClick={() => startEditing(post)}
+                          disabled={isProcessing || editingId !== null}
+                          className="inline-flex items-center gap-1.5 px-3.5 py-2 bg-amber-500/10 hover:bg-amber-500/20 text-amber-300 border border-amber-500/20 font-mono text-[11px] font-bold uppercase tracking-wider rounded transition-colors disabled:opacity-40"
+                        >
+                          <Icons.Edit />
+                          <span>Edit Entry</span>
+                        </button>
+                      )}
+                    </div>
 
-                    <button
-                      onClick={() => handleApprove(post.id)}
-                      disabled={isProcessing}
-                      className="inline-flex items-center gap-1.5 px-4 py-2 bg-emerald-500 hover:bg-emerald-400 text-neutral-950 font-mono text-[11px] font-bold uppercase tracking-wider rounded transition-colors disabled:opacity-50"
-                    >
-                      <Icons.Check />
-                      <span>{isProcessing ? 'Processing...' : 'Approve & Publish'}</span>
-                    </button>
+                    <div className="flex flex-wrap items-center gap-2 sm:justify-end">
+                      <button
+                        onClick={() => handleDelete(post.id)}
+                        disabled={isProcessing}
+                        className="inline-flex items-center gap-1.5 px-3.5 py-2 bg-rose-500/10 hover:bg-rose-500/20 text-rose-400 border border-rose-500/20 font-mono text-[11px] font-bold uppercase tracking-wider rounded transition-colors disabled:opacity-50"
+                      >
+                        <Icons.Trash />
+                        <span>Reject & Delete</span>
+                      </button>
+
+                      <button
+                        onClick={() => handleApprove(post)}
+                        disabled={isProcessing}
+                        className="inline-flex items-center gap-1.5 px-4 py-2 bg-emerald-500 hover:bg-emerald-400 text-neutral-950 font-mono text-[11px] font-bold uppercase tracking-wider rounded transition-colors disabled:opacity-50"
+                      >
+                        <Icons.Check />
+                        <span>{isProcessing ? 'Processing...' : editingId === post.id ? 'Publish Edited Entry' : 'Approve & Publish'}</span>
+                      </button>
+                    </div>
                   </div>
                 </div>
               );
