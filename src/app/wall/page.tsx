@@ -26,6 +26,7 @@ import {
   where,
   DocumentData,
   QueryDocumentSnapshot,
+  QuerySnapshot,
   Query,
   runTransaction,
 } from 'firebase/firestore';
@@ -914,7 +915,7 @@ useEffect(() => {
         const matches = new Map<string, PostProps>();
         try {
           while (!cancelled) {
-            const snapshot = await getDocs(
+            const snapshot: QuerySnapshot<DocumentData> = await getDocs(
               buildQuery(selectedCategory, batchSize, cursor)
             );
             if (cancelled || generation !== feedGeneration.current) return;
