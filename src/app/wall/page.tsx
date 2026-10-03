@@ -478,6 +478,12 @@ export default function WallPage() {
   const [debouncedSearch, setDebouncedSearch] =
     useState<string>('');
 
+  const [searchingOlder, setSearchingOlder] = useState(false);
+  const [searchChecked, setSearchChecked] = useState(0);
+  const [searchError, setSearchError] = useState('');
+  const [searchRetry, setSearchRetry] = useState(0);
+  const feedGeneration = useRef(0);
+
   const [pinnedPosts, setPinnedPosts] =
     useState<PostProps[]>([]);
 
@@ -875,7 +881,7 @@ useEffect(() => {
       setDebouncedSearch(
         searchQuery.trim()
       );
-    }, 300);
+    }, 600);
 
     return () =>
       clearTimeout(timer);
@@ -883,11 +889,63 @@ useEffect(() => {
 
 
   useEffect(() => {
+    const generation = ++feedGeneration.current;
+    let cancelled = false;
+    setSearchingOlder(false);
+    setSearchChecked(0);
+    setSearchError('');
+    setLoadingMore(false);
     setLoading(true);
     setHasMore(true);
     setRawPosts([]);
     setPinnedPosts([]);
     setLastVisible(null);
+
+    // Search every approved page, without attaching a collection-wide listener.
+    // Keep only matches in memory. Cleanup prevents superseded requests writing state.
+    if (debouncedSearch) {
+      setHasMore(false);
+      setSearchingOlder(true);
+      const searchText = debouncedSearch.toLowerCase();
+      const searchAllPages = async () => {
+        const batchSize = 100;
+        let cursor: QueryDocumentSnapshot<DocumentData> | null = null;
+        let checked = 0;
+        const matches = new Map<string, PostProps>();
+        try {
+          while (!cancelled) {
+            const snapshot = await getDocs(
+              buildQuery(selectedCategory, batchSize, cursor)
+            );
+            if (cancelled || generation !== feedGeneration.current) return;
+            checked += snapshot.size;
+            for (const post of formatPosts(snapshot)) {
+              if (post.content.toLowerCase().includes(searchText) ||
+                  post.authorAlias.toLowerCase().includes(searchText)) {
+                matches.set(post.id, post);
+              }
+            }
+            setRawPosts(Array.from(matches.values()));
+            setSearchChecked(checked);
+            setLoading(false);
+            if (snapshot.size < batchSize) break;
+            cursor = snapshot.docs[snapshot.docs.length - 1];
+          }
+        } catch (error) {
+          if (!cancelled && generation === feedGeneration.current) {
+            console.error('Error searching older entries:', error);
+            setSearchError('Search could not finish. Some older entries may be missing.');
+          }
+        } finally {
+          if (!cancelled && generation === feedGeneration.current) {
+            setSearchingOlder(false);
+            setLoading(false);
+          }
+        }
+      };
+      void searchAllPages();
+      return () => { cancelled = true; };
+    }
 
     const savedCount = Number(
       sessionStorage.getItem(
@@ -895,10 +953,9 @@ useEffect(() => {
       ) || '10'
     );
 
-    const fetchLimit =
-      debouncedSearch !== ''
-        ? 50
-        : Math.max(10, savedCount);
+    const fetchLimit = Number.isFinite(savedCount)
+      ? Math.max(10, savedCount)
+      : 10;
 
     const postsRef =
       collection(db, 'posts');
@@ -930,8 +987,7 @@ useEffect(() => {
 
             if (
               querySnapshot.docs.length <
-                fetchLimit ||
-              debouncedSearch !== ''
+                fetchLimit
             ) {
               setHasMore(false);
             } else {
@@ -1019,12 +1075,14 @@ useEffect(() => {
       );
 
     return () => {
+      cancelled = true;
       unsubscribeNormal();
       unsubscribePinned();
     };
   }, [
     selectedCategory,
     debouncedSearch,
+    searchRetry,
     buildQuery,
   ]);
 
@@ -1232,56 +1290,19 @@ useEffect(() => {
   ========================================================= */
 
   const posts = useMemo(() => {
-    let filteredPosts =
-      rawPosts;
-
-    if (debouncedSearch) {
-      const queryLower =
-        debouncedSearch.toLowerCase();
-
-      filteredPosts =
-        rawPosts.filter(
-          (post) =>
-            post.content
-              .toLowerCase()
-              .includes(
-                queryLower
-              ) ||
-            post.authorAlias
-              .toLowerCase()
-              .includes(
-                queryLower
-              )
-        );
+    const uniquePosts = new Map<string, PostProps>();
+    // Separate pinned listener wins when the normal feed contains the same post.
+    for (const post of [...pinnedPosts, ...rawPosts]) {
+      if (!uniquePosts.has(post.id)) uniquePosts.set(post.id, post);
     }
-
-    /*
-     * Pinned posts are loaded separately.
-     * Remove them from the normal list to avoid duplicates.
-     */
-    const pinnedIds =
-      new Set(
-        pinnedPosts.map(
-          (post) => post.id
-        )
-      );
-
-    const normalPosts =
-      filteredPosts.filter(
-        (post) =>
-          !pinnedIds.has(
-            post.id
-          )
-      );
-
-    /*
-     * Pinned posts ALWAYS appear first.
-     */
-
-
+    const searchText = debouncedSearch.toLowerCase();
+    const filteredPosts = Array.from(uniquePosts.values()).filter((post) =>
+      !searchText || post.content.toLowerCase().includes(searchText) ||
+      post.authorAlias.toLowerCase().includes(searchText)
+    );
     return [
-      ...pinnedPosts,
-      ...normalPosts,
+      ...filteredPosts.filter((post) => post.isPinned),
+      ...filteredPosts.filter((post) => !post.isPinned),
     ];
   }, [
     rawPosts,
@@ -1343,6 +1364,7 @@ useEffect(() => {
         return;
       }
 
+      const generation = feedGeneration.current;
       setLoadingMore(true);
 
       try {
@@ -1357,6 +1379,8 @@ useEffect(() => {
           await getDocs(
             nextQuery
           );
+
+        if (generation !== feedGeneration.current) return;
 
         if (
           querySnapshot.empty
@@ -1414,7 +1438,7 @@ useEffect(() => {
           error
         );
       } finally {
-        setLoadingMore(false);
+        if (generation === feedGeneration.current) setLoadingMore(false);
       }
     };
 
@@ -2135,7 +2159,7 @@ const copyPostLink =
               type="search"
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              placeholder="Search recent entries or aliases..."
+              placeholder="Search entries or aliases..."
               aria-label="Search Freedom Wall entries"
               className={`w-full rounded-xl border py-3.5 pl-10 pr-11 text-sm font-mono shadow-2xs focus:outline-none ${
                 isDarkMode
@@ -2583,6 +2607,20 @@ const copyPostLink =
           )}
         </section>
 
+        {debouncedSearch && (
+          <div role="status" aria-live="polite" className="mb-4 text-sm text-neutral-500">
+            {searchingOlder
+              ? `Searching older entries… ${searchChecked} checked so far.`
+              : searchError || `Search complete. ${searchChecked} entries checked.`}
+            {searchError && (
+              <button type="button" onClick={() => setSearchRetry((value) => value + 1)}
+                className="ml-2 underline font-semibold">
+                Retry search
+              </button>
+            )}
+          </div>
+        )}
+
         {/* POSTS */}
         {loading ? (
           <div className="space-y-4" aria-label="Loading Freedom Wall entries">
@@ -2976,7 +3014,7 @@ const copyPostLink =
             )}
 
             {/* NO POSTS */}
-            {posts.length === 0 && (
+            {posts.length === 0 && !searchingOlder && !searchError && (
               <div
                 className={`rounded-2xl border border-dashed px-6 py-14 text-center ${
                   isDarkMode
@@ -3004,7 +3042,7 @@ const copyPostLink =
                   isDarkMode ? 'text-neutral-500' : 'text-neutral-500'
                 }`}>
                   {searchQuery
-                    ? `No recent entries matched “${searchQuery}”. Try another keyword or reset the filters.`
+                    ? `No entries matched “${debouncedSearch}” in this category. Try another keyword or reset the filters.`
                     : 'There are no approved entries in this category yet. You can be the first to leave something on the wall.'}
                 </p>
 
