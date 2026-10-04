@@ -104,6 +104,16 @@ interface CardTheme {
   border: string;
 }
 
+interface SpotifyTrackSearchResult {
+  id: string;
+  name: string;
+  artists: string;
+  album: string;
+  imageUrl: string | null;
+  durationMs: number;
+  explicit: boolean;
+}
+
 const Icons = {
   ArrowLeft: () => <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="19" y1="12" x2="5" y2="12"/><polyline points="12 19 5 12 12 5"/></svg>,
   Send: () => <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>,
@@ -291,8 +301,13 @@ export default function PostPage() {
   const [isDarkMode, setIsDarkMode] = useState<boolean>(false);
 
   // Spotify integration state
-  const [spotifyUrl, setSpotifyUrl] = useState('');
   const [spotifyTrackId, setSpotifyTrackId] = useState('');
+  const [selectedSpotifyTrack, setSelectedSpotifyTrack] =
+    useState<SpotifyTrackSearchResult | null>(null);
+  const [spotifyQuery, setSpotifyQuery] = useState('');
+  const [spotifyResults, setSpotifyResults] =
+    useState<SpotifyTrackSearchResult[]>([]);
+  const [spotifySearching, setSpotifySearching] = useState(false);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [modalInputError, setModalInputError] = useState('');
 
@@ -411,39 +426,80 @@ export default function PostPage() {
     return `Louisian #${randomNum}`;
   };
 
-  // Helper to extract Spotify Track ID from normal URLs or URI strings
-  const extractSpotifyId = (url: string) => {
-    const cleanUrl = url.trim();
+  const formatTrackDuration = (durationMs: number) => {
+    const totalSeconds = Math.floor(durationMs / 1000);
+    const minutes = Math.floor(totalSeconds / 60);
+    const seconds = totalSeconds % 60;
 
-    const match = cleanUrl.match(
-      /(?:track\/|spotify:track:)([a-zA-Z0-9]{22})/
-    );
-
-    return match ? match[1] : null;
+    return `${minutes}:${seconds.toString().padStart(2, '0')}`;
   };
 
-  const handleSaveSpotifyTrack = (e: React.FormEvent) => {
-    e.preventDefault();
+  const handleSearchSpotify = async (e?: React.FormEvent) => {
+    e?.preventDefault();
+
+    const query = spotifyQuery.trim();
 
     setModalInputError('');
 
-    const trackId = extractSpotifyId(spotifyUrl);
-
-    if (!trackId) {
-      setModalInputError(
-        'Invalid Spotify track link. Please copy a valid song link from Spotify.'
-      );
-
+    if (query.length < 2) {
+      setSpotifyResults([]);
+      setModalInputError('Type at least 2 characters to search.');
       return;
     }
 
-    setSpotifyTrackId(trackId);
+    setSpotifySearching(true);
+
+    try {
+      const response = await fetch(
+        `/api/spotify/search?q=${encodeURIComponent(query)}`,
+        { cache: 'no-store' }
+      );
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(
+          data?.error || 'Spotify search failed. Please try again.'
+        );
+      }
+
+      const tracks: SpotifyTrackSearchResult[] =
+        Array.isArray(data?.tracks) ? data.tracks : [];
+
+      setSpotifyResults(tracks);
+
+      if (tracks.length === 0) {
+        setModalInputError(
+          'No matching tracks found. Try another song or artist.'
+        );
+      }
+    } catch (error) {
+      console.error('Spotify search error:', error);
+      setSpotifyResults([]);
+      setModalInputError(
+        error instanceof Error
+          ? error.message
+          : 'Spotify search failed. Please try again.'
+      );
+    } finally {
+      setSpotifySearching(false);
+    }
+  };
+
+  const handleSelectSpotifyTrack = (
+    track: SpotifyTrackSearchResult
+  ) => {
+    setSpotifyTrackId(track.id);
+    setSelectedSpotifyTrack(track);
+    setSpotifyQuery('');
+    setSpotifyResults([]);
+    setModalInputError('');
     setIsModalOpen(false);
-    setSpotifyUrl('');
   };
 
   const handleRemoveSpotifyTrack = () => {
     setSpotifyTrackId('');
+    setSelectedSpotifyTrack(null);
   };
 
   const handleImageChange = (
@@ -1064,7 +1120,12 @@ export default function PostPage() {
               {!spotifyTrackId ? (
                 <button
                   type="button"
-                  onClick={() => setIsModalOpen(true)}
+                  onClick={() => {
+                    setModalInputError('');
+                    setSpotifyQuery('');
+                    setSpotifyResults([]);
+                    setIsModalOpen(true);
+                  }}
                   className={`inline-flex items-center gap-2 px-4 py-2.5 border rounded-lg font-mono text-xs font-semibold transition-colors cursor-pointer ${
                     isDarkMode
                       ? 'bg-neutral-900 hover:bg-neutral-800 border-neutral-800 text-neutral-300'
@@ -1072,7 +1133,7 @@ export default function PostPage() {
                   }`}
                 >
                   <Icons.Music />
-                  <span>Add Spotify Track</span>
+                  <span>Search Spotify</span>
                 </button>
               ) : (
                 <div
@@ -1106,6 +1167,37 @@ export default function PostPage() {
                       <span>Remove</span>
                     </button>
                   </div>
+
+                  {selectedSpotifyTrack && (
+                    <div className="flex items-center gap-3">
+                      {selectedSpotifyTrack.imageUrl && (
+                        <img
+                          src={selectedSpotifyTrack.imageUrl}
+                          alt={`${selectedSpotifyTrack.album} cover`}
+                          className="h-12 w-12 rounded-md object-cover"
+                        />
+                      )}
+
+                      <div className="min-w-0">
+                        <p
+                          className={`truncate text-sm font-semibold ${
+                            isDarkMode ? 'text-white' : 'text-neutral-900'
+                          }`}
+                        >
+                          {selectedSpotifyTrack.name}
+                        </p>
+                        <p
+                          className={`truncate text-xs ${
+                            isDarkMode
+                              ? 'text-neutral-400'
+                              : 'text-neutral-500'
+                          }`}
+                        >
+                          {selectedSpotifyTrack.artists}
+                        </p>
+                      </div>
+                    </div>
+                  )}
 
                   <iframe
                     src={`https://open.spotify.com/embed/track/${spotifyTrackId}?utm_source=generator&theme=${isDarkMode ? '1' : '0'}`}
@@ -1190,11 +1282,11 @@ export default function PostPage() {
 
       </main>
 
-      {/* Spotify URL Modal Popup */}
+      {/* Spotify Search Modal */}
       {isModalOpen && (
         <div className="fixed inset-0 z-50 bg-neutral-900/60 backdrop-blur-xs flex items-center justify-center p-4">
           <div
-            className={`border rounded-xl max-w-md w-full p-6 shadow-xl animate-fadeIn ${
+            className={`border rounded-xl max-w-xl w-full p-5 sm:p-6 shadow-xl animate-fadeIn ${
               isDarkMode
                 ? 'bg-neutral-900 border-neutral-800 text-white'
                 : 'bg-white border-neutral-200 text-neutral-900'
@@ -1209,7 +1301,7 @@ export default function PostPage() {
                 }`}
               >
                 <Icons.Music />
-                <span>Attach Spotify Song</span>
+                <span>Search Spotify</span>
               </div>
 
               <button
@@ -1220,6 +1312,7 @@ export default function PostPage() {
                     ? 'text-neutral-400 hover:text-white'
                     : 'text-neutral-400 hover:text-neutral-900'
                 }`}
+                aria-label="Close Spotify search"
               >
                 <Icons.X />
               </button>
@@ -1232,91 +1325,148 @@ export default function PostPage() {
                   : 'text-neutral-500'
               }`}
             >
-              Open Spotify, go to the track you want, click{' '}
-              <strong
-                className={
-                  isDarkMode
-                    ? 'text-white'
-                    : 'text-neutral-800'
-                }
-              >
-                Share
-              </strong>
-              , and choose{' '}
-              <strong
-                className={
-                  isDarkMode
-                    ? 'text-white'
-                    : 'text-neutral-800'
-                }
-              >
-                Copy Song Link
-              </strong>
-              . Paste it below.
+              Search for a song, artist, or both. Tap a result to attach
+              it to your post.
             </p>
 
             <form
-              onSubmit={handleSaveSpotifyTrack}
-              className="space-y-4"
+              onSubmit={handleSearchSpotify}
+              className="flex gap-2"
             >
-              <div>
-                <input
-                  type="text"
-                  value={spotifyUrl}
-                  onChange={(e) => {
-                    setSpotifyUrl(e.target.value);
+              <input
+                type="search"
+                value={spotifyQuery}
+                onChange={(e) => {
+                  setSpotifyQuery(e.target.value);
 
-                    if (modalInputError) {
-                      setModalInputError('');
-                    }
-                  }}
-                  placeholder="https://open.spotify.com/track/..."
-                  className={`w-full p-3 border rounded-lg text-xs font-mono transition-all focus:outline-none ${
+                  if (modalInputError) {
+                    setModalInputError('');
+                  }
+                }}
+                placeholder="Search songs or artists..."
+                className={`min-w-0 flex-1 p-3 border rounded-lg text-sm transition-all focus:outline-none ${
+                  isDarkMode
+                    ? 'bg-neutral-950 border-neutral-800 text-white placeholder:text-neutral-600 focus:border-neutral-100'
+                    : 'bg-neutral-50 border-neutral-200 text-neutral-900 placeholder:text-neutral-400 focus:border-neutral-900 focus:bg-white'
+                }`}
+                autoFocus
+                autoComplete="off"
+              />
+
+              <button
+                type="submit"
+                disabled={spotifySearching || !spotifyQuery.trim()}
+                className={`shrink-0 px-4 py-3 font-mono text-xs font-bold uppercase tracking-wider rounded-lg transition-all shadow-sm cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed ${
+                  isDarkMode
+                    ? 'bg-neutral-100 text-neutral-950 hover:bg-white'
+                    : 'bg-neutral-900 text-white hover:bg-neutral-800'
+                }`}
+              >
+                {spotifySearching ? 'Searching...' : 'Search'}
+              </button>
+            </form>
+
+            {modalInputError && (
+              <p
+                className={`mt-3 text-[11px] font-mono ${
+                  isDarkMode
+                    ? 'text-rose-400'
+                    : 'text-rose-600'
+                }`}
+              >
+                {modalInputError}
+              </p>
+            )}
+
+            <div className="mt-4 max-h-[420px] overflow-y-auto space-y-2 pr-1">
+              {spotifyResults.map((track) => (
+                <button
+                  key={track.id}
+                  type="button"
+                  onClick={() => handleSelectSpotifyTrack(track)}
+                  className={`w-full flex items-center gap-3 rounded-xl border p-2.5 text-left transition-colors cursor-pointer ${
                     isDarkMode
-                      ? 'bg-neutral-950 border-neutral-800 text-white placeholder:text-neutral-600 focus:border-neutral-100'
-                      : 'bg-neutral-50 border-neutral-200 text-neutral-900 placeholder:text-neutral-400 focus:border-neutral-900 focus:bg-white'
+                      ? 'border-neutral-800 bg-neutral-950/70 hover:bg-neutral-800'
+                      : 'border-neutral-200 bg-neutral-50 hover:bg-neutral-100'
                   }`}
-                  autoFocus
-                />
+                >
+                  {track.imageUrl ? (
+                    <img
+                      src={track.imageUrl}
+                      alt={`${track.album} cover`}
+                      className="h-14 w-14 shrink-0 rounded-md object-cover"
+                      loading="lazy"
+                    />
+                  ) : (
+                    <div
+                      className={`h-14 w-14 shrink-0 rounded-md flex items-center justify-center ${
+                        isDarkMode
+                          ? 'bg-neutral-800 text-neutral-500'
+                          : 'bg-neutral-200 text-neutral-500'
+                      }`}
+                    >
+                      <Icons.Music />
+                    </div>
+                  )}
 
-                {modalInputError && (
-                  <p
-                    className={`mt-2 text-[11px] font-mono ${
+                  <div className="min-w-0 flex-1">
+                    <div className="flex items-center gap-2">
+                      <p
+                        className={`truncate text-sm font-semibold ${
+                          isDarkMode
+                            ? 'text-white'
+                            : 'text-neutral-900'
+                        }`}
+                      >
+                        {track.name}
+                      </p>
+
+                      {track.explicit && (
+                        <span
+                          className={`shrink-0 rounded px-1 py-0.5 font-mono text-[8px] font-bold ${
+                            isDarkMode
+                              ? 'bg-neutral-700 text-neutral-300'
+                              : 'bg-neutral-200 text-neutral-600'
+                          }`}
+                        >
+                          E
+                        </span>
+                      )}
+                    </div>
+
+                    <p
+                      className={`mt-0.5 truncate text-xs ${
+                        isDarkMode
+                          ? 'text-neutral-400'
+                          : 'text-neutral-600'
+                      }`}
+                    >
+                      {track.artists}
+                    </p>
+
+                    <p
+                      className={`mt-1 truncate font-mono text-[10px] ${
+                        isDarkMode
+                          ? 'text-neutral-600'
+                          : 'text-neutral-400'
+                      }`}
+                    >
+                      {track.album} · {formatTrackDuration(track.durationMs)}
+                    </p>
+                  </div>
+
+                  <span
+                    className={`shrink-0 font-mono text-[10px] font-bold uppercase tracking-wider ${
                       isDarkMode
-                        ? 'text-rose-400'
-                        : 'text-rose-600'
+                        ? 'text-neutral-400'
+                        : 'text-neutral-500'
                     }`}
                   >
-                    {modalInputError}
-                  </p>
-                )}
-              </div>
-
-              <div className="flex items-center justify-end gap-3 pt-2">
-                <button
-                  type="button"
-                  onClick={() => setIsModalOpen(false)}
-                  className={`px-4 py-2 font-mono text-xs font-semibold transition-colors cursor-pointer ${
-                    isDarkMode
-                      ? 'text-neutral-400 hover:text-white'
-                      : 'text-neutral-500 hover:text-neutral-900'
-                  }`}
-                >
-                  Cancel
+                    Select
+                  </span>
                 </button>
-
-                <button
-                  type="submit"
-                  className={`px-4 py-2 font-mono text-xs font-bold uppercase tracking-wider rounded transition-all shadow-sm cursor-pointer ${
-                    isDarkMode
-                      ? 'bg-neutral-100 text-neutral-950 hover:bg-white'
-                      : 'bg-neutral-900 text-white hover:bg-neutral-800'
-                  }`}
-                >
-                  Attach Track
-                </button>
-              </div>
-            </form>
+              ))}
+            </div>
           </div>
         </div>
       )}
