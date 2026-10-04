@@ -137,21 +137,6 @@ export default function HowItWorksPage() {
             Share, connect, and stay anonymous.
           </h1>
 
-          <div className={`space-y-4 text-base leading-relaxed ${body}`}>
-            <p>
-              Tambayan SLU is built around two main community features:
-              the Freedom Wall and Anonymous Chat. Both are designed to
-              give Louisians a space to express themselves and connect
-              without requiring a public identity.
-            </p>
-
-            <p>
-              Anonymity does not mean there are no rules. Freedom Wall
-              submissions may go through moderation, published content
-              can be reported, and users are expected to follow the
-              Community Guidelines while using the platform.
-            </p>
-          </div>
         </section>
 
         <section className={`rounded-2xl border p-6 sm:p-8 mb-5 ${card}`}>
@@ -162,11 +147,6 @@ export default function HowItWorksPage() {
           <h2 className={`text-2xl font-extrabold tracking-tight mb-3 ${heading}`}>
             How posting works
           </h2>
-
-          <p className={`text-sm sm:text-base leading-relaxed mb-8 ${body}`}>
-            The Freedom Wall is where community members can anonymously
-            share entries and read what other Louisians are talking about.
-          </p>
 
           <div className="space-y-7">
             {freedomSteps.map(([number, title, description]) => (
@@ -243,12 +223,6 @@ export default function HowItWorksPage() {
           <h2 className={`text-2xl font-extrabold tracking-tight mb-3 ${heading}`}>
             How anonymous conversations work
           </h2>
-
-          <p className={`text-sm sm:text-base leading-relaxed mb-8 ${body}`}>
-            Anonymous Chat provides a separate space for one-to-one
-            conversations without requiring users to publicly exchange
-            their identities.
-          </p>
 
           <div className="space-y-7">
             {chatSteps.map(([number, title, description]) => (
@@ -346,13 +320,6 @@ export default function HowItWorksPage() {
           <h2 className={`text-2xl font-extrabold tracking-tight mb-4 ${heading}`}>
             Help keep Tambayan safe.
           </h2>
-
-          <p className={`text-sm sm:text-base leading-relaxed mb-5 ${body}`}>
-            Everyone using Tambayan has a role in keeping the community
-            useful and respectful. Before posting or chatting, avoid
-            sharing content that could harm another person or expose
-            private information.
-          </p>
 
           <ul className={`space-y-3 text-sm leading-relaxed ${body}`}>
             {[

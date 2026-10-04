@@ -2058,23 +2058,6 @@ const copyPostLink =
             <div className="absolute -right-16 -top-20 h-44 w-44 rounded-full bg-emerald-500/10 blur-3xl pointer-events-none" />
 
             <div className="relative">
-              <div className="mb-5 flex flex-wrap items-center gap-2">
-                <span className={`inline-flex items-center gap-2 rounded-full border px-3 py-1.5 font-mono text-[9px] font-bold uppercase tracking-[0.16em] ${
-                  isDarkMode
-                    ? 'border-emerald-900/60 bg-emerald-950/30 text-emerald-400'
-                    : 'border-emerald-200 bg-emerald-50 text-emerald-700'
-                }`}>
-                  <span className="h-1.5 w-1.5 rounded-full bg-emerald-500 animate-pulse" />
-                  Live community feed
-                </span>
-
-                <span className={`font-mono text-[9px] uppercase tracking-wider ${
-                  isDarkMode ? 'text-neutral-600' : 'text-neutral-400'
-                }`}>
-                  Approved entries only
-                </span>
-              </div>
-
               <div className="flex flex-col gap-6 sm:flex-row sm:items-end sm:justify-between">
                 <div className="min-w-0">
                   <p className="mb-2 font-mono text-[10px] font-bold uppercase tracking-widest text-emerald-600">

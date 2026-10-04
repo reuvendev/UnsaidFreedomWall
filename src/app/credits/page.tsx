@@ -225,39 +225,22 @@ export default function CreditsPage() {
             Behind Tambayan.
           </h1>
 
-          <div
-            className={`space-y-4 text-base leading-relaxed ${body}`}
-          >
-            <p>
-              Tambayan is an independently developed student
-              project built to create an anonymous online
-              community space for Louisians.
-            </p>
-
-            <p>
-              The project combines what is learned in Information
-              Technology with practical web development,
-              database management, interface design, moderation,
-              privacy, and maintaining a real platform used by a
-              student community.
-            </p>
-          </div>
         </section>
 
         <div className="space-y-5">
-          {/* Developer */}
+          {/* Development Team */}
           <section
             className={`rounded-2xl border p-6 sm:p-8 ${card}`}
           >
             <div className="flex items-center gap-2.5 font-mono text-[10px] font-bold uppercase tracking-widest text-emerald-600 mb-4">
               <Icons.User />
-              <span>Created & Developed By</span>
+              <span>Developed & Maintained By</span>
             </div>
 
             <h2
               className={`text-2xl font-extrabold tracking-tight mb-2 ${heading}`}
             >
-              Nevz
+              Valiance
             </h2>
 
             <p
@@ -267,27 +250,23 @@ export default function CreditsPage() {
                   : 'text-neutral-400'
               }`}
             >
-              BS Information Technology · SLU SAMCIS
+              Student Development Team
             </p>
 
             <div
               className={`space-y-4 text-sm sm:text-base leading-relaxed ${body}`}
             >
               <p>
-                Tambayan was created and developed by a Bachelor
-                of Science in Information Technology (BSIT)
-                student from Saint Louis University&apos;s School
-                of Accountancy, Management, Computing and
-                Information Studies (SAMCIS).
+                Tambayan is developed and maintained by Valiance, a
+                student-led development team responsible for the platform&apos;s
+                development, design, implementation, database management,
+                maintenance, and technical improvements.
               </p>
 
               <p>
-                The project serves as a practical application of
-                concepts and skills learned while studying
-                Information Technology. It provides an
-                opportunity to apply classroom knowledge to the
-                development and maintenance of a real web
-                platform.
+                The team applies concepts and skills learned in Information
+                Technology while continuously learning through the development
+                and operation of a real platform used by the student community.
               </p>
             </div>
           </section>
@@ -421,31 +400,6 @@ export default function CreditsPage() {
             </div>
           </section>
 
-          {/* Design */}
-          <section
-            className={`rounded-2xl border p-6 sm:p-8 ${card}`}
-          >
-            <p className="font-mono text-[10px] font-bold uppercase tracking-widest text-emerald-600 mb-3">
-              Design
-            </p>
-
-            <h2
-              className={`text-2xl font-extrabold tracking-tight mb-4 ${heading}`}
-            >
-              Simple, readable, and community-focused.
-            </h2>
-
-            <p
-              className={`text-sm sm:text-base leading-relaxed ${body}`}
-            >
-              Tambayan uses a minimal interface intended to keep
-              attention on community conversations rather than
-              complicated profiles or unnecessary visual
-              elements. The design continues to evolve as the
-              platform and its features are improved.
-            </p>
-          </section>
-
           {/* Independent */}
           <section
             className={`rounded-2xl border p-6 sm:p-8 ${card}`}
@@ -457,13 +411,13 @@ export default function CreditsPage() {
             <p
               className={`text-sm sm:text-base leading-relaxed ${body}`}
             >
-              Tambayan SLU is independently developed and
-              operated. Although its developer is a student of
-              Saint Louis University, Tambayan is not an
-              official academic project, service, or platform of
-              Saint Louis University, SAMCIS, or any university
-              office. It is not affiliated with, authorized by,
-              or endorsed by Saint Louis University.
+              Tambayan SLU is independently developed and maintained
+              by Valiance. Although members of the team are students
+              of Saint Louis University, Tambayan is not an official
+              academic project, service, or platform of Saint Louis
+              University, SAMCIS, or any university office. It is not
+              affiliated with, authorized by, or endorsed by Saint
+              Louis University.
             </p>
           </section>
         </div>

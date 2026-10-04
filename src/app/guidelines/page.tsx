@@ -299,28 +299,6 @@ export default function GuidelinesPage() {
           <p className="font-mono text-[11px] text-neutral-500 mb-6">
             Last updated: September 23, 2026
           </p>
-
-          <div className={`space-y-4 text-base leading-relaxed ${body}`}>
-            <p>
-              Tambayan is a space for Louisians to share thoughts, stories, questions,
-              experiences, and conversations anonymously. These guidelines explain what is
-              expected from everyone who uses the platform.
-            </p>
-
-            <p>
-              Being anonymous does not remove responsibility. Content may be reviewed,
-              rejected, reported, or removed when it violates these guidelines. The goal is to
-              allow open expression while protecting the privacy and safety of other members of
-              the community.
-            </p>
-
-            <p>
-              Anonymous Chat is available only to users who are at least
-              18 years old. By entering Anonymous Chat, you confirm that
-              you meet this age requirement.
-            </p>
-
-          </div>
         </section>
 
         {/* AGE REQUIREMENT */}

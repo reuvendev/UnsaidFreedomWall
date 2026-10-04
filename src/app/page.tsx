@@ -1254,7 +1254,7 @@ export default function HomePage() {
                 isDarkMode ? 'text-white' : 'text-neutral-900'
               }`}
             >
-              A student space for the things that are easier to say anonymously.
+              A space to say the things you usually keep to yourself.
             </h2>
 
             <div className="space-y-4">
@@ -1263,9 +1263,7 @@ export default function HomePage() {
                   isDarkMode ? 'text-neutral-400' : 'text-neutral-600'
                 }`}
               >
-                Tambayan SLU is an independent online community where Louisians can
-                share thoughts, confessions, questions, rants, advice, and everyday
-                campus experiences without attaching their public identity to every post.
+                Tambayan SLU is an independent student-made space where Louisians can post thoughts, confessions, questions, rants, advice, or just random things about campus life.
               </p>
 
               <p
@@ -1273,9 +1271,7 @@ export default function HomePage() {
                   isDarkMode ? 'text-neutral-400' : 'text-neutral-600'
                 }`}
               >
-                The goal is simple: make it easier to speak, listen, and connect while
-                keeping the community respectful. Public entries can be moderated and
-                reported, while private conversations stay separate from the Freedom Wall.
+                You can read what other students are going through, leave a reply, or talk privately through anonymous chat. The idea is simply to give Louisians a place where they can be more open without needing to put their name or public profile on everything.
               </p>
             </div>
 
@@ -1286,15 +1282,15 @@ export default function HomePage() {
             >
               {[
                 {
-                  title: 'Anonymous by design',
-                  text: 'Public posts use anonymous Louisian aliases instead of requiring a public profile.',
+                  title: 'Stay anonymous',
+                  text: 'Posts use anonymous Louisian aliases, so you don’t need to create a public identity just to share something.',
                 },
                 {
-                  title: 'Moderated for safety',
-                  text: 'Reports and moderation help keep harassment, doxxing, spam, and harmful content off the wall.',
+                  title: 'Keep it respectful',
+                  text: 'Posts can be reported and reviewed. Harassment, doxxing, spam, and other harmful content aren’t welcome here.',
                 },
                 {
-                  title: 'Community-first',
+                  title: 'Made around the community',
                   text: 'Tambayan is built around student stories, questions, experiences, and conversations.',
                 },
               ].map((item) => (
@@ -1452,15 +1448,6 @@ export default function HomePage() {
               Different moods, one community.
             </h2>
 
-            <p
-              className={`mt-3 max-w-xl text-sm leading-relaxed ${
-                isDarkMode ? 'text-neutral-400' : 'text-neutral-600'
-              }`}
-            >
-              The Freedom Wall is organized so people can quickly find the kind of
-              conversation they need — whether they want to vent, ask for advice,
-              share something wholesome, or simply read what other Louisians are experiencing.
-            </p>
           </div>
 
           <div className="grid gap-3 sm:grid-cols-2">
@@ -1659,80 +1646,6 @@ export default function HomePage() {
                 }`}
               >
                 Privacy →
-              </Link>
-            </div>
-          </div>
-        </section>
-
-        {/* TAMBAYAN PET */}
-        <section className="mb-14">
-          <div
-            className={`relative overflow-hidden rounded-2xl border p-6 sm:p-7 ${
-              isDarkMode
-                ? 'bg-emerald-950/25 border-emerald-900/60'
-                : 'bg-emerald-50 border-emerald-200'
-            }`}
-          >
-            <div
-              className={`absolute -right-8 -top-8 h-28 w-28 rounded-full blur-2xl ${
-                isDarkMode ? 'bg-emerald-900/30' : 'bg-emerald-200/60'
-              }`}
-            />
-
-            <div className="relative">
-              <div className="mb-4 flex items-center gap-2">
-                <span
-                  className={`inline-flex h-9 w-9 items-center justify-center rounded-xl ${
-                    isDarkMode
-                      ? 'bg-emerald-900/60 text-emerald-300'
-                      : 'bg-emerald-600 text-white'
-                  }`}
-                >
-                  <Icons.Paw />
-                </span>
-
-                <div>
-                  <p className="font-mono text-[9px] font-bold uppercase tracking-widest text-emerald-600">
-                    Tambayan Pet
-                  </p>
-                  <p
-                    className={`font-mono text-[9px] uppercase tracking-wider ${
-                      isDarkMode ? 'text-neutral-500' : 'text-neutral-500'
-                    }`}
-                  >
-                    Your little tambay
-                  </p>
-                </div>
-              </div>
-
-              <h2
-                className={`text-2xl font-extrabold tracking-tight ${
-                  isDarkMode ? 'text-white' : 'text-neutral-900'
-                }`}
-              >
-                Adopt a pet and keep it company.
-              </h2>
-
-              <p
-                className={`mt-3 max-w-lg text-sm leading-relaxed ${
-                  isDarkMode ? 'text-neutral-400' : 'text-neutral-600'
-                }`}
-              >
-                Feed it, play with it, build your streak, and hang out with other
-                Tambayan pets whenever you want a lighter break from the wall.
-              </p>
-
-              <Link
-                href="/pet"
-                className={`mt-5 inline-flex items-center gap-2 rounded-lg px-5 py-3 font-mono text-xs font-bold uppercase tracking-wider shadow-sm transition active:scale-95 ${
-                  isDarkMode
-                    ? 'bg-emerald-600 text-white hover:bg-emerald-500'
-                    : 'bg-emerald-600 text-white hover:bg-emerald-700'
-                }`}
-              >
-                <Icons.Paw />
-                Open Tambayan Pet
-                <span aria-hidden="true">→</span>
               </Link>
             </div>
           </div>
