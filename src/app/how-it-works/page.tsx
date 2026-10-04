@@ -337,23 +337,6 @@ export default function HowItWorksPage() {
           </ul>
         </section>
 
-        <section className={`rounded-2xl border p-6 sm:p-8 ${card}`}>
-          <p className="font-mono text-[10px] font-bold uppercase tracking-widest text-emerald-600 mb-3">
-            Independent Community
-          </p>
-
-          <h2 className={`text-2xl font-extrabold tracking-tight mb-4 ${heading}`}>
-            Tambayan is independently operated.
-          </h2>
-
-          <p className={`text-sm sm:text-base leading-relaxed ${body}`}>
-            Tambayan SLU is an independent student platform. It is not
-            affiliated with, associated with, authorized by, endorsed by,
-            or officially connected with Saint Louis University (SLU) or
-            any of its offices.
-          </p>
-        </section>
-
         <section
           className={`mt-10 pt-8 border-t ${
             isDarkMode ? 'border-neutral-800' : 'border-neutral-200'

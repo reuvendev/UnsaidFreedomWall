@@ -323,26 +323,6 @@ export default function GuidelinesPage() {
           </p>
         </section>
 
-        <section
-          className={`rounded-2xl border p-6 sm:p-8 mb-5 ${
-            isDarkMode
-              ? 'bg-emerald-950/20 border-emerald-900/50'
-              : 'bg-emerald-50 border-emerald-200'
-          }`}
-        >
-          <p className="font-mono text-[10px] font-bold uppercase tracking-widest text-emerald-600 mb-3">
-            Before You Post
-          </p>
-          <h2 className={`text-2xl font-extrabold tracking-tight mb-4 ${heading}`}>
-            Express yourself without putting someone else at risk.
-          </h2>
-          <p className={`text-sm sm:text-base leading-relaxed ${body}`}>
-            You can share difficult experiences, disagreements, frustrations, and personal
-            stories. Focus on the experience or issue instead of using anonymity to expose,
-            threaten, humiliate, or organize harassment against another person.
-          </p>
-        </section>
-
         <div className="space-y-5">
           {rules.map((rule) => (
             <section key={rule.number} className={`rounded-2xl border p-6 sm:p-8 ${card}`}>
@@ -363,56 +343,6 @@ export default function GuidelinesPage() {
             </section>
           ))}
         </div>
-
-        {/* PHILIPPINE LAW & SAFETY */}
-        <section
-          className={`rounded-2xl border p-6 sm:p-8 mt-5 ${
-            isDarkMode
-              ? 'bg-blue-950/20 border-blue-900/50'
-              : 'bg-blue-50 border-blue-200'
-          }`}
-        >
-          <p className="font-mono text-[10px] font-bold uppercase tracking-widest text-blue-600 mb-3">
-            Philippine Law & Safety
-          </p>
-
-          <h2
-            className={`text-2xl font-extrabold tracking-tight mb-4 ${heading}`}
-          >
-            These guidelines work alongside applicable Philippine laws.
-          </h2>
-
-          <div
-            className={`space-y-4 text-sm sm:text-base leading-relaxed ${body}`}
-          >
-            <p>
-              Depending on the circumstances, relevant laws may include the
-              Data Privacy Act of 2012 (RA 10173), Cybercrime Prevention Act
-              of 2012 (RA 10175), Safe Spaces Act (RA 11313), Anti-Photo and
-              Video Voyeurism Act of 2009 (RA 9995), and laws protecting
-              children from online sexual abuse and exploitation.
-            </p>
-
-            <p>
-              Tambayan may remove, restrict, or preserve content when reasonably
-              necessary to enforce these guidelines, protect the community,
-              comply with applicable legal obligations, or respond to valid
-              lawful requests from competent authorities.
-            </p>
-
-            <p className={`font-semibold ${heading}`}>
-              Being anonymous on Tambayan does not provide immunity from
-              applicable law.
-            </p>
-          </div>
-
-          <Link
-            href="/privacy"
-            className="inline-flex mt-5 font-mono text-[10px] font-bold uppercase tracking-wider text-blue-600 hover:text-blue-500"
-          >
-            Read Privacy Policy →
-          </Link>
-        </section>
 
         <section className={`rounded-2xl border p-6 sm:p-8 mt-5 ${card}`}>
           <p className="font-mono text-[10px] font-bold uppercase tracking-widest text-emerald-600 mb-3">
@@ -542,11 +472,6 @@ export default function GuidelinesPage() {
             </Link>
           </div>
         </section>
-
-        <p className={`font-mono text-[10px] leading-relaxed mt-8 text-center ${isDarkMode ? 'text-neutral-600' : 'text-neutral-400'}`}>
-          Tambayan SLU is an independent student platform and is not officially affiliated with
-          or endorsed by Saint Louis University.
-        </p>
       </main>
     </div>
   );

@@ -289,13 +289,6 @@ export default function FAQPage() {
             Frequently Asked Questions
           </h1>
 
-          <p
-            className={`text-base leading-relaxed ${body}`}
-          >
-            Quick answers about Tambayan, anonymity, the
-            Freedom Wall, Anonymous Chat, privacy, and
-            community safety.
-          </p>
         </section>
 
         {/* FAQ */}
@@ -394,17 +387,6 @@ export default function FAQPage() {
               className="px-5 py-3 rounded-lg bg-neutral-900 dark:bg-emerald-600 text-white text-center font-mono text-[10px] font-bold uppercase tracking-wider"
             >
               Contact Tambayan
-            </Link>
-
-            <Link
-              href="/guidelines"
-              className={`px-5 py-3 rounded-lg border text-center font-mono text-[10px] font-bold uppercase tracking-wider ${
-                isDarkMode
-                  ? 'border-neutral-700 text-neutral-300 hover:bg-neutral-800'
-                  : 'border-neutral-300 text-neutral-700 hover:bg-white'
-              }`}
-            >
-              Community Guidelines
             </Link>
           </div>
         </section>
