@@ -159,19 +159,21 @@ const Icons = {
   Paw: () => (
     <svg
       xmlns="http://www.w3.org/2000/svg"
-      width="15"
-      height="15"
+      width="16"
+      height="16"
       viewBox="0 0 24 24"
       fill="none"
       stroke="currentColor"
-      strokeWidth="2"
+      strokeWidth="1.8"
       strokeLinecap="round"
       strokeLinejoin="round"
     >
-      <circle cx="11" cy="4" r="2" />
-      <circle cx="18" cy="8" r="2" />
-      <circle cx="20" cy="16" r="2" />
-      <path d="M9 10a5 5 0 0 0-5 5v1.5A3.5 3.5 0 0 0 7.5 20c1.2 0 2.2-.5 3-1.3.8.8 1.8 1.3 3 1.3A3.5 3.5 0 0 0 17 16.5V15a5 5 0 0 0-5-5Z" />
+      <ellipse cx="6.5" cy="7" rx="2" ry="2.6" />
+      <ellipse cx="11" cy="4.8" rx="2" ry="2.6" />
+      <ellipse cx="15.5" cy="5.5" rx="2" ry="2.6" />
+      <ellipse cx="19" cy="9" rx="2" ry="2.6" />
+
+      <path d="M12 10.5c-3.5 0-6.5 3.4-6.5 6.3 0 2 1.5 3.2 3.3 3.2 1.2 0 2.2-.6 3.2-.6s2 .6 3.2.6c1.8 0 3.3-1.2 3.3-3.2 0-2.9-3-6.3-6.5-6.3Z" />
     </svg>
   ),
 
@@ -493,11 +495,6 @@ export default function HomePage() {
               </span>
             </button>
           )}
-
-          <p className="font-mono text-[11px] font-bold text-neutral-400 tracking-widest uppercase mb-4 flex items-center gap-2">
-            <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
-            SLU Freedom Wall
-          </p>
 
           <h1
             className={`text-4xl md:text-5xl font-extrabold tracking-tight mb-6 leading-tight ${
@@ -978,9 +975,6 @@ export default function HomePage() {
                       >
                         Tambay Bluff
                       </p>
-                      <span className="rounded-full bg-emerald-500/10 px-1.5 py-0.5 font-mono text-[7px] font-black uppercase tracking-wider text-emerald-600">
-                        New
-                      </span>
                     </div>
                     <p className="mt-0.5 font-mono text-[8px] font-bold uppercase tracking-wider text-neutral-400">
                       3–8 players
@@ -1245,9 +1239,6 @@ export default function HomePage() {
                 : 'bg-white border-neutral-200/80'
             }`}
           >
-            <p className="font-mono text-[10px] font-bold uppercase tracking-widest text-emerald-600 mb-3">
-              Built for Louisians
-            </p>
 
             <h2
               className={`text-2xl sm:text-3xl font-extrabold tracking-tight mb-4 ${
@@ -1605,7 +1596,6 @@ export default function HomePage() {
             }`}
           >
             <div className="flex items-center gap-2 mb-3">
-              <span className="w-2 h-2 rounded-full bg-emerald-500" />
               <p className="font-mono text-[10px] font-bold uppercase tracking-widest text-emerald-600">
                 Community safety
               </p>
@@ -1633,7 +1623,11 @@ export default function HomePage() {
             <div className="flex flex-wrap gap-4">
               <Link
                 href="/guidelines"
-                className="inline-flex font-mono text-[10px] font-bold uppercase tracking-wider text-emerald-600 hover:text-emerald-500"
+                className={`inline-flex font-mono text-[10px] font-bold uppercase tracking-wider ${
+                  isDarkMode
+                    ? 'text-neutral-400 hover:text-neutral-200'
+                    : 'text-neutral-500 hover:text-neutral-800'
+                }`}
               >
                 Read Community Guidelines →
               </Link>
@@ -1660,13 +1654,6 @@ export default function HomePage() {
                 : 'bg-white border-neutral-200/80'
             }`}
           >
-            <p
-              className={`font-mono text-[10px] font-bold uppercase tracking-widest mb-3 ${
-                isDarkMode ? 'text-neutral-500' : 'text-neutral-400'
-              }`}
-            >
-              Questions?
-            </p>
 
             <h2
               className={`text-xl font-bold mb-3 ${

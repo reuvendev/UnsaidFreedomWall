@@ -2045,7 +2045,7 @@ const copyPostLink =
               )}
 
               <span className="font-bold text-emerald-600">
-                View →
+                View
               </span>
             </button>
           )}
@@ -2060,9 +2060,6 @@ const copyPostLink =
             <div className="relative">
               <div className="flex flex-col gap-6 sm:flex-row sm:items-end sm:justify-between">
                 <div className="min-w-0">
-                  <p className="mb-2 font-mono text-[10px] font-bold uppercase tracking-widest text-emerald-600">
-                    SLU Freedom Wall
-                  </p>
 
                   <h1 className={`text-4xl font-extrabold tracking-tight sm:text-5xl ${
                     isDarkMode ? 'text-white' : 'text-neutral-900'
@@ -2101,7 +2098,7 @@ const copyPostLink =
                   href="/guidelines"
                   className="font-bold text-emerald-600 hover:text-emerald-500"
                 >
-                  Read guidelines →
+                  Read guidelines
                 </Link>
               </div>
             </div>

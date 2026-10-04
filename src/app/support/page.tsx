@@ -113,7 +113,7 @@ export default function SupportPage() {
           </h1>
 
           <p className={`text-sm sm:text-base leading-relaxed font-mono max-w-md mx-auto ${isDarkMode ? 'text-neutral-400' : 'text-neutral-600'}`}>
-            TambayanSLU is developed and maintained by Valiance, a student-led team building the platform for the Louisian community. If you’d like to help us cover server, domain, and other operating costs, any support is greatly appreciated.
+            If you’d like to help us cover server, domain, and other operating costs, any support is greatly appreciated.
           </p>
         </div>
 
