@@ -618,35 +618,6 @@ export default function HomePage() {
         `}
       />
 
-{/* BIRTHDAY HAT */}
-<div className="absolute left-1/2 top-[-38px] z-20 -translate-x-1/2 rotate-[-6deg]">
-  {/* POM POM */}
-  <div className="absolute left-1/2 top-[-6px] z-10 h-[10px] w-[10px] -translate-x-1/2 rounded-full bg-yellow-300 border border-yellow-400" />
-
-  {/* HAT */}
-  <div
-    className="
-      relative
-      w-0
-      h-0
-      border-l-[22px]
-      border-r-[22px]
-      border-b-[48px]
-      border-l-transparent
-      border-r-transparent
-      border-b-pink-400
-    "
-  >
-    {/* DOTS */}
-    <span className="absolute left-[-9px] top-[22px] h-[5px] w-[5px] rounded-full bg-yellow-300" />
-    <span className="absolute left-[4px] top-[31px] h-[5px] w-[5px] rounded-full bg-sky-300" />
-    <span className="absolute left-[-3px] top-[12px] h-[4px] w-[4px] rounded-full bg-white" />
-  </div>
-
-  {/* HAT BAND */}
-  <div className="absolute left-1/2 top-[43px] h-[6px] w-[48px] -translate-x-1/2 rounded-full bg-yellow-300 border border-yellow-400" />
-</div>
-
       {/* HEAD */}
       <div
         className={`
