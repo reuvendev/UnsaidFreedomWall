@@ -12582,23 +12582,19 @@ const performAction =
 ========================================================= */}
 
 {/* TRUE FLOATING PET QUICK DOCK */}
-{pet && !parkOpen && (
-  <FloatingPetDock
-    activePanel={
-      activePetPanel
-    }
-    bottomInset={
-      petDockBottomInset
-    }
-    onSelect={(
-      panel
-    ) =>
-      setActivePetPanel(
-        panel
-      )
-    }
-  />
-)}
+{pet &&
+  !parkOpen &&
+  !renameOpen &&
+  !readoptWarningOpen &&
+  !readoptMode && (
+    <FloatingPetDock
+      activePanel={activePetPanel}
+      bottomInset={petDockBottomInset}
+      onSelect={(panel) =>
+        setActivePetPanel(panel)
+      }
+    />
+  )}
 
 {/* READOPT WARNING MODAL */}
 {readoptWarningOpen && pet && (
