@@ -94,26 +94,26 @@ export default function AboutPage() {
             <h2
               className={`text-2xl font-extrabold tracking-tight mb-4 ${heading}`}
             >
-              An independently developed student project.
+              An independently developed student-led project.
             </h2>
 
             <div
               className={`space-y-4 text-sm sm:text-base leading-relaxed ${body}`}
             >
               <p>
-               Tambayan started as a student-built web project focused on creating a simple online community space for Louisians. The platform is independently developed and maintained as its features and community continue to grow.
+               Tambayan started as a student-built web project focused on creating a simple online community space for Louisians. Today, the platform is developed and maintained by Valiance, a student-led team working together as Tambayan's features and community continue to grow.
               </p>
 
               <p>
-                The project was created and developed by a Bachelor of Science in Information Technology (BSIT) student from Saint Louis University’s School of Accountancy, Management, Computing and Information Studies (SAMCIS).
+                The project is developed by Valiance, a student-led team that works on Tambayan's development, design, moderation, and continued improvement.
               </p>
 
               <p>
-                Tambayan also serves as a practical application of the knowledge and skills learned through studying Information Technology. It puts concepts from web development, programming, databases, user interface design, and system development into practice by building and maintaining a real platform used by a student community.
+                Tambayan also serves as a practical application of the knowledge and skills the team continues to build through Information Technology, design, community management, and system development. It puts concepts from web development, programming, databases, user interface design, and platform operations into practice through a real platform used by a student community.
               </p>
 
               <p>
-                Tambayan is a personal and independent student project and is not an official project, service, or platform of Saint Louis University or SAMCIS.
+                Tambayan is an independent student-led project operated by Valiance. It is not an official project, service, or platform of Saint Louis University or SAMCIS.
               </p>
 
               <div
@@ -122,15 +122,15 @@ export default function AboutPage() {
                 }`}
               >
                 <p className="font-mono text-[10px] uppercase tracking-widest text-neutral-500 mb-1">
-                  Created & Developed By
+                  Developed & Maintained By
                 </p>
 
                 <p className={`font-mono text-sm font-bold ${heading}`}>
-                  Nevz
+                  Valiance
                 </p>
 
                 <p className="font-mono text-[11px] text-neutral-500 mt-1">
-                  BS Information Technology · SLU SAMCIS
+                  Student-led development team
                 </p>
               </div>
             </div>
@@ -217,7 +217,7 @@ export default function AboutPage() {
             <p className="font-mono text-[10px] font-bold uppercase tracking-widest text-emerald-600 mb-3">Independent Community</p>
             <h2 className={`text-2xl font-extrabold tracking-tight mb-4 ${heading}`}>Tambayan is independently operated.</h2>
             <p className={`text-sm sm:text-base leading-relaxed ${body}`}>
-              Tambayan SLU is an independent student platform. It is not affiliated with, associated with, authorized by, endorsed by, or officially connected with Saint Louis University (SLU) or any of its offices.
+              Tambayan SLU is an independent student-led platform developed and operated by Valiance. It is not affiliated with, associated with, authorized by, endorsed by, or officially connected with Saint Louis University (SLU) or any of its offices.
             </p>
           </section>
         </div>

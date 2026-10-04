@@ -106,13 +106,14 @@ export default function SupportPage() {
               : 'bg-emerald-100/80 text-emerald-800 border-emerald-200/60'
           }`}>
             <Icons.Coffee />
-            <span>Keep The Servers Running</span>
+            <span>Support TambayanSLU</span>
           </div>
           <h1 className={`text-3xl sm:text-4xl font-extrabold tracking-tight mb-3 ${isDarkMode ? 'text-white' : 'text-neutral-900'}`}>
-            Support This Project
+            Support TambayanSLU
           </h1>
+
           <p className={`text-sm sm:text-base leading-relaxed font-mono max-w-md mx-auto ${isDarkMode ? 'text-neutral-400' : 'text-neutral-600'}`}>
-            I’m just a solo developer building and maintaining Tambayan Eselyu for Louisians. If you want to help me cover server and domain costs to keep this website running, any support is deeply appreciated!
+            TambayanSLU is developed and maintained by Valiance, a student-led team building the platform for the Louisian community. If you’d like to help us cover server, domain, and other operating costs, any support is greatly appreciated.
           </p>
         </div>
 
