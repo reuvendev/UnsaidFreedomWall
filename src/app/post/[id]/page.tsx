@@ -13,6 +13,11 @@ import {
   updateDoc,
   increment,
   onSnapshot,
+  limitToLast,
+  getDocs,
+  endBefore,
+  type QueryDocumentSnapshot,
+  type DocumentData,
 } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import { checkForDoxxing } from '@/lib/antiDoxx';
@@ -156,6 +161,27 @@ export default function PostDetailPage() {
 
   const [replies, setReplies] =
     useState<ReplyData[]>([]);
+
+  // Older replies are loaded on demand so opening a post does not
+  // read the entire replies collection at once.
+  const REPLIES_PER_PAGE = 10;
+
+  const [olderReplies, setOlderReplies] =
+    useState<ReplyData[]>([]);
+
+  const [oldestReplyDoc, setOldestReplyDoc] =
+    useState<QueryDocumentSnapshot<DocumentData> | null>(null);
+
+  const [hasOlderReplies, setHasOlderReplies] =
+    useState(false);
+
+  const [loadingOlderReplies, setLoadingOlderReplies] =
+    useState(false);
+
+  // Once older replies have been loaded, keep the pagination cursor
+  // independent from the live latest-replies listener.
+  const hasLoadedOlderRepliesRef = useRef(false);
+  const latestRepliesRef = useRef<ReplyData[]>([]);
 
   const [replyContent, setReplyContent] =
     useState('');
@@ -487,6 +513,15 @@ export default function PostDetailPage() {
 
     if (!postId) return;
 
+    // Reset reply pagination when navigating to another post.
+    setReplies([]);
+    setOlderReplies([]);
+    setOldestReplyDoc(null);
+    setHasOlderReplies(false);
+    setLoadingOlderReplies(false);
+    hasLoadedOlderRepliesRef.current = false;
+    latestRepliesRef.current = [];
+
     // -------------------------------------------------------
     // MAIN POST LISTENER
     // -------------------------------------------------------
@@ -577,6 +612,8 @@ export default function PostDetailPage() {
     // REPLIES LISTENER
     // -------------------------------------------------------
 
+    // Keep only the latest page live. We listen to one extra document
+    // so we know whether a "Load older replies" button is needed.
     const repliesQuery = query(
       collection(
         db,
@@ -587,20 +624,27 @@ export default function PostDetailPage() {
       orderBy(
         'createdAt',
         'asc'
-      )
+      ),
+      limitToLast(REPLIES_PER_PAGE + 1)
     );
 
     const unsubscribeReplies =
       onSnapshot(
         repliesQuery,
         (replySnap) => {
-          const fetchedReplies: ReplyData[] =
-            [];
+          const snapshotDocs = replySnap.docs;
+          const hasOlderInSnapshot =
+            snapshotDocs.length > REPLIES_PER_PAGE;
 
-          replySnap.forEach(
-            (rSnap) => {
-              const rData =
-                rSnap.data();
+          // Only display the latest page. The extra first document is
+          // used solely to detect whether older replies exist.
+          const visibleDocs = hasOlderInSnapshot
+            ? snapshotDocs.slice(1)
+            : snapshotDocs;
+
+          const fetchedReplies: ReplyData[] =
+            visibleDocs.map((rSnap) => {
+              const rData = rSnap.data();
 
               let formattedReplyDate =
                 'Just now';
@@ -628,7 +672,7 @@ export default function PostDetailPage() {
                   );
               }
 
-              fetchedReplies.push({
+              return {
                 id: rSnap.id,
 
                 authorAlias:
@@ -660,13 +704,58 @@ export default function PostDetailPage() {
                 replyingToContent:
                   rData.replyingToContent ||
                   undefined,
+              };
+            });
+
+          // If older pages are already visible and a new live reply pushes
+          // one item out of the latest page, preserve that dropped item.
+          if (hasLoadedOlderRepliesRef.current) {
+            const incomingIds = new Set(
+              fetchedReplies.map((reply) => reply.id)
+            );
+
+            const droppedReplies =
+              latestRepliesRef.current.filter(
+                (reply) => !incomingIds.has(reply.id)
+              );
+
+            if (droppedReplies.length > 0) {
+              setOlderReplies((current) => {
+                const existingIds = new Set(
+                  current.map((reply) => reply.id)
+                );
+
+                const uniqueDropped =
+                  droppedReplies.filter(
+                    (reply) => !existingIds.has(reply.id)
+                  );
+
+                return [
+                  ...current,
+                  ...uniqueDropped,
+                ];
               });
             }
-          );
+          }
 
-          setReplies(
-            fetchedReplies
-          );
+          latestRepliesRef.current =
+            fetchedReplies;
+
+          setReplies(fetchedReplies);
+
+          // Before the user loads older pages, keep the cursor aligned
+          // with the oldest reply currently shown in the live page.
+          if (!hasLoadedOlderRepliesRef.current) {
+            setOldestReplyDoc(
+              visibleDocs.length > 0
+                ? visibleDocs[0]
+                : null
+            );
+
+            setHasOlderReplies(
+              hasOlderInSnapshot
+            );
+          }
         },
         (error) => {
           console.error(
@@ -681,6 +770,150 @@ export default function PostDetailPage() {
       unsubscribeReplies();
     };
   }, [postId, router]);
+
+  // =========================================================
+  // LOAD OLDER REPLIES
+  // =========================================================
+
+  const handleLoadOlderReplies = async () => {
+    if (
+      !oldestReplyDoc ||
+      loadingOlderReplies ||
+      !postId
+    ) {
+      return;
+    }
+
+    setLoadingOlderReplies(true);
+
+    try {
+      // Fetch one extra document to know if another older page exists.
+      const olderQuery = query(
+        collection(
+          db,
+          'posts',
+          postId,
+          'replies'
+        ),
+        orderBy(
+          'createdAt',
+          'asc'
+        ),
+        endBefore(oldestReplyDoc),
+        limitToLast(REPLIES_PER_PAGE + 1)
+      );
+
+      const olderSnap =
+        await getDocs(olderQuery);
+
+      const snapshotDocs =
+        olderSnap.docs;
+
+      const hasMore =
+        snapshotDocs.length > REPLIES_PER_PAGE;
+
+      // Leave the extra oldest document for the next page.
+      const pageDocs = hasMore
+        ? snapshotDocs.slice(1)
+        : snapshotDocs;
+
+      const fetchedOlderReplies: ReplyData[] =
+        pageDocs.map((rSnap) => {
+          const rData = rSnap.data();
+
+          let formattedReplyDate =
+            'Just now';
+
+          if (rData.createdAt) {
+            const rDateObj =
+              rData.createdAt.toDate();
+
+            formattedReplyDate =
+              rDateObj.toLocaleDateString(
+                [],
+                {
+                  month: 'short',
+                  day: 'numeric',
+                  year: 'numeric',
+                }
+              ) +
+              ' at ' +
+              rDateObj.toLocaleTimeString(
+                [],
+                {
+                  hour: '2-digit',
+                  minute: '2-digit',
+                }
+              );
+          }
+
+          return {
+            id: rSnap.id,
+
+            authorAlias:
+              rData.authorAlias ||
+              'Louisian #99999',
+
+            content:
+              rData.content || '',
+
+            createdAt:
+              formattedReplyDate,
+
+            imageUrl:
+              rData.imageUrl ||
+              undefined,
+
+            isDeveloperReply:
+              rData.isDeveloperReply ||
+              false,
+
+            parentReplyId:
+              rData.parentReplyId ||
+              undefined,
+
+            replyingToAlias:
+              rData.replyingToAlias ||
+              undefined,
+
+            replyingToContent:
+              rData.replyingToContent ||
+              undefined,
+          };
+        });
+
+      hasLoadedOlderRepliesRef.current = true;
+
+      if (pageDocs.length > 0) {
+        setOldestReplyDoc(pageDocs[0]);
+
+        setOlderReplies((current) => {
+          const existingIds = new Set(
+            current.map((reply) => reply.id)
+          );
+
+          const uniqueOlder =
+            fetchedOlderReplies.filter(
+              (reply) => !existingIds.has(reply.id)
+            );
+
+          return [
+            ...uniqueOlder,
+            ...current,
+          ];
+        });
+      }
+
+      setHasOlderReplies(hasMore);
+    } catch (error) {
+      console.error(
+        'Error loading older replies:',
+        error
+      );
+    } finally {
+      setLoadingOlderReplies(false);
+    }
+  };
 
   // =========================================================
   // VOTE
@@ -1129,6 +1362,17 @@ export default function PostDetailPage() {
       .toLowerCase()
       .includes('nevz');
 
+  // Combine paginated older replies with the live latest page.
+  const displayedReplies = [
+    ...olderReplies,
+    ...replies,
+  ].filter(
+    (reply, index, allReplies) =>
+      allReplies.findIndex(
+        (item) => item.id === reply.id
+      ) === index
+  );
+
   // =========================================================
   // RENDER
   // =========================================================
@@ -1386,10 +1630,29 @@ export default function PostDetailPage() {
                 : 'text-neutral-400 border-neutral-200'
             }`}
           >
-            Discussion ({replies.length})
+            Discussion ({post.repliesCount})
           </h3>
 
-          {replies.map((reply) => {
+          {hasOlderReplies && (
+            <div className="flex justify-center">
+              <button
+                type="button"
+                onClick={handleLoadOlderReplies}
+                disabled={loadingOlderReplies}
+                className={`rounded-lg border px-4 py-2 font-mono text-[11px] font-semibold uppercase tracking-wider transition-colors disabled:cursor-not-allowed disabled:opacity-50 ${
+                  isDarkMode
+                    ? 'border-neutral-800 text-neutral-400 hover:bg-neutral-900 hover:text-white'
+                    : 'border-neutral-200 text-neutral-500 hover:bg-neutral-50 hover:text-neutral-900'
+                }`}
+              >
+                {loadingOlderReplies
+                  ? 'Loading...'
+                  : 'Load older replies'}
+              </button>
+            </div>
+          )}
+
+          {displayedReplies.map((reply) => {
             const normalizedAlias =
               reply.authorAlias
                 .trim()
@@ -1517,7 +1780,7 @@ export default function PostDetailPage() {
                       }`}
                     >
                       {reply.replyingToContent ||
-                        replies.find(
+                        displayedReplies.find(
                           (item) =>
                             item.id ===
                             reply.parentReplyId
@@ -1588,7 +1851,7 @@ export default function PostDetailPage() {
             );
           })}
 
-          {replies.length === 0 && (
+          {displayedReplies.length === 0 && (
             <p
               className={`font-mono text-xs text-center py-6 ${
                 isDarkMode
