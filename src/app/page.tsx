@@ -513,9 +513,8 @@ export default function HomePage() {
   {/* FRIENDLY SEAL */}
   <div
     className="absolute right-2 sm:right-5 top-0 z-0 select-none"
-    aria-label="Friendly Seal saying hello there"
+    aria-label="Seal"
   >
-    {/* SPEECH BUBBLE */}
     <div
       className={`
         absolute
@@ -541,7 +540,7 @@ export default function HomePage() {
             : 'text-emerald-600'
         }`}
       >
-        Friendly Seal
+        Seal
       </p>
 
       <p
@@ -551,10 +550,9 @@ export default function HomePage() {
             : 'text-neutral-700'
         }`}
       >
-        hello there!
+        Welcome sa TAMBAYAN.
       </p>
 
-      {/* Bubble tail */}
       <span
         className={`
           absolute
@@ -574,10 +572,8 @@ export default function HomePage() {
       />
     </div>
 
-    {/* SEAL */}
     <div className="relative w-[92px] h-[78px]">
 
-      {/* LEFT FLIPPER */}
       <div
         className={`
           absolute
@@ -596,7 +592,6 @@ export default function HomePage() {
         `}
       />
 
-      {/* RIGHT FLIPPER */}
       <div
         className={`
           absolute
@@ -615,7 +610,6 @@ export default function HomePage() {
         `}
       />
 
-      {/* HEAD */}
       <div
         className={`
           absolute
@@ -635,7 +629,6 @@ export default function HomePage() {
           }
         `}
       >
-        {/* FACE LIGHT AREA */}
         <div
           className={`
             absolute
@@ -653,17 +646,14 @@ export default function HomePage() {
           `}
         />
 
-        {/* LEFT EYE */}
         <div className="absolute left-[22px] top-[25px] w-[8px] h-[10px] rounded-full bg-neutral-900">
           <span className="absolute left-[2px] top-[2px] w-[2.5px] h-[2.5px] rounded-full bg-white" />
         </div>
 
-        {/* RIGHT EYE */}
         <div className="absolute right-[22px] top-[25px] w-[8px] h-[10px] rounded-full bg-neutral-900">
           <span className="absolute left-[2px] top-[2px] w-[2.5px] h-[2.5px] rounded-full bg-white" />
         </div>
 
-        {/* LEFT MUZZLE */}
         <div
           className={`
             absolute
@@ -680,7 +670,6 @@ export default function HomePage() {
           `}
         />
 
-        {/* RIGHT MUZZLE */}
         <div
           className={`
             absolute
@@ -697,7 +686,6 @@ export default function HomePage() {
           `}
         />
 
-        {/* NOSE */}
         <div
           className="
             absolute
@@ -712,27 +700,23 @@ export default function HomePage() {
           "
         />
 
-        {/* MOUTH */}
         <div className="absolute left-1/2 top-[45px] z-10 -translate-x-1/2">
           <span className="absolute right-[-1px] top-0 w-[9px] h-[7px] rounded-full border-b border-neutral-700" />
           <span className="absolute left-[-1px] top-0 w-[9px] h-[7px] rounded-full border-b border-neutral-700" />
         </div>
 
-        {/* LEFT WHISKERS */}
         <div className="absolute left-[3px] top-[43px]">
           <span className="absolute w-[22px] h-px bg-neutral-500 -rotate-[10deg]" />
           <span className="absolute top-[6px] w-[23px] h-px bg-neutral-500 rotate-[3deg]" />
           <span className="absolute top-[12px] w-[21px] h-px bg-neutral-500 rotate-[12deg]" />
         </div>
 
-        {/* RIGHT WHISKERS */}
         <div className="absolute right-[3px] top-[43px]">
           <span className="absolute right-0 w-[22px] h-px bg-neutral-500 rotate-[10deg]" />
           <span className="absolute right-0 top-[6px] w-[23px] h-px bg-neutral-500 -rotate-[3deg]" />
           <span className="absolute right-0 top-[12px] w-[21px] h-px bg-neutral-500 -rotate-[12deg]" />
         </div>
 
-        {/* LITTLE HEAD HIGHLIGHT */}
         <div
           className={`
             absolute
