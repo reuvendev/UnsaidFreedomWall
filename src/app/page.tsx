@@ -383,7 +383,7 @@ export default function HomePage() {
             : 'bg-white/95 border-neutral-200/80'
         }`}
       >
-        <div className="max-w-2xl mx-auto px-6 h-16 flex items-center justify-between">
+        <div className="max-w-7xl mx-auto px-5 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
           <Link
             href="/"
             className="font-mono text-xl font-black tracking-tighter"
@@ -439,17 +439,18 @@ export default function HomePage() {
       </header>
 
       {/* MAIN */}
-      <main className="max-w-2xl mx-auto px-6 pt-16 pb-24">
+      <main className="max-w-7xl mx-auto px-5 sm:px-6 lg:px-8 pt-12 sm:pt-16 pb-24">
 
         {/* HERO */}
-        <div className="mb-10">
+        <div className="mb-14 lg:grid lg:grid-cols-[minmax(0,0.78fr)_minmax(0,1.22fr)] lg:items-start lg:gap-10 xl:gap-14">
 
+          <div className="min-w-0 lg:sticky lg:top-28">
           {/* STREAK */}
           {!streakLoading && (
             <button
               type="button"
               onClick={() => setStreakDetailsOpen(true)}
-              className={`mb-8 mx-auto flex flex-wrap items-center justify-center gap-x-2 gap-y-1 font-mono text-[10px] sm:text-xs transition-opacity hover:opacity-70 active:scale-[0.98] cursor-pointer ${
+              className={`mb-8 mx-auto lg:mx-0 flex flex-wrap items-center justify-center lg:justify-start gap-x-2 gap-y-1 font-mono text-[10px] sm:text-xs transition-opacity hover:opacity-70 active:scale-[0.98] cursor-pointer ${
                 isDarkMode
                   ? 'text-neutral-400'
                   : 'text-neutral-500'
@@ -497,7 +498,7 @@ export default function HomePage() {
           )}
 
           <h1
-            className={`text-4xl md:text-5xl font-extrabold tracking-tight mb-6 leading-tight ${
+            className={`text-4xl md:text-5xl xl:text-6xl font-extrabold tracking-tight mb-6 leading-[0.98] ${
               isDarkMode
                 ? 'text-white'
                 : 'text-neutral-900'
@@ -508,7 +509,7 @@ export default function HomePage() {
             Eselyu
           </h1>
 
-<div className="relative max-w-md mb-8 pt-14">
+<div className="relative max-w-md lg:max-w-lg mb-8 pt-14">
 
   {/* FRIENDLY SEAL */}
   <div
@@ -763,9 +764,10 @@ export default function HomePage() {
   </div>
 
 </div>
+          </div>
 
           {/* FEATURE PREVIEWS */}
-          <div className="mt-4">
+          <div className="mt-4 lg:mt-0 min-w-0">
             <div className="mb-4 flex items-end justify-between gap-4">
               <div>
                 <p className="font-mono text-[9px] font-bold uppercase tracking-[0.18em] text-emerald-600">
@@ -781,7 +783,7 @@ export default function HomePage() {
               </div>
             </div>
 
-            <div className="grid gap-3 sm:grid-cols-2">
+            <div className="grid gap-3 sm:grid-cols-2 lg:gap-4">
               <Link
                 href="/wall"
                 className={`group flex min-h-[205px] flex-col rounded-2xl border p-5 transition-all duration-200 hover:-translate-y-0.5 hover:shadow-md active:scale-[0.99] ${
@@ -1217,7 +1219,7 @@ export default function HomePage() {
 {/* COMMUNITY INTRO */}
         <section className="mb-14">
           <div
-            className={`rounded-2xl border p-6 sm:p-8 ${
+            className={`rounded-2xl border p-6 sm:p-8 lg:p-10 ${
               isDarkMode
                 ? 'bg-neutral-900/50 border-neutral-800'
                 : 'bg-white border-neutral-200/80'
@@ -1425,7 +1427,7 @@ export default function HomePage() {
 
           </div>
 
-          <div className="grid gap-3 sm:grid-cols-2">
+          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
             {[
               {
                 title: 'Thoughts',
@@ -1506,7 +1508,7 @@ export default function HomePage() {
             </h2>
           </div>
 
-          <div className="space-y-3">
+          <div className="grid gap-3 lg:grid-cols-2">
             {[
               {
                 number: '01',
@@ -1570,10 +1572,11 @@ export default function HomePage() {
           </Link>
         </section>
 
+        <div className="grid gap-6 lg:grid-cols-[1.2fr_0.8fr] lg:items-stretch mb-6">
         {/* COMMUNITY SAFETY */}
-        <section className="mb-14">
+        <section className="mb-0 flex">
           <div
-            className={`rounded-2xl border p-6 sm:p-8 ${
+            className={`h-full w-full rounded-2xl border p-6 sm:p-8 lg:p-10 ${
               isDarkMode
                 ? 'bg-emerald-950/20 border-emerald-900/50'
                 : 'bg-emerald-50 border-emerald-200'
@@ -1630,9 +1633,9 @@ export default function HomePage() {
         </section>
 
         {/* FAQ */}
-        <section className="mb-6">
+        <section className="mb-0 flex">
           <div
-            className={`rounded-2xl border p-6 sm:p-8 ${
+            className={`h-full w-full rounded-2xl border p-6 sm:p-8 lg:p-10 ${
               isDarkMode
                 ? 'bg-neutral-900/50 border-neutral-800'
                 : 'bg-white border-neutral-200/80'
@@ -1664,6 +1667,7 @@ export default function HomePage() {
             </Link>
           </div>
         </section>
+        </div>
       </main>
 
 {/* STREAK DETAILS MODAL */}
