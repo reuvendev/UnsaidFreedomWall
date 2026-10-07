@@ -87,54 +87,45 @@ export default function AboutPage() {
         <div className="space-y-5">
 
         <section className={`rounded-2xl border p-6 sm:p-8 ${card}`}>
-            <p className="font-mono text-[10px] font-bold uppercase tracking-widest text-emerald-600 mb-3">
-              About the Project
+          <p className="font-mono text-[10px] font-bold uppercase tracking-widest text-emerald-600 mb-3">
+            About the Project
+          </p>
+
+          <h2
+            className={`text-2xl font-extrabold tracking-tight mb-4 ${heading}`}
+          >
+            An independently developed community platform.
+          </h2>
+
+          <div
+            className={`space-y-4 text-sm sm:text-base leading-relaxed ${body}`}
+          >
+            <p>
+              Tambayan started as a personal web project focused on creating a simple
+              online community space for Louisians. Today, the platform is independently
+              developed and maintained by Nevz as its features and community continue
+              to grow.
             </p>
 
-            <h2
-              className={`text-2xl font-extrabold tracking-tight mb-4 ${heading}`}
-            >
-              An independently developed student-led project.
-            </h2>
-
             <div
-              className={`space-y-4 text-sm sm:text-base leading-relaxed ${body}`}
+              className={`pt-4 border-t ${
+                isDarkMode ? 'border-neutral-800' : 'border-neutral-200'
+              }`}
             >
-              <p>
-               Tambayan started as a student-built web project focused on creating a simple online community space for Louisians. Today, the platform is developed and maintained by Valiance, a student-led team working together as Tambayan's features and community continue to grow.
+              <p className="font-mono text-[10px] uppercase tracking-widest text-neutral-500 mb-1">
+                Developed & Maintained By
               </p>
 
-              <p>
-                The project is developed by Valiance, a student-led team that works on Tambayan's development, design, moderation, and continued improvement.
+              <p className={`font-mono text-sm font-bold ${heading}`}>
+                Nevz
               </p>
 
-              <p>
-                Tambayan also serves as a practical application of the knowledge and skills the team continues to build through Information Technology, design, community management, and system development. It puts concepts from web development, programming, databases, user interface design, and platform operations into practice through a real platform used by a student community.
+              <p className="font-mono text-[11px] text-neutral-500 mt-1">
+                BSIT · Solo Developer
               </p>
-
-              <p>
-                Tambayan is an independent student-led project operated by Valiance. It is not an official project, service, or platform of Saint Louis University or SAMCIS.
-              </p>
-
-              <div
-                className={`pt-4 border-t ${
-                  isDarkMode ? 'border-neutral-800' : 'border-neutral-200'
-                }`}
-              >
-                <p className="font-mono text-[10px] uppercase tracking-widest text-neutral-500 mb-1">
-                  Developed & Maintained By
-                </p>
-
-                <p className={`font-mono text-sm font-bold ${heading}`}>
-                  Valiance
-                </p>
-
-                <p className="font-mono text-[11px] text-neutral-500 mt-1">
-                  Student-led development team
-                </p>
-              </div>
             </div>
-          </section>
+          </div>
+        </section>
 
           <section className={`rounded-2xl border p-6 sm:p-8 ${card}`}>
             <p className="font-mono text-[10px] font-bold uppercase tracking-widest text-emerald-600 mb-3">Why Tambayan Exists</p>

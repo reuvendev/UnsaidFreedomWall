@@ -240,7 +240,7 @@ export default function CreditsPage() {
             <h2
               className={`text-2xl font-extrabold tracking-tight mb-2 ${heading}`}
             >
-              Valiance
+              Nevz
             </h2>
 
             <p
@@ -250,24 +250,19 @@ export default function CreditsPage() {
                   : 'text-neutral-400'
               }`}
             >
-              Student Development Team
+              BSIT · Solo Developer
             </p>
 
             <div
               className={`space-y-4 text-sm sm:text-base leading-relaxed ${body}`}
             >
               <p>
-                Tambayan is developed and maintained by Valiance, a
-                student-led development team responsible for the platform&apos;s
-                development, design, implementation, database management,
-                maintenance, and technical improvements.
+                Tambayan is developed and maintained by Nevz, a BSIT student
+                responsible for the platform's development, design,
+                implementation, database management, maintenance, and technical
+                improvements.
               </p>
 
-              <p>
-                The team applies concepts and skills learned in Information
-                Technology while continuously learning through the development
-                and operation of a real platform used by the student community.
-              </p>
             </div>
           </section>
 
@@ -412,12 +407,11 @@ export default function CreditsPage() {
               className={`text-sm sm:text-base leading-relaxed ${body}`}
             >
               Tambayan SLU is independently developed and maintained
-              by Valiance. Although members of the team are students
-              of Saint Louis University, Tambayan is not an official
-              academic project, service, or platform of Saint Louis
-              University, SAMCIS, or any university office. It is not
-              affiliated with, authorized by, or endorsed by Saint
-              Louis University.
+              by Nevz, a BSIT student of Saint Louis University. Tambayan
+              is not an official academic project, service, or platform
+              of Saint Louis University, SAMCIS, or any university office.
+              It is not affiliated with, authorized by, or endorsed by
+              Saint Louis University.
             </p>
           </section>
         </div>
