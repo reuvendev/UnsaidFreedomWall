@@ -8,7 +8,6 @@ import {
   doc,
   addDoc,
   updateDoc,
-  getDocs,
   getDoc,
   query,
   where,
@@ -226,607 +225,402 @@ export default function ChatQueuePage() {
   useEffect(() => {
     let isMounted = true;
     let hasHandledMatch = false;
-
+    let ownRoomRef: ReturnType<typeof doc> | null = null;
     let unsubscribeRoom: (() => void) | null = null;
-    let cleanupTimeout: NodeJS.Timeout | null = null;
-    let countdownInterval: NodeJS.Timeout | null = null;
-    let shareModalTimeout: NodeJS.Timeout | null = null;
-    let heartbeatInterval: NodeJS.Timeout | null = null;
+    let unsubscribeQueue: (() => void) | null = null;
+    let heartbeatInterval: ReturnType<typeof setInterval> | null = null;
+    let cleanupTimeout: ReturnType<typeof setTimeout> | null = null;
+    let shareModalTimeout: ReturnType<typeof setTimeout> | null = null;
+    let retryTimeout: ReturnType<typeof setTimeout> | null = null;
+    let countdownInterval: ReturnType<typeof setInterval> | null = null;
+    let scanning = false;
+    let scanAgain = false;
+    let queuePaused = false;
+    let latestWaitingRooms: Array<{
+      id: string;
+      hostId: string;
+      lastSeenAt: number;
+    }> = [];
+
+    const clearQueueTimers = () => {
+      if (heartbeatInterval) clearInterval(heartbeatInterval);
+      if (cleanupTimeout) clearTimeout(cleanupTimeout);
+      if (shareModalTimeout) clearTimeout(shareModalTimeout);
+      if (retryTimeout) clearTimeout(retryTimeout);
+      if (countdownInterval) clearInterval(countdownInterval);
+      heartbeatInterval = null;
+      cleanupTimeout = null;
+      shareModalTimeout = null;
+      retryTimeout = null;
+      countdownInterval = null;
+    };
+
+    // Never delete a matched room. Delete only an abandoned waiting room.
+    const deleteWaitingRoom = async (roomRef: ReturnType<typeof doc>) => {
+      return runTransaction(db, async (transaction) => {
+        const snap = await transaction.get(roomRef);
+        if (!snap.exists()) return false;
+        const data = snap.data();
+        if (data.status !== 'waiting' || data.guestId) return false;
+        transaction.delete(roomRef);
+        return true;
+      });
+    };
+
+    const retryLater = (message: string, delayMs = 5000) => {
+      if (!isMounted || hasHandledMatch || retryTimeout) return;
+      setStatusText(message);
+      retryTimeout = setTimeout(() => {
+        retryTimeout = null;
+        if (isMounted && !hasHandledMatch) {
+          setRetryKey((value) => value + 1);
+        }
+      }, delayMs);
+    };
 
     const setupMatchmaking = async () => {
-      let userId = localStorage.getItem(STREAK_USER_KEY);
-
-      if (!userId) {
-        userId =
-          'user_' +
-          Math.random().toString(36).substring(2, 11);
-
-        localStorage.setItem(
-          STREAK_USER_KEY,
-          userId
+      // Web Crypto is unavailable over ordinary HTTP LAN addresses on phones.
+      // Do not create a room if it cannot later establish an E2EE session.
+      if (!window.isSecureContext || !window.crypto?.subtle) {
+        setStatusText(
+          'Encrypted chat needs HTTPS. Open Tambayan using an HTTPS link on your phone.'
         );
-      }
-
-      try {
-        const banSnap = await getDoc(
-          doc(db, 'bannedUsers', userId)
-        );
-
-        if (banSnap.exists()) {
-          if (!isMounted) return;
-
-          setStatusText(
-            'Access Denied: Your account has been globally banned.'
-          );
-
-          alert(
-            'Your account has been suspended due to community guideline violations.'
-          );
-
-          router.push('/');
-
-          return;
-        }
-      } catch (err) {
-        console.error(
-          'Error checking ban status:',
-          err
-        );
-      }
-
-      const nickname = localStorage.getItem(
-        'unsaid_chat_nickname'
-      );
-
-      const school = localStorage.getItem(
-        'unsaid_chat_school'
-      );
-
-      if (!nickname || !school) {
-        alert(
-          'Please set up your profile first.'
-        );
-
-        router.push('/chat/setup');
-
         return;
       }
 
-      const blockedUsers: string[] = JSON.parse(
-        localStorage.getItem(
-          'unsaid_chat_blocked'
-        ) || '[]'
-      );
-
-      const recentMatches = getRecentMatches();
-
-      setStatusText(
-        'Scanning for available chatmates...'
-      );
+      let userId = localStorage.getItem(STREAK_USER_KEY);
+      if (!userId) {
+        userId = 'user_' + Math.random().toString(36).substring(2, 11);
+        localStorage.setItem(STREAK_USER_KEY, userId);
+      }
 
       try {
-        const roomsRef = collection(
-          db,
-          'chatRooms'
-        );
+        const banSnap = await getDoc(doc(db, 'bannedUsers', userId));
+        if (!isMounted) return;
+        if (banSnap.exists()) {
+          setStatusText('Access denied: This account has been suspended.');
+          alert('Your account has been suspended due to community guideline violations.');
+          router.push('/');
+          return;
+        }
+      } catch (error) {
+        console.error('Error checking ban status:', error);
+        // Preserve the existing behavior; secure bans must be enforced server-side.
+      }
 
-        const q = query(
-          roomsRef,
-          where('status', '==', 'waiting')
-        );
+      if (!isMounted) return;
+      const nickname = localStorage.getItem('unsaid_chat_nickname');
+      const school = localStorage.getItem('unsaid_chat_school');
+      if (!nickname || !school) {
+        alert('Please set up your profile first.');
+        router.push('/chat/setup');
+        return;
+      }
 
-        const snapshot = await getDocs(q);
+      let blockedUsers: string[] = [];
+      try {
+        const parsed = JSON.parse(localStorage.getItem('unsaid_chat_blocked') || '[]');
+        blockedUsers = Array.isArray(parsed) ? parsed : [];
+      } catch { /* Malformed local preference should not break matchmaking. */ }
+      const recentMatches = getRecentMatches();
+      const roomsRef = collection(db, 'chatRooms');
+      let cachedStreak: number | null = null;
 
-        let matchedRoomId: string | null = null;
-        let matchedHostId: string | null = null;
+      const getStreak = async () => {
+        if (cachedStreak !== null) return cachedStreak;
+        try {
+          cachedStreak = await updateUserStreak(userId);
+        } catch (error) {
+          console.error('Error updating streak:', error);
+          cachedStreak = 1;
+        }
+        return cachedStreak;
+      };
 
-        const waitingRooms = snapshot.docs.map(
-          (docSnap) => ({
-            id: docSnap.id,
-            ...docSnap.data(),
-          })
-        ) as any[];
+      const enterAsGuest = async (roomId: string, hostId: string) => {
+        if (!isMounted || hasHandledMatch) return;
+        hasHandledMatch = true;
+        clearQueueTimers();
+        unsubscribeQueue?.();
+        unsubscribeRoom?.();
+        addRecentMatch(hostId);
+        // Claiming the other room has already succeeded. Clean up our unused
+        // waiting room separately so a denied delete cannot undo the match.
+        const abandonedRoom = ownRoomRef;
+        ownRoomRef = null;
+        if (abandonedRoom) {
+          void deleteWaitingRoom(abandonedRoom).catch((error) => {
+            console.warn('Could not clean up previous waiting room:', error);
+          });
+        }
+        setCurrentRoomId(null);
+        setShowShareModal(false);
+        setStatusText('Match found! Entering secure chat...');
 
-        waitingRooms.sort((a, b) => {
-          const timeA = a.createdAt?.toMillis
-            ? a.createdAt.toMillis()
-            : 0;
+        // The count is only incremented for the person who claims the room.
+        void setDoc(doc(db, 'counters', 'system'), {
+          totalCreated: increment(1),
+        }, { merge: true }).catch((error) => {
+          console.error('Error updating system counter:', error);
+        });
+        router.push(`/chat/${roomId}`);
+      };
 
-          const timeB = b.createdAt?.toMillis
-            ? b.createdAt.toMillis()
-            : 0;
+      const enterAsHost = async (roomRef: ReturnType<typeof doc>, guestId: string) => {
+        if (!isMounted || hasHandledMatch) return;
+        hasHandledMatch = true;
+        clearQueueTimers();
+        unsubscribeQueue?.();
+        unsubscribeRoom?.();
+        addRecentMatch(guestId);
+        setShowShareModal(false);
+        setStatusText('Peer connected! Entering secure chat...');
 
-          return timeA - timeB;
+        const streak = await getStreak();
+        if (!isMounted) return;
+        try {
+          await updateDoc(roomRef, { hostStreak: streak });
+        } catch (error) {
+          console.error('Error saving streak to room:', error);
+        }
+        if (isMounted) router.push(`/chat/${roomRef.id}`);
+      };
+
+      const claimRoom = async (targetId: string, streak: number) => {
+        const targetRef = doc(db, 'chatRooms', targetId);
+        const myWaitingRoom = ownRoomRef;
+        return runTransaction(db, async (transaction) => {
+          // All transaction reads occur before any writes.
+          const targetSnap = await transaction.get(targetRef);
+          const ownSnap = myWaitingRoom
+            ? await transaction.get(myWaitingRoom)
+            : null;
+
+          if (!targetSnap.exists()) return false;
+          const target = targetSnap.data();
+          const lastSeen = target.hostLastSeenAt?.toMillis?.() ?? 0;
+          if (
+            target.status !== 'waiting' ||
+            target.guestId ||
+            target.hostId === userId ||
+            !lastSeen ||
+            Date.now() - lastSeen > QUEUE_OFFLINE_TIMEOUT
+          ) return false;
+
+          // If both users created rooms simultaneously, one deterministic
+          // ordering ensures that they join the SAME room, not each other.
+          if (myWaitingRoom) {
+            if (targetId >= myWaitingRoom.id) return false;
+            if (!ownSnap?.exists()) return false;
+            const own = ownSnap.data();
+            if (own.status !== 'waiting' || own.guestId || own.hostId !== userId) {
+              return false;
+            }
+          }
+
+          transaction.update(targetRef, {
+            guestId: userId,
+            guestNickname: nickname,
+            guestSchool: school,
+            guestStreak: streak,
+            guestLastSeenAt: serverTimestamp(),
+            status: 'active',
+          });
+          // Do not delete our waiting room in the same transaction: some
+          // Firestore rules permit claiming but reject deleting chat rooms.
+          // Deleting in the transaction would roll back the match itself.
+          return true;
+        });
+      };
+
+      const createWaitingRoom = async () => {
+        if (!isMounted || hasHandledMatch || ownRoomRef) return;
+        setStatusText('Waiting for someone to join...');
+        const roomRef = await addDoc(roomsRef, {
+          hostId: userId,
+          hostNickname: nickname,
+          hostSchool: school,
+          hostStreak: null,
+          guestId: null,
+          guestNickname: null,
+          guestSchool: null,
+          guestStreak: null,
+          status: 'waiting',
+          createdAt: serverTimestamp(),
+          // Essential: without the first heartbeat, other devices consider
+          // a newly created room offline for its first ten seconds.
+          hostLastSeenAt: serverTimestamp(),
         });
 
-        for (const roomData of waitingRooms) {
-          const hostId = roomData.hostId;
-
-          // Skip yourself, blocked users, and recent matches
-          if (
-            hostId === userId ||
-            blockedUsers.includes(hostId) ||
-            recentMatches.includes(hostId)
-          ) {
-            continue;
-          }
-
-          // ==========================================
-          // CHECK IF HOST IS ACTUALLY STILL ONLINE
-          // ==========================================
-          const hostLastSeenMs =
-            roomData.hostLastSeenAt?.toMillis?.() ?? 0;
-
-          const hostIsOffline =
-            !hostLastSeenMs ||
-            Date.now() - hostLastSeenMs >
-              QUEUE_OFFLINE_TIMEOUT;
-
-          // Host stopped sending heartbeat.
-          // Clean up the abandoned waiting room.
-          if (hostIsOffline) {
-            const staleRoomRef = doc(
-              db,
-              'chatRooms',
-              roomData.id
-            );
-
-            try {
-              await runTransaction(
-                db,
-                async (transaction) => {
-                  const latest =
-                    await transaction.get(staleRoomRef);
-
-                  if (!latest.exists()) return;
-
-                  const latestData = latest.data();
-
-                  // Check heartbeat AGAIN inside transaction
-                  // in case the host came back.
-                  const latestHeartbeat =
-                    latestData.hostLastSeenAt?.toMillis?.() ?? 0;
-
-                  const stillOffline =
-                    !latestHeartbeat ||
-                    Date.now() - latestHeartbeat >
-                      QUEUE_OFFLINE_TIMEOUT;
-
-                  if (
-                    latestData.status === 'waiting' &&
-                    !latestData.guestId &&
-                    stillOffline
-                  ) {
-                    transaction.delete(staleRoomRef);
-                  }
-                }
-              );
-            } catch (error) {
-              console.error(
-                'Offline waiting room cleanup failed:',
-                error
-              );
-            }
-
-            // Don't match with this room
-            continue;
-          }
-
-          // Host is alive, so this room can be matched.
-          matchedRoomId = roomData.id;
-          matchedHostId = hostId;
-
-          break;
+        if (!isMounted || hasHandledMatch) {
+          void deleteWaitingRoom(roomRef).catch(console.error);
+          return;
         }
 
-        if (!isMounted) return;
+        ownRoomRef = roomRef;
+        setCurrentRoomId(roomRef.id);
 
-        if (
-          matchedRoomId &&
-          matchedHostId
-        ) {
-          setStatusText(
-            'Match found! Connecting to secure room...'
-          );
-
-          const roomRef = doc(
-            db,
-            'chatRooms',
-            matchedRoomId
-          );
-
-          let currentStreak = 1;
-
-          try {
-            currentStreak =
-              await updateUserStreak(userId);
-          } catch (streakError) {
-            console.error(
-              'Error updating streak:',
-              streakError
-            );
-          }
-
-          let claimedRoom = false;
-
-          try {
-            claimedRoom = await runTransaction(
-              db,
-              async (transaction) => {
-                const roomSnap =
-                  await transaction.get(roomRef);
-
-                if (!roomSnap.exists()) {
-                  return false;
-                }
-
-                const roomData = roomSnap.data();
-
-                if (
-                  roomData.status !== 'waiting' ||
-                  roomData.guestId
-                ) {
-                  return false;
-                }
-
-                const hostLastSeenMs =
-                  roomData.hostLastSeenAt?.toMillis?.() ?? 0;
-
-                const hostIsOffline =
-                  !hostLastSeenMs ||
-                  Date.now() - hostLastSeenMs >
-                    QUEUE_OFFLINE_TIMEOUT;
-
-                if (hostIsOffline) {
-                  return false;
-                }
-
-                transaction.update(roomRef, {
-                  guestId: userId,
-                  guestNickname: nickname,
-                  guestSchool: school,
-                  guestStreak: currentStreak,
-
-                  guestLastSeenAt: serverTimestamp(),
-
-                  status: 'active',
-                });
-
-                return true;
-
-                transaction.update(roomRef, {
-                  guestId: userId,
-                  guestNickname: nickname,
-                  guestSchool: school,
-                  guestStreak: currentStreak,
-                  status: 'active',
-                });
-
-                return true;
-              }
-            );
-          } catch (error) {
-            console.error(
-              'Failed to claim room:',
-              error
-            );
-          }
-
-          if (!claimedRoom) {
-            setStatusText(
-              'Someone got there first. Finding another match...'
-            );
-
-            setTimeout(() => {
-              if (isMounted) {
-                setRetryKey((prev) => prev + 1);
-              }
-            }, 500);
-
+        unsubscribeRoom = onSnapshot(roomRef, (snap) => {
+          if (!isMounted || hasHandledMatch) return;
+          if (!snap.exists()) {
+            if (queuePaused) return;
+            retryLater('Waiting room expired. Reconnecting...', 1500);
             return;
           }
-
-          addRecentMatch(
-            matchedHostId
-          );
-
-          try {
-            await setDoc(
-              doc(
-                db,
-                'counters',
-                'system'
-              ),
-              {
-                totalCreated: increment(1),
-              },
-              { merge: true }
-            );
-          } catch (e) {
-            console.error(
-              'Error updating system counter:',
-              e
-            );
+          const room = snap.data();
+          if (room.status === 'active' && room.guestId) {
+            void enterAsHost(roomRef, room.guestId);
           }
+        }, (error) => {
+          console.error('Waiting room listener error:', error);
+          retryLater('Connection lost. Retrying...');
+        });
 
-          router.push(
-            `/chat/${matchedRoomId}`
-          );
-        } else {
-          setStatusText(
-            'No match found instantly. Waiting for someone to join...'
-          );
+        heartbeatInterval = setInterval(() => {
+          if (!isMounted || hasHandledMatch) return;
+          void updateDoc(roomRef, {
+            hostLastSeenAt: serverTimestamp(),
+          }).catch((error) => console.warn('Queue heartbeat failed:', error));
+        }, QUEUE_HEARTBEAT_INTERVAL);
 
-          const newRoomRef = await addDoc(
-            collection(db, 'chatRooms'),
-            {
-              hostId: userId,
-              hostNickname: nickname,
-              hostSchool: school,
-              hostStreak: null,
-              guestId: null,
-              guestNickname: null,
-              guestSchool: null,
-              guestStreak: null,
-              status: 'waiting',
-              createdAt: serverTimestamp(),
-            }
-          );
+        shareModalTimeout = setTimeout(() => {
+          if (isMounted && !hasHandledMatch) setShowShareModal(true);
+        }, 60_000);
 
-          if (!isMounted) return;
-
-          setCurrentRoomId(
-            newRoomRef.id
-          );
-
-          heartbeatInterval = setInterval(() => {
-            if (!isMounted) return;
-
-            updateDoc(newRoomRef, {
-              hostLastSeenAt: serverTimestamp(),
-            }).catch((error) => {
-              console.warn('Queue heartbeat failed:', error);
-            });
-          }, QUEUE_HEARTBEAT_INTERVAL);
-
-          shareModalTimeout = setTimeout(() => {
-            if (isMounted) {
-              setShowShareModal(true);
-            }
-          }, 60000);
-
-          unsubscribeRoom = onSnapshot(
-            newRoomRef,
-            async (docSnap) => {
-              if (!isMounted) return;
-
-              if (docSnap.exists()) {
-                const data =
-                  docSnap.data();
-
-                if (
-                  data.status === 'active' &&
-                  data.guestId
-                ) {
-                  if (hasHandledMatch) return;
-
-                  hasHandledMatch = true;
-
-                  if (heartbeatInterval) {
-                    clearInterval(heartbeatInterval);
-                    heartbeatInterval = null;
-                  }
-
-                  if (cleanupTimeout) {
-                    clearTimeout(cleanupTimeout);
-                    cleanupTimeout = null;
-                  }
-
-                  if (shareModalTimeout) {
-                    clearTimeout(shareModalTimeout);
-                    shareModalTimeout = null;
-                  }
-
-                  if (countdownInterval) {
-                    clearInterval(countdownInterval);
-                    countdownInterval = null;
-                  }
-
-                  setShowShareModal(false);
-
-                  let currentStreak = 1;
-
-                  try {
-                    currentStreak =
-                      await updateUserStreak(userId);
-                  } catch (streakError) {
-                    console.error(
-                      'Error updating streak:',
-                      streakError
-                    );
-                  }
-
-                  try {
-                    await updateDoc(
-                      newRoomRef,
-                      {
-                        hostStreak:
-                          currentStreak,
-                      }
-                    );
-                  } catch (streakRoomError) {
-                    console.error(
-                      'Error saving streak to room:',
-                      streakRoomError
-                    );
-                  }
-
-                  addRecentMatch(
-                    data.guestId
-                  );
-
-                  setStatusText(
-                    'Peer connected! Entering chat...'
-                  );
-
-                  setShowShareModal(false);
-
-                  router.push(
-                    `/chat/${newRoomRef.id}`
-                  );
-                }
-              }
-            }
-          );
-
-        cleanupTimeout = setTimeout(
-          async () => {
-            if (!isMounted) return;
-
-            let roomWasDeleted = false;
-
-            try {
-              await runTransaction(
-                db,
-                async (transaction) => {
-                  const latest =
-                    await transaction.get(newRoomRef);
-
-                  if (!latest.exists()) {
-                    return;
-                  }
-
-                  const data = latest.data();
-
-                  // Only delete if the room is STILL waiting.
-                  if (
-                    data.status === 'waiting' &&
-                    !data.guestId
-                  ) {
-                    transaction.delete(newRoomRef);
-                    roomWasDeleted = true;
-                  }
-                }
-              );
-            } catch (error) {
-              console.error(
-                'Queue timeout cleanup failed:',
-                error
-              );
-
+        cleanupTimeout = setTimeout(async () => {
+          if (!isMounted || hasHandledMatch) return;
+          queuePaused = true;
+          try {
+            const deleted = await deleteWaitingRoom(roomRef);
+            if (!isMounted || hasHandledMatch) return;
+            if (!deleted) {
+              queuePaused = false;
               return;
             }
-
-            // If someone already joined, do nothing.
-            if (!roomWasDeleted) {
-              return;
-            }
-
-            if (!isMounted) return;
-
+            ownRoomRef = null;
             setCurrentRoomId(null);
-
-            let timeLeft = 5;
-
-            setStatusText(
-              `Queue timed out. Re-queueing in ${timeLeft}s...`
-            );
-
+            if (heartbeatInterval) clearInterval(heartbeatInterval);
+            heartbeatInterval = null;
+            if (unsubscribeRoom) unsubscribeRoom();
+            unsubscribeRoom = null;
+            let remaining = 5;
+            setStatusText(`Queue timed out. Re-queueing in ${remaining}s...`);
             countdownInterval = setInterval(() => {
-              timeLeft -= 1;
-
-              if (timeLeft > 0) {
-                if (isMounted) {
-                  setStatusText(
-                    `Queue timed out. Re-queueing in ${timeLeft}s...`
-                  );
-                }
+              remaining -= 1;
+              if (remaining > 0) {
+                setStatusText(`Queue timed out. Re-queueing in ${remaining}s...`);
               } else {
-                if (countdownInterval) {
-                  clearInterval(countdownInterval);
-                  countdownInterval = null;
-                }
-
-                if (isMounted) {
-                  setRetryKey((prev) => prev + 1);
-                }
+                if (countdownInterval) clearInterval(countdownInterval);
+                countdownInterval = null;
+                if (isMounted) setRetryKey((value) => value + 1);
               }
             }, 1000);
-          },
-          180000
-        );
+          } catch (error) {
+            console.error('Queue timeout cleanup failed:', error);
+            queuePaused = false;
+            retryLater('Could not refresh queue. Retrying...');
+          }
+        }, 180_000);
+      };
+
+      // Queue updates are live: two devices that BOTH initially see an empty
+      // queue can still find each other after they create their rooms.
+      const processQueue = async () => {
+        if (scanning) {
+          scanAgain = true;
+          return;
         }
-      } catch (err) {
-        console.error(
-          'Queue matchmaking error:',
-          err
-        );
+        scanning = true;
+        try {
+          do {
+            scanAgain = false;
+            if (!isMounted || hasHandledMatch || queuePaused) return;
 
-        if (isMounted) {
-          setStatusText(
-            'Connection error. Retrying in 5s...'
-          );
+            // Firestore document IDs provide a stable tie-break across devices.
+            // Only the larger ID may claim the smaller ID's waiting room.
+            const candidates = [...latestWaitingRooms].sort((a, b) =>
+              a.id < b.id ? -1 : a.id > b.id ? 1 : 0
+            );
+            let claimError: string | null = null;
+            for (const candidate of candidates) {
+              if (!isMounted || hasHandledMatch) return;
+              if (
+                candidate.hostId === userId ||
+                blockedUsers.includes(candidate.hostId) ||
+                recentMatches.includes(candidate.hostId) ||
+                (ownRoomRef && candidate.id >= ownRoomRef.id) ||
+                !candidate.lastSeenAt ||
+                Date.now() - candidate.lastSeenAt > QUEUE_OFFLINE_TIMEOUT
+              ) continue;
 
-          let timeLeft = 5;
-
-          countdownInterval =
-            setInterval(() => {
-              timeLeft -= 1;
-
-              if (timeLeft > 0) {
-                if (isMounted) {
-                  setStatusText(
-                    `Connection error. Retrying in ${timeLeft}s...`
-                  );
+              setStatusText('Match found! Connecting...');
+              const streak = await getStreak();
+              if (!isMounted || hasHandledMatch) return;
+              try {
+                if (await claimRoom(candidate.id, streak)) {
+                  await enterAsGuest(candidate.id, candidate.hostId);
+                  return;
                 }
-              } else {
-                if (
-                  countdownInterval
-                ) {
-                  clearInterval(
-                    countdownInterval
-                  );
-                }
-
-                if (isMounted) {
-                  setRetryKey(
-                    (prev) => prev + 1
-                  );
-                }
+              } catch (error) {
+                console.warn('Could not claim waiting room:', error);
+                const code = error && typeof error === 'object' && 'code' in error
+                  ? String(error.code) : 'unknown';
+                claimError = code;
               }
-            }, 1000);
+            }
+
+            if (!ownRoomRef && !hasHandledMatch) {
+              await createWaitingRoom();
+            } else if (ownRoomRef && !hasHandledMatch) {
+              setStatusText(claimError === 'permission-denied'
+                ? 'Match blocked by Firestore permissions. Check browser console.'
+                : claimError
+                  ? `Match could not connect (${claimError}). Check browser console.`
+                  : 'Waiting for someone to join...');
+            }
+          } while (scanAgain && isMounted && !hasHandledMatch && !queuePaused);
+        } catch (error) {
+          console.error('Queue matchmaking error:', error);
+          retryLater('Connection error. Retrying in 5s...');
+        } finally {
+          scanning = false;
         }
-      }
+      };
+
+      setStatusText('Scanning for available chatmates...');
+      unsubscribeQueue = onSnapshot(
+        query(roomsRef, where('status', '==', 'waiting')),
+        (snapshot) => {
+          if (!isMounted || hasHandledMatch) return;
+          latestWaitingRooms = snapshot.docs.map((entry) => {
+            const room = entry.data();
+            return {
+              id: entry.id,
+              hostId: String(room.hostId || ''),
+              lastSeenAt: room.hostLastSeenAt?.toMillis?.() ?? 0,
+            };
+          });
+          void processQueue();
+        },
+        (error) => {
+          console.error('Queue listener failed:', error);
+          retryLater('Unable to load queue. Retrying in 5s...');
+        }
+      );
     };
 
-    setupMatchmaking();
+    void setupMatchmaking();
 
     return () => {
       isMounted = false;
-
-      if (unsubscribeRoom) {
-        unsubscribeRoom();
-      }
-
-      if (cleanupTimeout) {
-        clearTimeout(
-          cleanupTimeout
-        );
-      }
-
-      if (countdownInterval) {
-        clearInterval(
-          countdownInterval
-        );
-      }
-
-      if (shareModalTimeout) {
-        clearTimeout(shareModalTimeout);
-      }
-
-      if (heartbeatInterval) {
-        clearInterval(heartbeatInterval);
-        heartbeatInterval = null;
+      unsubscribeQueue?.();
+      unsubscribeRoom?.();
+      clearQueueTimers();
+      // Remove only waiting rooms on cancellation/navigation; active chats stay.
+      if (ownRoomRef && !hasHandledMatch) {
+        void deleteWaitingRoom(ownRoomRef).catch((error) => {
+          console.warn('Could not remove abandoned queue room:', error);
+        });
       }
     };
   }, [router, retryKey]);
