@@ -37,6 +37,8 @@ interface PostData {
   spotifyTrackId?: string;
   imageUrl?: string;
   isDeveloperPost?: boolean;
+  isStaffPost?: boolean;
+  staffRole?: string;
   cardTheme?: {
     background: string;
     border: string;
@@ -56,6 +58,19 @@ interface ReplyData {
 }
 
 const Icons = {
+  Verified: () => (
+    <svg
+      xmlns="http://www.w3.org/2000/svg"
+      width="12"
+      height="12"
+      viewBox="0 0 24 24"
+      fill="currentColor"
+      aria-label="Verified Developer"
+    >
+      <path d="M23 12l-2.44-2.79.34-3.69-3.61-.82L15.4 1.5 12 2.96 8.6 1.5 6.71 4.69l-3.61.81.34 3.7L1 12l2.44 2.79-.34 3.7 3.61.81L8.6 22.5l3.4-1.47 3.4 1.46 1.89-3.19 3.61-.82-.34-3.69L23 12zm-12.91 4.72l-3.8-3.81 1.48-1.48 2.32 2.33 5.85-5.87 1.48 1.48-7.33 7.35z" />
+    </svg>
+  ),
+
   Heart: ({ filled }: { filled?: boolean }) => (
     <svg
       xmlns="http://www.w3.org/2000/svg"
@@ -588,6 +603,8 @@ export default function PostDetailPage() {
               imageUrl:
                 data.imageUrl ||
                 undefined,
+              isStaffPost: data.isStaffPost === true,
+              staffRole: data.staffRole || undefined,
               isDeveloperPost:
                 data.isDeveloperPost ||
                 false,
@@ -1347,20 +1364,7 @@ export default function PostDetailPage() {
   // ADMIN / DEV DETECTION
   // =========================================================
 
-  const isPostAdminOrDev =
-    post.isDeveloperPost ||
-    post.authorAlias
-      .toLowerCase()
-      .includes('admin') ||
-    post.authorAlias
-      .toLowerCase()
-      .includes('developer') ||
-    post.authorAlias
-      .toLowerCase()
-      .includes('dev') ||
-    post.authorAlias
-      .toLowerCase()
-      .includes('nevz');
+  const isPostAdminOrDev = post.isDeveloperPost === true || post.isStaffPost === true;
 
   // Combine paginated older replies with the live latest page.
   const displayedReplies = [
@@ -1462,7 +1466,7 @@ export default function PostDetailPage() {
                       : 'bg-emerald-50 text-emerald-700 border-emerald-200'
                   }`}
                 >
-                  ADMIN / DEV
+                  {post.isDeveloperPost ? 'OFFICIAL' : <Icons.Verified />}
                 </span>
               )}
 

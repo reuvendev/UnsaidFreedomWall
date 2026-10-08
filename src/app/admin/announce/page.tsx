@@ -167,8 +167,9 @@ export default function AdminPostPortal() {
   const [category, setCategory] = useState<string>('thoughts');
   const [spotifyTrackId, setSpotifyTrackId] = useState<string>('');
   const [isSubmitting, setIsSubmitting] = useState<boolean>(false);
+  const [postType, setPostType] = useState<'official' | 'staff'>('staff');
   const [authorAlias, setAuthorAlias] =
-    useState<string>('Lead Developer');
+    useState<string>('ADMIN');
 
   // Image
   const [imageFile, setImageFile] = useState<File | null>(null);
@@ -500,7 +501,9 @@ export default function AdminPostPortal() {
 
         replies: 0,
 
-        isDeveloperPost: true,
+        isDeveloperPost: postType === 'official',
+        isStaffPost: postType === 'staff',
+        staffRole: postType === 'staff' ? authorAlias : null,
 
         status: 'approved',
 
@@ -799,7 +802,7 @@ export default function AdminPostPortal() {
         <section className="mb-10">
           <div className="mb-4">
             <h2 className="text-lg font-semibold">
-              Create Developer Post
+              Create Admin / Staff Post
             </h2>
 
             <p className="text-xs text-neutral-500 mt-1">
@@ -811,21 +814,28 @@ export default function AdminPostPortal() {
             onSubmit={handleCreatePost}
             className="border border-neutral-800 bg-neutral-900 rounded-xl p-5 space-y-5"
           >
+            <div>
+              <label className="block text-xs font-semibold text-neutral-400 mb-2">Post Type</label>
+              <select value={postType} onChange={(e) => setPostType(e.target.value as 'official' | 'staff')} className="w-full p-3 bg-neutral-950 border border-neutral-800 rounded-lg text-sm text-white">
+                <option value="staff">Staff Post (regular wall entry)</option>
+                <option value="official">Official Announcement</option>
+              </select>
+            </div>
             {/* AUTHOR */}
             <div>
               <label className="block font-mono text-[11px] font-semibold text-neutral-400 uppercase tracking-wider mb-1.5">
                 Author Alias
               </label>
 
-              <input
-                type="text"
+              <select
                 value={authorAlias}
                 onChange={(e) =>
                   setAuthorAlias(e.target.value)
                 }
                 className="w-full p-3 bg-neutral-950 border border-neutral-800 rounded-lg text-sm text-white outline-none focus:border-neutral-600"
-                placeholder="Lead Developer"
-              />
+              >
+                {['ADMIN', 'LEAD DEV', 'MODERATOR', 'NEVZ'].map((role) => <option key={role} value={role}>{role}</option>)}
+              </select>
             </div>
 
             {/* CATEGORY */}
