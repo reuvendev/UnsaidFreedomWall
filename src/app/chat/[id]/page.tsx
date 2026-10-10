@@ -22,11 +22,16 @@ import {
 import { db } from '@/lib/firebase';
 import imageCompression from 'browser-image-compression';
 import { getPresignedUploadUrl } from '@/app/actions/r2-upload';
+import { createVerifiedChatMessage } from '@/app/chat/actions';
+import { VerifiedIcon } from '@/components/VerifiedIcon';
+import { TeamRoleBadge } from '@/components/TeamRoleBadge';
+import { isTeamRole, type TeamRole } from '@/lib/team/types';
 
 interface Message {
   id: string;
   senderId: string;
   senderNickname: string;
+  teamAuthorId?: string;
   text: string;
   iv?: string;
   encryptionVersion?: number;
@@ -55,6 +60,8 @@ interface RoomData {
   guestId?: string | null;
   guestNickname?: string | null;
   guestSchool?: string | null;
+  hostTeamAuthorId?: string;
+  guestTeamAuthorId?: string;
 
   hostStreak?: number;
   guestStreak?: number;
@@ -95,16 +102,6 @@ const REPORT_REASONS = [
 ];
 
 const AVAILABLE_REACTIONS = ['❤️', '👍', '😂', '🔥', '😮', '😢'];
-
-const DEVELOPER_USER_IDS = [
-  'user_grrbyvw91',
-  'user_rtryawgma',
-  'user_r73rv75uu',
-];
-
-const isDeveloperUser = (id?: string | null) => {
-  return !!id && DEVELOPER_USER_IDS.includes(id);
-};
 
 const PINK_USER_IDS = [
   'user_grrbyvw91',
@@ -452,20 +449,6 @@ const deriveSharedRoomKey = async (
 };
 
 const Icons = {
-
-  Verified: () => (
-    <svg
-      xmlns="http://www.w3.org/2000/svg"
-      width="12"
-      height="12"
-      viewBox="0 0 24 24"
-      fill="currentColor"
-      aria-label="Verified Developer"
-    >
-      <path d="M23 12l-2.44-2.79.34-3.69-3.61-.82L15.4 1.5 12 2.96 8.6 1.5 6.71 4.69l-3.61.81.34 3.7L1 12l2.44 2.79-.34 3.7 3.61.81L8.6 22.5l3.4-1.47 3.4 1.46 1.89-3.19 3.61-.82-.34-3.69L23 12zm-12.91 4.72l-3.8-3.81 1.48-1.48 2.32 2.33 5.85-5.87 1.48 1.48-7.33 7.35z" />
-    </svg>
-  ),
-
   Send: () => (
     <svg
       xmlns="http://www.w3.org/2000/svg"
@@ -658,6 +641,7 @@ export default function ChatRoomPage() {
   const [loading, setLoading] = useState(true);
   const [userId, setUserId] = useState('');
   const [nickname, setNickname] = useState('');
+  const [teamProfiles, setTeamProfiles] = useState<Record<string, { displayName: string; role: TeamRole }>>({});
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [chatStatus, setChatStatus] = useState<
     'active' | 'closed' | 'blocked'
@@ -824,6 +808,21 @@ export default function ChatRoomPage() {
       router.push('/');
     }
   }, [roomId, router]);
+
+  useEffect(() => {
+    const ids = Array.from(new Set([roomData?.hostTeamAuthorId, roomData?.guestTeamAuthorId].filter((value): value is string => typeof value === 'string' && value.length > 0)));
+    setTeamProfiles({});
+    const unsubscribes = ids.map((uid) => onSnapshot(doc(db, 'teamPublicProfiles', uid), (snapshot) => {
+      const data = snapshot.data();
+      setTeamProfiles((current) => {
+        const next = { ...current };
+        if (snapshot.exists() && data?.verified === true && typeof data.displayName === 'string' && isTeamRole(data.role)) next[uid] = { displayName: data.displayName, role: data.role };
+        else delete next[uid];
+        return next;
+      });
+    }, () => setTeamProfiles((current) => { const next = { ...current }; delete next[uid]; return next; })));
+    return () => unsubscribes.forEach((unsubscribe) => unsubscribe());
+  }, [roomData?.hostTeamAuthorId, roomData?.guestTeamAuthorId]);
 
 // ==========================================
 // ACTIVE CHAT PRESENCE HEARTBEAT
@@ -1449,6 +1448,11 @@ useEffect(() => {
             (replyingTo.image ? '📷 Photo' : ''),
         }
       : null;
+    const ownTeamAuthorId = roomData?.hostId === userId
+      ? roomData.hostTeamAuthorId
+      : roomData?.guestId === userId
+        ? roomData.guestTeamAuthorId
+        : undefined;
 
     setNewMessage('');
     setReplyingTo(null);
@@ -1475,6 +1479,7 @@ useEffect(() => {
         id: tempId,
         senderId: userId,
         senderNickname: nickname,
+        teamAuthorId: ownTeamAuthorId,
         text: textToSend,
         replyTo: currentReply || undefined,
         createdAt: new Date(),
@@ -1582,10 +1587,22 @@ useEffect(() => {
         };
       }
 
-      await addDoc(
-        collection(db, 'chatRooms', roomId, 'messages'),
-        messagePayload
-      );
+      if (ownTeamAuthorId) {
+        const result = await createVerifiedChatMessage({
+          roomId,
+          encryptionVersion: 1,
+          ciphertext: messagePayload.ciphertext,
+          iv: messagePayload.iv,
+          image: messagePayload.image,
+          replyTo: messagePayload.replyTo,
+        });
+        if (!result.success) throw new Error(result.error || 'Could not send verified message.');
+      } else {
+        await addDoc(
+          collection(db, 'chatRooms', roomId, 'messages'),
+          messagePayload
+        );
+      }
 
       if (imageToSend) {
         handleRemoveImage();
@@ -1851,12 +1868,13 @@ useEffect(() => {
     ? roomData?.guestId
     : roomData?.hostId;
 
-  const isPeerDeveloper = isDeveloperUser(peerUserId);
   const isPeerPink = isPinkUser(peerUserId);
 
   const peerNickname = isHost
     ? roomData?.guestNickname || 'Waiting...'
     : roomData?.hostNickname;
+  const peerTeamAuthorId = isHost ? roomData?.guestTeamAuthorId : roomData?.hostTeamAuthorId;
+  const peerTeamProfile = peerTeamAuthorId ? teamProfiles[peerTeamAuthorId] : undefined;
 
   const peerSchoolRaw = isHost
     ? roomData?.guestSchool
@@ -1923,16 +1941,7 @@ useEffect(() => {
                       : 'text-emerald-500'
                   }
                 >
-                  {peerNickname}
-
-                  {isPeerDeveloper && (
-                    <span
-                      className="inline-flex items-center text-blue-500 shrink-0 ml-1"
-                      title="Official TambayanSLU Developer"
-                    >
-                      <Icons.Verified />
-                    </span>
-                  )}
+                  {peerTeamProfile ? <span className="inline-flex flex-wrap items-center gap-1.5"><span>{peerTeamProfile.displayName}</span><VerifiedIcon className="h-3 w-3 text-blue-500" /><TeamRoleBadge role={peerTeamProfile.role} /></span> : peerNickname}
                 </span>
               </h2>
 
@@ -2079,14 +2088,14 @@ useEffect(() => {
               }`}
             >
               <Icons.Shield />
-              End-to-end Anonymous Room Active
+              {roomData?.hostTeamAuthorId || roomData?.guestTeamAuthorId ? 'End-to-end Encrypted Room Active' : 'End-to-end Anonymous Room Active'}
             </span>
           </div>
 
           {messages.map((msg) => {
             const isMe = msg.senderId === userId;
-            const isDeveloper = isDeveloperUser(msg.senderId);
             const hasPinkName = isPinkUser(msg.senderId);
+            const teamProfile = msg.teamAuthorId ? teamProfiles[msg.teamAuthorId] : undefined;
 
             const isPickerOpen =
               activeReactionPickerId === msg.id;
@@ -2143,7 +2152,7 @@ useEffect(() => {
                       : 'text-neutral-400'
                   }`}
                 >
-                  <span
+                  {teamProfile ? <span className="inline-flex flex-wrap items-center gap-1.5 font-bold text-emerald-600 dark:text-emerald-400"><span>{isMe ? `You · ${teamProfile.displayName}` : teamProfile.displayName}</span><VerifiedIcon className="h-3 w-3 text-blue-500" /><TeamRoleBadge role={teamProfile.role} /></span> : <span
                     className={
                       hasPinkName
                         ? 'text-[#F79AC0] font-bold'
@@ -2151,16 +2160,7 @@ useEffect(() => {
                     }
                   >
                     {isMe ? 'You' : msg.senderNickname}
-                  </span>
-
-                  {isDeveloper && (
-                    <span
-                      className="inline-flex items-center text-blue-500 shrink-0"
-                      title="Official TambayanSLU Developer"
-                    >
-                      <Icons.Verified />
-                    </span>
-                  )}
+                  </span>}
                 </div>
 
                 <div className="relative group max-w-[88%] sm:max-w-[80%]">

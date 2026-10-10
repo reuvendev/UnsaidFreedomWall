@@ -33,6 +33,7 @@ import {
 import { db } from '@/lib/firebase';
 import type { PostProps } from './post-types';
 import { mapPublicWallPost } from './post-types';
+import { TeamPublicIdentity } from '@/components/TeamPublicIdentity';
 
 
 const CATEGORIES = [
@@ -2488,7 +2489,14 @@ const copyPostLink =
                         <div className="min-w-0 flex-1">
 
                           <div className="flex items-center gap-2 min-w-0">
-                            <span
+                            {post.teamAuthorId ? <TeamPublicIdentity
+                              teamAuthorId={post.teamAuthorId}
+                              fallbackName={post.authorAlias}
+                              compact
+                              nameClassName={`px-2.5 py-1 rounded-md border font-bold font-mono text-[11px] uppercase tracking-wider whitespace-nowrap ${
+                                isDarkMode ? 'bg-black/30 text-white border-white/30' : 'bg-white/60 text-neutral-950 border-black/15'
+                              }`}
+                            /> : <span
                               className={`px-2.5 py-1 rounded-md border font-bold font-mono text-[11px] uppercase tracking-wider whitespace-nowrap ${
                                 isDev
                                   ? isDarkMode
@@ -2500,8 +2508,8 @@ const copyPostLink =
                               }`}
                             >
                               {post.authorAlias}
-                            </span>
-                            {post.isStaffPost && <span className="inline-flex text-sky-500" title="Verified Developer"><Icons.Verified /></span>}
+                            </span>}
+                            {!post.teamAuthorId && post.isStaffPost && <span className="inline-flex text-sky-500" title="Verified Team member"><Icons.Verified /></span>}
                           </div>
 
                           {/* DATE */}

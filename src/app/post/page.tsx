@@ -16,6 +16,8 @@ import imageCompression from 'browser-image-compression';
 import { db } from '@/lib/firebase';
 import { censorText } from '@/lib/moderation';
 import { getPresignedUploadUrl } from '@/app/actions/r2-upload';
+import { createOfficialTeamPost, getCurrentTeamIdentity } from '@/app/team/public-actions';
+import type { TeamRole } from '@/lib/team/types';
 
 const CATEGORIES = [
   { id: 'thoughts', label: 'Thoughts' },
@@ -283,6 +285,9 @@ export default function PostPage() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [successMessage, setSuccessMessage] = useState(false);
+  const [submittedAsTeam, setSubmittedAsTeam] = useState(false);
+  const [teamIdentity, setTeamIdentity] = useState<{ displayName: string; role: TeamRole } | null>(null);
+  const [postAsTeam, setPostAsTeam] = useState(false);
 
   const [streak, setStreak] = useState(0);
 
@@ -315,6 +320,8 @@ export default function PostPage() {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [imageFile, setImageFile] = useState<File | null>(null);
   const [imagePreview, setImagePreview] = useState<string | null>(null);
+
+  useEffect(() => { getCurrentTeamIdentity().then(setTeamIdentity).catch(() => setTeamIdentity(null)); }, []);
 
   useEffect(() => {
     const loadUserCustomization = async () => {
@@ -612,6 +619,21 @@ export default function PostPage() {
       // Apply automatic censorship to English and Tagalog bad words
       const sanitizedContent = censorText(content.trim());
 
+      if (postAsTeam && teamIdentity) {
+        const result = await createOfficialTeamPost({
+          content: sanitizedContent, category, cardTheme,
+          spotifyTrackId: spotifyTrackId || undefined,
+          imageUrl: imageUrl || undefined,
+        });
+        if (!result.success || !result.postId) throw new Error(result.error || 'Failed to publish official post.');
+        saveMyPost(result.postId);
+        setSubmittedAsTeam(true);
+        setSuccessMessage(true);
+        setPostAsTeam(false);
+        setTimeout(() => router.push('/wall'), 1500);
+        return;
+      }
+
       const postData: any = {
         content: sanitizedContent,
         category,
@@ -768,13 +790,17 @@ export default function PostPage() {
                 : 'bg-emerald-50 border-emerald-200 text-emerald-700'
             }`}
           >
-            Entry submitted successfully! It is now pending
-            manual review and will appear on the feed once
-            approved. Redirecting...
+            {submittedAsTeam
+              ? 'Official Team post published. Redirecting...'
+              : 'Entry submitted successfully! It is now pending manual review and will appear on the feed once approved. Redirecting...'}
           </div>
         )}
 
         <form onSubmit={handleSubmit} className="space-y-8">
+          {teamIdentity && <label className={`flex cursor-pointer items-start gap-3 rounded-xl border p-4 ${postAsTeam ? 'border-emerald-500 bg-emerald-50 dark:bg-emerald-950/30' : isDarkMode ? 'border-neutral-800 bg-neutral-900' : 'border-neutral-200 bg-white'}`}>
+            <input type="checkbox" checked={postAsTeam} onChange={(event) => setPostAsTeam(event.target.checked)} className="mt-1 h-4 w-4 accent-emerald-600" />
+            <span><span className="block text-sm font-bold">Post as {teamIdentity.displayName} ✓</span><span className="mt-1 block text-xs text-neutral-500">Official {teamIdentity.role} identity. Leave unchecked to remain anonymous.</span></span>
+          </label>}
           <div>
             <label
               className={`block font-mono text-xs font-bold uppercase tracking-wider mb-3 ${

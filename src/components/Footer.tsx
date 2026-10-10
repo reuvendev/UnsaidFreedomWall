@@ -36,6 +36,7 @@ export function Footer() {
   }, []);
 
   useEffect(() => {
+    if (pathname?.startsWith('/team')) return;
     async function fetchCount() {
       try {
         const querySnapshot = await getDocs(collection(db, "posts"));
@@ -45,11 +46,11 @@ export function Footer() {
       }
     }
     fetchCount();
-  }, []);
+  }, [pathname]);
 
   // ✅ SAFE: All hooks are called above this line. 
   // Now it can conditionally return null without breaking React rules.
-  if (pathname?.includes('/chat/')) {
+  if (pathname?.includes('/chat/') || pathname?.startsWith('/team')) {
     return null;
   }
 

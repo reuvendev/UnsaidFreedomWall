@@ -3,6 +3,10 @@
 import React, { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
+import { getCurrentTeamIdentity } from '@/app/team/public-actions';
+import { VerifiedIcon } from '@/components/VerifiedIcon';
+import { TeamRoleBadge } from '@/components/TeamRoleBadge';
+import type { TeamRole } from '@/lib/team/types';
 
 const SLU_SCHOOLS = [
   {
@@ -202,6 +206,8 @@ export default function ChatSetupPage() {
   // Chat identity
   const [userId, setUserId] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
+  const [teamIdentity, setTeamIdentity] = useState<{ displayName: string; role: TeamRole } | null>(null);
+  const [useTeamIdentity, setUseTeamIdentity] = useState(false);
 
   // Blocked users
   const [blockedUsers, setBlockedUsers] = useState<string[]>(
@@ -209,6 +215,10 @@ export default function ChatSetupPage() {
   );
 
   // Load saved values
+  useEffect(() => {
+    getCurrentTeamIdentity().then(setTeamIdentity).catch(() => setTeamIdentity(null));
+  }, []);
+
   useEffect(() => {
     try {
       const savedNickname = localStorage.getItem(
@@ -384,6 +394,9 @@ export default function ChatSetupPage() {
         selectedSchool
       );
 
+      if (teamIdentity && useTeamIdentity) sessionStorage.setItem('unsaid_chat_team_opt_in', 'true');
+      else sessionStorage.removeItem('unsaid_chat_team_opt_in');
+
       router.push('/chat/queue');
     } catch (error) {
       console.error(error);
@@ -440,6 +453,7 @@ export default function ChatSetupPage() {
               )}
             </button>
           </div>
+
         </div>
       </header>
 
@@ -611,6 +625,11 @@ export default function ChatSetupPage() {
               })}
             </div>
           </div>
+
+          {teamIdentity && <label className={`flex cursor-pointer items-start gap-3 rounded-2xl border p-5 ${useTeamIdentity ? isDarkMode ? 'border-emerald-700 bg-emerald-950/30' : 'border-emerald-400 bg-emerald-50' : isDarkMode ? 'border-neutral-800 bg-neutral-900' : 'border-neutral-200 bg-white'}`}>
+            <input type="checkbox" checked={useTeamIdentity} onChange={(event) => setUseTeamIdentity(event.target.checked)} className="mt-1 h-4 w-4 accent-emerald-600" />
+            <span className="min-w-0"><span className="flex flex-wrap items-center gap-1.5 text-sm font-bold">Join this chat as {teamIdentity.displayName}<VerifiedIcon className="h-4 w-4 text-blue-500" /><TeamRoleBadge role={teamIdentity.role} /></span><span className="mt-1 block text-xs leading-5 text-neutral-500">Optional for this chat only. Leave unchecked to stay anonymous. Message encryption is unchanged.</span></span>
+          </label>}
 
           {/* Submit */}
           <button

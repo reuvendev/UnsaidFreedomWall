@@ -1,35 +1,159 @@
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
-    
-    function isAdmin() {
+    function isFirebaseAdmin() {
       return request.auth != null && request.auth.token.admin == true;
     }
-    
-    function isActive() {
-      return resource.data.status == 'active';
+
+    function anonymousPostCreate() {
+      return request.resource.data.status == 'pending'
+        && request.resource.data.content is string
+        && request.resource.data.content.size() > 0
+        && request.resource.data.content.size() <= 5000
+        && request.resource.data.authorAlias is string
+        && request.resource.data.userId is string
+        && request.resource.data.upvotes == 0
+        && request.resource.data.replies == 0
+        && !request.resource.data.keys().hasAny([
+          'teamAuthorId', 'isStaffPost', 'staffRole', 'verified',
+          'moderatedBy', 'isDeveloperPost'
+        ]);
     }
 
     match /posts/{postId} {
-      allow read: if isActive() || isAdmin();
-      allow create, update, delete: if isAdmin();
-      
-      match /comments/{commentId} {
-        allow read: if isActive() || isAdmin();
-        allow create, update, delete: if isAdmin();
+      allow read: if resource.data.status == 'approved' || isFirebaseAdmin();
+      allow create: if anonymousPostCreate() || isFirebaseAdmin();
+      allow update: if isFirebaseAdmin()
+        || request.resource.data.diff(resource.data).affectedKeys().hasOnly(['upvotes', 'replies'])
+          && request.resource.data.upvotes is number
+          && request.resource.data.replies is number
+          && request.resource.data.upvotes >= 0
+          && request.resource.data.replies >= 0;
+      allow delete: if isFirebaseAdmin();
+
+      match /replies/{replyId} {
+        allow read: if get(/databases/$(database)/documents/posts/$(postId)).data.status == 'approved'
+          || isFirebaseAdmin();
+        allow create: if isFirebaseAdmin() || (
+          get(/databases/$(database)/documents/posts/$(postId)).data.status == 'approved'
+          && request.resource.data.content is string
+          && request.resource.data.content.size() > 0
+          && request.resource.data.content.size() <= 300
+          && request.resource.data.authorAlias is string
+          && request.resource.data.userId is string
+          && !request.resource.data.keys().hasAny([
+            'teamAuthorId', 'isStaffReply', 'staffRole', 'verified', 'isDeveloperReply'
+          ])
+        );
+        allow update, delete: if isFirebaseAdmin();
       }
     }
 
     match /reports/{reportId} {
-      allow read, write: if isAdmin();
+      function validReason() {
+        return request.resource.data.reason is string
+        && request.resource.data.reason.size() > 0
+        && request.resource.data.reason.size() <= 1000;
+      }
+
+      function validContentReport() {
+        return validReason()
+          && request.resource.data.postId is string
+          && request.resource.data.postId.size() > 0
+          && request.resource.data.postId.size() <= 200
+          && request.resource.data.status == 'pending'
+          && (!('contentType' in request.resource.data) || request.resource.data.contentType in ['post', 'reply'])
+          && (!('replyId' in request.resource.data) || request.resource.data.replyId == null || request.resource.data.replyId is string)
+          && (!('details' in request.resource.data) || request.resource.data.details is string && request.resource.data.details.size() <= 2000)
+          && (!('contentSnippet' in request.resource.data) || request.resource.data.contentSnippet is string && request.resource.data.contentSnippet.size() <= 500)
+          && request.resource.data.createdAt is timestamp
+          && request.resource.data.keys().hasOnly([
+            'postId', 'contentType', 'replyId', 'reason', 'details',
+            'contentSnippet', 'createdAt', 'status'
+          ]);
+      }
+
+      function validChatReport() {
+        return validReason()
+          && request.resource.data.roomId is string
+          && request.resource.data.reporterId is string
+          && request.resource.data.reporterId.size() <= 200
+          && (!('reportedUserId' in request.resource.data) || request.resource.data.reportedUserId is string && request.resource.data.reportedUserId.size() <= 200)
+          && request.resource.data.evidence is map
+          && request.resource.data.evidence.messageCount is number
+          && request.resource.data.evidence.messageCount >= 0
+          && request.resource.data.evidence.messageCount <= 20
+          && request.resource.data.evidence.messages is list
+          && request.resource.data.evidence.messages.size() <= 20
+          && request.resource.data.createdAt is timestamp
+          && request.resource.data.keys().hasOnly([
+            'roomId', 'reporterId', 'reportedUserId', 'reason', 'evidence', 'createdAt'
+          ]);
+      }
+
+      allow create: if validContentReport() || validChatReport();
+      // Portal reads and mutations use role-checked server actions. Team users
+      // intentionally receive no direct access to chat evidence in this mixed collection.
+      allow read, update, delete: if isFirebaseAdmin();
+    }
+
+    // Public profiles contain display-only data. Admin SDK server actions are
+    // the only writers, so a client cannot grant itself a badge or role.
+    match /teamPublicProfiles/{uid} {
+      allow read: if true;
+      allow write: if false;
+    }
+
+    match /teamMembers/{uid} {
+      allow read: if request.auth != null && request.auth.uid == uid;
+      allow write: if false;
+    }
+
+    match /teamAnnouncements/{announcementId} {
+      allow read: if isFirebaseAdmin();
+      allow write: if false;
+    }
+
+    match /moderation_logs/{logId} {
+      allow read: if isFirebaseAdmin();
+      allow write: if false;
+    }
+
+    match /teamAuditLogs/{logId} {
+      allow read, write: if false;
+    }
+
+    match /chatRooms/{roomId} {
+      allow read: if true;
+      allow create: if !request.resource.data.keys().hasAny([
+        'hostTeamAuthorId', 'guestTeamAuthorId', 'teamAuthorId', 'verified', 'role'
+      ])
+      && (!('hostTeamClaimHash' in request.resource.data)
+        || request.resource.data.hostTeamClaimHash is string
+        && request.resource.data.hostTeamClaimHash.size() == 64);
+      allow update: if !request.resource.data.diff(resource.data).affectedKeys().hasAny([
+        'hostTeamAuthorId', 'guestTeamAuthorId', 'teamAuthorId', 'verified', 'role',
+        'hostTeamClaimHash'
+      ])
+      && (!request.resource.data.diff(resource.data).affectedKeys().hasAny(['guestTeamClaimHash'])
+        || resource.data.guestId == null
+        && request.resource.data.guestId is string
+        && request.resource.data.guestTeamClaimHash is string
+        && request.resource.data.guestTeamClaimHash.size() == 64);
+      allow delete: if true;
+
+      match /messages/{messageId} {
+        allow read: if true;
+        allow create: if !request.resource.data.keys().hasAny([
+          'teamAuthorId', 'verified', 'staffRole', 'role'
+        ]);
+        allow update: if request.resource.data.diff(resource.data).affectedKeys().hasOnly(['reactions']);
+        allow delete: if false;
+      }
     }
 
     match /rate_limits/{limitId} {
       allow read, write: if false;
-    }
-
-    match /moderation_logs/{logId} {
-      allow read, write: if isAdmin();
     }
   }
 }

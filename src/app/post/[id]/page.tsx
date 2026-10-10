@@ -25,6 +25,9 @@ import { censorText } from '@/lib/moderation';
 import imageCompression from 'browser-image-compression';
 import { getPresignedUploadUrl } from '@/app/actions/r2-upload';
 import { Image } from 'lucide-react';
+import { TeamPublicIdentity } from '@/components/TeamPublicIdentity';
+import { createOfficialTeamReply, getCurrentTeamIdentity } from '@/app/team/public-actions';
+import type { TeamRole } from '@/lib/team/types';
 
 interface PostData {
   id: string;
@@ -39,6 +42,8 @@ interface PostData {
   isDeveloperPost?: boolean;
   isStaffPost?: boolean;
   staffRole?: string;
+  teamAuthorId?: string;
+  authorUserId?: string;
   cardTheme?: {
     background: string;
     border: string;
@@ -52,6 +57,10 @@ interface ReplyData {
   createdAt: string;
   imageUrl?: string;
   isDeveloperReply?: boolean;
+  isStaffReply?: boolean;
+  staffRole?: string;
+  teamAuthorId?: string;
+  authorUserId?: string;
   parentReplyId?: string;
   replyingToAlias?: string;
   replyingToContent?: string;
@@ -219,6 +228,8 @@ export default function PostDetailPage() {
 
   const [isSubmitting, setIsSubmitting] =
     useState(false);
+  const [teamIdentity, setTeamIdentity] = useState<{ displayName: string; role: TeamRole } | null>(null);
+  const [replyAsTeam, setReplyAsTeam] = useState(false);
 
   const [hasVoted, setHasVoted] =
     useState(false);
@@ -233,6 +244,8 @@ export default function PostDetailPage() {
   // viewport on Android/iOS when browser chrome or the keyboard is open.
   const [viewportBottomInset, setViewportBottomInset] =
     useState(0);
+
+  useEffect(() => { getCurrentTeamIdentity().then(setTeamIdentity).catch(() => setTeamIdentity(null)); }, []);
 
   // =========================================================
   // REPORT MODAL STATE
@@ -605,6 +618,8 @@ export default function PostDetailPage() {
                 undefined,
               isStaffPost: data.isStaffPost === true,
               staffRole: data.staffRole || undefined,
+              teamAuthorId: typeof data.teamAuthorId === 'string' ? data.teamAuthorId : undefined,
+              authorUserId: typeof data.userId === 'string' ? data.userId : undefined,
               isDeveloperPost:
                 data.isDeveloperPost ||
                 false,
@@ -709,6 +724,11 @@ export default function PostDetailPage() {
                 isDeveloperReply:
                   rData.isDeveloperReply ||
                   false,
+
+                isStaffReply: rData.isStaffReply === true,
+                staffRole: rData.staffRole || undefined,
+                teamAuthorId: typeof rData.teamAuthorId === 'string' ? rData.teamAuthorId : undefined,
+                authorUserId: typeof rData.userId === 'string' ? rData.userId : undefined,
 
                 parentReplyId:
                   rData.parentReplyId ||
@@ -884,6 +904,11 @@ export default function PostDetailPage() {
             isDeveloperReply:
               rData.isDeveloperReply ||
               false,
+
+            isStaffReply: rData.isStaffReply === true,
+            staffRole: rData.staffRole || undefined,
+            teamAuthorId: typeof rData.teamAuthorId === 'string' ? rData.teamAuthorId : undefined,
+            authorUserId: typeof rData.userId === 'string' ? rData.userId : undefined,
 
             parentReplyId:
               rData.parentReplyId ||
@@ -1116,6 +1141,18 @@ export default function PostDetailPage() {
 
           imageUrl =
             urlRes.publicUrl;
+        }
+
+        if (replyAsTeam && teamIdentity) {
+          const result = await createOfficialTeamReply({
+            postId,
+            content: sanitizedContent,
+            imageUrl: imageUrl || undefined,
+            parentReplyId: replyingTo?.id,
+          });
+          if (!result.success) throw new Error(result.error || 'Failed to publish official reply.');
+          setReplyContent(''); setReplyingTo(null); setReplyAsTeam(false); removeReplyImage();
+          return;
         }
 
         // ---------------------------------------------------
@@ -1455,10 +1492,10 @@ export default function PostDetailPage() {
                     : 'text-neutral-900'
                 }`}
               >
-                {post.authorAlias}
+                {post.teamAuthorId ? <TeamPublicIdentity teamAuthorId={post.teamAuthorId} fallbackName={post.authorAlias} /> : post.authorAlias}
               </span>
 
-              {isPostAdminOrDev && (
+              {isPostAdminOrDev && !post.teamAuthorId && (
                 <span
                   className={`border px-2 py-0.5 rounded text-[9px] uppercase font-bold tracking-widest ${
                     isDarkMode
@@ -1657,17 +1694,12 @@ export default function PostDetailPage() {
           )}
 
           {displayedReplies.map((reply) => {
-            const normalizedAlias =
-              reply.authorAlias
-                .trim()
-                .toLowerCase();
-
             const isReplyAdminOrDev =
               reply.isDeveloperReply ||
-              normalizedAlias.includes('admin') ||
-              normalizedAlias.includes('developer') ||
-              normalizedAlias.includes('dev') ||
-              normalizedAlias === 'nevz';
+              reply.isStaffReply;
+            const isOriginalPoster = post.teamAuthorId
+              ? reply.teamAuthorId === post.teamAuthorId
+              : Boolean(post.authorUserId && reply.authorUserId === post.authorUserId);
 
             return (
               <div
@@ -1697,10 +1729,10 @@ export default function PostDetailPage() {
                           : 'text-neutral-800'
                       }`}
                     >
-                      {reply.authorAlias}
+                      {reply.teamAuthorId ? <TeamPublicIdentity teamAuthorId={reply.teamAuthorId} fallbackName={reply.authorAlias} compact /> : reply.authorAlias}
                     </span>
 
-                    {isReplyAdminOrDev && (
+                    {isReplyAdminOrDev && !reply.teamAuthorId && (
                       <span
                         className={`border px-1.5 py-0.5 rounded text-[8px] uppercase font-bold tracking-widest ${
                           isDarkMode
@@ -1709,6 +1741,19 @@ export default function PostDetailPage() {
                         }`}
                       >
                         ADMIN / DEV
+                      </span>
+                    )}
+
+                    {isOriginalPoster && (
+                      <span
+                        title="Original Poster"
+                        className={`rounded border px-1.5 py-0.5 text-[8px] font-bold uppercase tracking-widest ${
+                          isDarkMode
+                            ? 'border-sky-800 bg-sky-950/50 text-sky-300'
+                            : 'border-sky-200 bg-sky-50 text-sky-700'
+                        }`}
+                      >
+                        OP
                       </span>
                     )}
                   </div>
@@ -1888,6 +1933,7 @@ export default function PostDetailPage() {
               : 'border-neutral-200 bg-white/95'
           }`}
         >
+          {teamIdentity && <label className={`mb-2 flex cursor-pointer items-center gap-2 rounded-lg border px-3 py-2 text-xs ${replyAsTeam ? 'border-emerald-500 bg-emerald-50 text-emerald-800' : isDarkMode ? 'border-neutral-800 text-neutral-400' : 'border-neutral-200 text-neutral-600'}`}><input type="checkbox" checked={replyAsTeam} onChange={(event) => setReplyAsTeam(event.target.checked)} className="accent-emerald-600" /><span>Reply as <strong>{teamIdentity.displayName} ✓</strong> ({teamIdentity.role}). Leave unchecked to stay anonymous.</span></label>}
           {replyingTo && (
             <div
               className={`mb-2 flex items-start justify-between gap-3 rounded-lg border px-3 py-2 ${

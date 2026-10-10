@@ -13,6 +13,7 @@ export interface PostProps {
   isDeveloperPost?: boolean;
   isStaffPost?: boolean;
   staffRole?: string;
+  teamAuthorId?: string;
   isPinned?: boolean;
   cardTheme?: { background: string; border: string };
 }
@@ -50,6 +51,7 @@ export function mapPublicWallPost(id: string, data: Record<string, any>): PostPr
     imageUrl: data.imageUrl || undefined,
     isStaffPost: data.isStaffPost === true,
     staffRole: data.staffRole || undefined,
+    teamAuthorId: typeof data.teamAuthorId === 'string' ? data.teamAuthorId : undefined,
     isDeveloperPost: data.isDeveloperPost === true,
     isPinned: data.isPinned === true,
     cardTheme: data.cardTheme &&

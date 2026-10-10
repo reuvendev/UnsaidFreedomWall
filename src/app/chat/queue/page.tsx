@@ -18,12 +18,18 @@ import {
   runTransaction,
 } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
+import { claimVerifiedChatIdentity } from '@/app/chat/actions';
 
 
 const QUEUE_HEARTBEAT_INTERVAL = 10_000;
 const QUEUE_OFFLINE_TIMEOUT = 30_000;
 
 const STREAK_USER_KEY = 'unsaid_chat_user_id';
+
+async function sha256Hex(value: string) {
+  const bytes = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(value));
+  return Array.from(new Uint8Array(bytes), (byte) => byte.toString(16).padStart(2, '0')).join('');
+}
 
 const Icons = {
   Loader: () => (
@@ -316,6 +322,9 @@ export default function ChatQueuePage() {
         router.push('/chat/setup');
         return;
       }
+      const teamOptIn = sessionStorage.getItem('unsaid_chat_team_opt_in') === 'true';
+      const teamClaimNonce = teamOptIn ? crypto.randomUUID() : null;
+      const teamClaimHash = teamClaimNonce ? await sha256Hex(teamClaimNonce) : null;
 
       let blockedUsers: string[] = [];
       try {
@@ -356,6 +365,7 @@ export default function ChatQueuePage() {
         setCurrentRoomId(null);
         setShowShareModal(false);
         setStatusText('Match found! Entering secure chat...');
+        sessionStorage.removeItem('unsaid_chat_team_opt_in');
 
         // The count is only incremented for the person who claims the room.
         void setDoc(doc(db, 'counters', 'system'), {
@@ -375,6 +385,7 @@ export default function ChatQueuePage() {
         addRecentMatch(guestId);
         setShowShareModal(false);
         setStatusText('Peer connected! Entering secure chat...');
+        sessionStorage.removeItem('unsaid_chat_team_opt_in');
 
         const streak = await getStreak();
         if (!isMounted) return;
@@ -389,7 +400,7 @@ export default function ChatQueuePage() {
       const claimRoom = async (targetId: string, streak: number) => {
         const targetRef = doc(db, 'chatRooms', targetId);
         const myWaitingRoom = ownRoomRef;
-        return runTransaction(db, async (transaction) => {
+        const claimed = await runTransaction(db, async (transaction) => {
           // All transaction reads occur before any writes.
           const targetSnap = await transaction.get(targetRef);
           const ownSnap = myWaitingRoom
@@ -425,12 +436,18 @@ export default function ChatQueuePage() {
             guestStreak: streak,
             guestLastSeenAt: serverTimestamp(),
             status: 'active',
+            ...(teamClaimHash ? { guestTeamClaimHash: teamClaimHash } : {}),
           });
           // Do not delete our waiting room in the same transaction: some
           // Firestore rules permit claiming but reject deleting chat rooms.
           // Deleting in the transaction would roll back the match itself.
           return true;
         });
+        if (claimed && teamClaimNonce) {
+          const attached = await claimVerifiedChatIdentity({ roomId: targetId, anonymousUserId: userId, nonce: teamClaimNonce });
+          if (!attached.success) console.warn('Team identity was not attached:', attached.error);
+        }
+        return claimed;
       };
 
       const createWaitingRoom = async () => {
@@ -450,7 +467,13 @@ export default function ChatQueuePage() {
           // Essential: without the first heartbeat, other devices consider
           // a newly created room offline for its first ten seconds.
           hostLastSeenAt: serverTimestamp(),
+          ...(teamClaimHash ? { hostTeamClaimHash: teamClaimHash } : {}),
         });
+
+        if (teamClaimNonce) {
+          const attached = await claimVerifiedChatIdentity({ roomId: roomRef.id, anonymousUserId: userId, nonce: teamClaimNonce });
+          if (!attached.success) console.warn('Team identity was not attached:', attached.error);
+        }
 
         if (!isMounted || hasHandledMatch) {
           void deleteWaitingRoom(roomRef).catch(console.error);
@@ -645,6 +668,7 @@ export default function ChatQueuePage() {
   };
 
   const handleCancel = async () => {
+    sessionStorage.removeItem('unsaid_chat_team_opt_in');
     if (currentRoomId) {
       const roomRef = doc(
         db,

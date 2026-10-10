@@ -26,3 +26,27 @@ UNSAID is a privacy-first, ultra-minimalist anonymous platform where students an
    ```bash
    firebase deploy --only firestore:rules
    ```
+
+## TambayanSLU Team Portal
+
+The private portal is available at `/team`. Team accounts use Firebase Email/Password Authentication and a revocable server session cookie. Public registration is intentionally unavailable.
+
+Bootstrap the first Founder manually in Firebase Authentication and create a matching `teamMembers/{uid}` document before using the portal. The stored role value remains `owner` for authorization compatibility, but the portal displays it as Founder:
+
+```text
+uid: string (same as the Firebase Auth UID)
+displayName: string
+email: string
+role: "owner"
+status: "active"
+verified: true
+createdAt: Firestore timestamp
+activity: {
+  reviewedPosts: 0,
+  approvedPosts: 0,
+  rejectedPosts: 0,
+  reportsResolved: 0
+}
+```
+
+Create the matching display-only `teamPublicProfiles/{uid}` document with `displayName`, `role: "owner"`, and `verified: true`. After bootstrap, the Founder can create Admin, Moderator, and Marketing accounts from `/team/members`. Do not place email addresses or private account metadata in `teamPublicProfiles`.
