@@ -83,7 +83,9 @@ export async function createOfficialTeamReply(input: {
         transaction.get(postRef),
         parentRef ? transaction.get(parentRef) : Promise.resolve(null),
       ]);
-      if (!postSnapshot.exists || postSnapshot.data()?.status !== 'approved') throw new Error('This post is not available.');
+      if (!postSnapshot.exists) throw new Error('Post not found. Verify that the Firebase Admin service account uses the same project as the public Firebase configuration.');
+      const postStatus = postSnapshot.data()?.status;
+      if (postStatus !== 'approved' && postStatus !== 'active') throw new Error('This post is not publicly available.');
       if (parentRef && !parentSnapshot?.exists) throw new Error('The reply you are responding to no longer exists.');
       const parent = parentSnapshot?.data();
       const quotedContent = String(parent?.content || '').slice(0, 300);
