@@ -20,7 +20,7 @@ import {
 } from 'firebase/firestore';
 
 import { db } from '@/lib/firebase';
-import { PostProps } from '@/app/wall/page';
+import type { PostProps } from '@/app/wall/post-types';
 import { loginAdmin, logoutAdmin, checkAdminAuth } from '../actions';
 
 import imageCompression from 'browser-image-compression';
