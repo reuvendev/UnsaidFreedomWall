@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { doc, getDoc } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
+import ProjectBlueEasterEgg from './ProjectBlueEasterEgg'; // TEMPORARY: PROJECT BLUE 10.12
 
 const STREAK_STORAGE_KEY = 'unsaid_chat_user_id';
 
@@ -508,6 +509,8 @@ export default function HomePage() {
             <br />
             Eselyu
           </h1>
+
+          <ProjectBlueEasterEgg isDarkMode={isDarkMode} /> {/* TEMPORARY: PROJECT BLUE 10.12 */}
 
 <div className="relative max-w-md lg:max-w-lg mb-8 pt-14">
 
