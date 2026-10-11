@@ -15,7 +15,7 @@ const jetbrainsMono = JetBrains_Mono({
 });
 
 export const metadata: Metadata = {
-  metadataBase: new URL('https://tambayanslu.com'),
+  metadataBase: new URL('https://www.tambayanslu.com'),
   title: "TambayanSLU — Independent Student Community",
   description:
     "Explore moderated anonymous community posts, student guides and resources on TambayanSLU, an independent platform for Louisians.",

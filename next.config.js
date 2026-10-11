@@ -4,14 +4,6 @@ const nextConfig = {
   // next dev and next build may run at the same time locally. Give development
   // its own artifacts so a build cannot remove the dev server's _document.js.
   distDir: process.env.NODE_ENV === 'development' ? '.next-dev' : '.next',
-  async redirects() {
-    return [{
-      source: '/:path*',
-      has: [{ type: 'host', value: 'www.tambayanslu.com' }],
-      destination: 'https://tambayanslu.com/:path*',
-      permanent: true,
-    }];
-  },
   images: {
     remotePatterns: [
       {

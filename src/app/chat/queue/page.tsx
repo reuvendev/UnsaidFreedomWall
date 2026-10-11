@@ -708,7 +708,7 @@ export default function ChatQueuePage() {
     const shareData = {
       title: 'Tambayan SLU',
       text: 'Tara sa Tambayan! Join the anonymous chat for Louisians.',
-      url: 'https://tambayanslu.com/',
+      url: 'https://www.tambayanslu.com/',
     };
 
     try {

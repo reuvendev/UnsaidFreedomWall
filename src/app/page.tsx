@@ -3,7 +3,7 @@ import HomeClient from './HomeClient';
 
 export const metadata: Metadata = {
   alternates: { canonical: '/' },
-  openGraph: { url: 'https://tambayanslu.com', type: 'website' },
+  openGraph: { url: 'https://www.tambayanslu.com', type: 'website' },
 };
 
 export default function HomePage() {

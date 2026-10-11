@@ -4,7 +4,7 @@ import { db } from '@/lib/firebase';
 
 export const revalidate = 3600;
 
-const baseUrl = 'https://tambayanslu.com';
+const baseUrl = 'https://www.tambayanslu.com';
 const publicPaths = [
   '/', '/wall', '/about', '/how-it-works', '/guidelines',
   '/faq', '/privacy', '/contact', '/credits', '/support',

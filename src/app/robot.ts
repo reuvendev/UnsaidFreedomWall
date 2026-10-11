@@ -13,6 +13,6 @@ export default function robots(): MetadataRoute.Robots {
         '/pet',
       ],
     },
-    sitemap: 'https://tambayanslu.com/sitemap.xml',
+    sitemap: 'https://www.tambayanslu.com/sitemap.xml',
   };
 }

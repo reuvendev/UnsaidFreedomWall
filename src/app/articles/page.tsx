@@ -33,7 +33,7 @@ export async function generateMetadata(): Promise<Metadata> {
     title: 'Tambayan Reads | TambayanSLU',
     description:
       'Student stories, practical guides, and community updates from the Tambayan.',
-    url: 'https://tambayanslu.com/articles',
+    url: 'https://www.tambayanslu.com/articles',
     type: 'website'
   }
   };

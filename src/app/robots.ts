@@ -7,7 +7,7 @@ export default function robots(): MetadataRoute.Robots {
       allow: '/',
       disallow: ['/admin/', '/team/', '/chat/', '/inbox/', '/entries', '/user-id', '/api/', '/post/', '/appeal'],
     }],
-    sitemap: 'https://tambayanslu.com/sitemap.xml',
-    host: 'https://tambayanslu.com',
+    sitemap: 'https://www.tambayanslu.com/sitemap.xml',
+    host: 'https://www.tambayanslu.com',
   };
 }

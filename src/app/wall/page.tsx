@@ -18,7 +18,7 @@ export const metadata: Metadata = {
   openGraph: {
     title: 'Freedom Wall | TambayanSLU',
     description: 'Explore anonymous, moderated conversations from the Tambayan community.',
-    url: 'https://tambayanslu.com/wall',
+    url: 'https://www.tambayanslu.com/wall',
     type: 'website',
   },
 };

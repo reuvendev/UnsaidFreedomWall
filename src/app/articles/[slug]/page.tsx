@@ -62,7 +62,7 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
     article.excerpt.trim() ||
     article.content.replace(/[#*_>`\[\]()]/g, '').replace(/\s+/g, ' ').trim()
   ).slice(0, 160);
-  const url = `https://tambayanslu.com/articles/${encodeURIComponent(article.slug)}`;
+  const url = `https://www.tambayanslu.com/articles/${encodeURIComponent(article.slug)}`;
 
   return {
     title: `${article.title} | Tambayan Reads`,
@@ -104,7 +104,7 @@ export default async function ArticlePage({ params }: PageProps) {
     '@type': 'Article',
     headline: article.title,
     description: article.excerpt || undefined,
-    mainEntityOfPage: `https://tambayanslu.com/articles/${encodeURIComponent(article.slug)}`,
+    mainEntityOfPage: `https://www.tambayanslu.com/articles/${encodeURIComponent(article.slug)}`,
     author: { '@type': article.author === 'TambayanSLU' ? 'Organization' : 'Person', name: article.author },
     publisher: { '@type': 'Organization', name: 'Valiance' },
     ...(article.createdAt !== null ? { datePublished: new Date(article.createdAt).toISOString() } : {}),
