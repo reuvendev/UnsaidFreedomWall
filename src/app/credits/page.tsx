@@ -240,7 +240,7 @@ export default function CreditsPage() {
             <h2
               className={`text-2xl font-extrabold tracking-tight mb-2 ${heading}`}
             >
-              Nevz
+              Valiance
             </h2>
 
             <p
@@ -250,17 +250,15 @@ export default function CreditsPage() {
                   : 'text-neutral-400'
               }`}
             >
-              BSIT · Solo Developer
+              Student-led development team
             </p>
 
             <div
               className={`space-y-4 text-sm sm:text-base leading-relaxed ${body}`}
             >
               <p>
-                Tambayan is developed and maintained by Nevz, a BSIT student
-                responsible for the platform's development, design,
-                implementation, database management, maintenance, and technical
-                improvements.
+                Tambayan is developed and maintained by Valiance, an independent
+                student-led development team responsible for keeping the platform running.
               </p>
 
             </div>
@@ -407,8 +405,8 @@ export default function CreditsPage() {
               className={`text-sm sm:text-base leading-relaxed ${body}`}
             >
               Tambayan SLU is independently developed and maintained
-              by Nevz, a BSIT student of Saint Louis University. Tambayan
-              is not an official academic project, service, or platform
+               by Valiance, a student-led development team. Tambayan
+               is not a school-assigned project or an official service or platform
               of Saint Louis University, SAMCIS, or any university office.
               It is not affiliated with, authorized by, or endorsed by
               Saint Louis University.

@@ -27,6 +27,7 @@ const getArticleBySlug = cache(async (slug: string): Promise<ArticleData | null>
   if (snapshot.empty) return null;
 
   const data = snapshot.docs[0].data();
+  if (data.status === 'draft' || data.published === false) return null;
   const date = data.createdAt;
   const createdAt =
     date && typeof date.toMillis === 'function' ? date.toMillis() : null;
@@ -39,6 +40,7 @@ const getArticleBySlug = cache(async (slug: string): Promise<ArticleData | null>
     excerpt: data.excerpt || '',
     content: data.content || '',
     createdAt,
+    updatedAt: typeof data.updatedAt?.toMillis === 'function' ? data.updatedAt.toMillis() : null,
     author: data.author || 'TambayanSLU',
   };
 });
@@ -54,14 +56,17 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
     };
   }
 
+  const editorialReviewNeeded = slug.toLowerCase() === 'test';
+
   const description = (
     article.excerpt.trim() ||
     article.content.replace(/[#*_>`\[\]()]/g, '').replace(/\s+/g, ' ').trim()
   ).slice(0, 160);
-  const url = `https://www.tambayanslu.com/articles/${encodeURIComponent(article.slug)}`;
+  const url = `https://tambayanslu.com/articles/${encodeURIComponent(article.slug)}`;
 
   return {
     title: `${article.title} | Tambayan Reads`,
+    ...(editorialReviewNeeded ? { robots: { index: false, follow: false } } : {}),
     description,
     alternates: { canonical: url },
     openGraph: {
@@ -72,6 +77,9 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
       description,
       ...(article.createdAt !== null
         ? { publishedTime: new Date(article.createdAt).toISOString() }
+        : {}),
+      ...(article.updatedAt !== null
+        ? { modifiedTime: new Date(article.updatedAt).toISOString() }
         : {}),
       authors: [article.author],
     },
@@ -91,5 +99,19 @@ export default async function ArticlePage({ params }: PageProps) {
 
   // Client Component is still pre-rendered on the server on initial requests;
   // its browser-only dark mode adjustment happens after hydration.
-  return <ArticleClient article={article} />;
+  const jsonLd = {
+    '@context': 'https://schema.org',
+    '@type': 'Article',
+    headline: article.title,
+    description: article.excerpt || undefined,
+    mainEntityOfPage: `https://tambayanslu.com/articles/${encodeURIComponent(article.slug)}`,
+    author: { '@type': article.author === 'TambayanSLU' ? 'Organization' : 'Person', name: article.author },
+    publisher: { '@type': 'Organization', name: 'Valiance' },
+    ...(article.createdAt !== null ? { datePublished: new Date(article.createdAt).toISOString() } : {}),
+    ...(article.updatedAt !== null ? { dateModified: new Date(article.updatedAt).toISOString() } : {}),
+  };
+  return <>
+    <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd).replace(/</g, '\\u003c') }} />
+    <ArticleClient article={article} />
+  </>;
 }

@@ -7,5 +7,6 @@ export interface ArticleData {
   excerpt: string;
   content: string;
   createdAt: number | null; // Epoch milliseconds, not Firestore Timestamp
+  updatedAt: number | null;
   author: string;
 }

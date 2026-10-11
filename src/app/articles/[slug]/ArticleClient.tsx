@@ -114,14 +114,22 @@ function renderMarkdownContent(content: string, isDarkMode: boolean) {
 
     if (trimmed.startsWith('### ')) {
       return (
-        <h3
+        <h2
           key={index}
           className={`mt-9 mb-4 text-xl font-bold tracking-tight md:text-2xl ${
             isDarkMode ? 'text-white' : 'text-neutral-900'
           }`}
         >
           {formatInlineStyles(trimmed.replace('### ', ''), isDarkMode)}
-        </h3>
+        </h2>
+      );
+    }
+
+    if (trimmed.startsWith('## ')) {
+      return (
+        <h2 key={index} className={`mt-10 mb-4 text-2xl font-bold tracking-tight ${isDarkMode ? 'text-white' : 'text-neutral-900'}`}>
+          {formatInlineStyles(trimmed.slice(3), isDarkMode)}
+        </h2>
       );
     }
 
@@ -242,9 +250,11 @@ export default function ArticleClient({ article }: { article: ArticleData }) {
               •
             </span>
 
-            <span className={isDarkMode ? 'text-neutral-500' : 'text-neutral-400'}>
-              {formatArticleDate(article.createdAt)}
-            </span>
+            {article.createdAt !== null && (
+              <time dateTime={new Date(article.createdAt).toISOString()} className={isDarkMode ? 'text-neutral-500' : 'text-neutral-400'}>
+                {formatArticleDate(article.createdAt)}
+              </time>
+            )}
 
             <span className={isDarkMode ? 'text-neutral-700' : 'text-neutral-300'}>
               •
@@ -269,7 +279,12 @@ export default function ArticleClient({ article }: { article: ArticleData }) {
                 isDarkMode ? 'text-neutral-400' : 'text-neutral-600'
               }`}
             >
-              {article.excerpt}
+            {article.excerpt}
+            </p>
+          )}
+          {article.updatedAt !== null && (
+            <p className={`mt-3 text-xs ${isDarkMode ? 'text-neutral-500' : 'text-neutral-500'}`}>
+              Updated <time dateTime={new Date(article.updatedAt).toISOString()}>{formatArticleDate(article.updatedAt)}</time>
             </p>
           )}
         </header>

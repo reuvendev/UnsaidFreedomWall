@@ -15,9 +15,10 @@ const jetbrainsMono = JetBrains_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "TambayanEselyu — Freedom Wall & Anonymous Chat",
+  metadataBase: new URL('https://tambayanslu.com'),
+  title: "TambayanSLU — Independent Student Community",
   description:
-    "A safe, uninhibited anonymous space to share your thoughts, and rants.",
+    "Explore moderated anonymous community posts, student guides and resources on TambayanSLU, an independent platform for Louisians.",
 
   keywords: [
     "TambayanEselyu",
@@ -33,14 +34,10 @@ export const metadata: Metadata = {
     "Louisians",
   ],
 
-  authors: [
-    {
-      name: "TambayanEselyu",
-    },
-  ],
+  authors: [{ name: "Valiance" }],
 
-  creator: "TambayanEselyu",
-  publisher: "TambayanEselyu",
+  creator: "Valiance",
+  publisher: "Valiance",
 
   robots: {
     index: true,
@@ -56,11 +53,10 @@ export const metadata: Metadata = {
   },
 
   openGraph: {
-    title: "TambayanEselyu — Freedom Wall & Anonymous Chat",
+    title: "TambayanSLU — Independent Student Community",
     description:
       "An independent anonymous community for Louisians to share thoughts, stories, questions, and conversations.",
-    url: "https://tambayanslu.com",
-    siteName: "TambayanEselyu",
+    siteName: "TambayanSLU",
     type: "website",
     locale: "en_PH",
     images: [
@@ -68,7 +64,7 @@ export const metadata: Metadata = {
         url: "https://cdn.tambayanslu.com/icon/TAMBAYAN_IC.png",
         width: 512,
         height: 512,
-        alt: "TambayanEselyu",
+        alt: "TambayanSLU",
       },
     ],
   },
@@ -86,14 +82,6 @@ export default function RootLayout({
         <meta
           name="google-adsense-account"
           content="ca-pub-4528898772462835"
-        />
-
-        {/* Google AdSense */}
-        <Script
-          async
-          src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-4528898772462835"
-          crossOrigin="anonymous"
-          strategy="afterInteractive"
         />
 
         {/* Google Analytics */}

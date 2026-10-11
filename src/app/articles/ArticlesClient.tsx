@@ -175,9 +175,10 @@ export default function ArticlesClient({
       );
 
       const querySnapshot = await getDocs(q);
-      const fetched = querySnapshot.docs.map((docSnap) =>
-        toArticleSummary(docSnap.id, docSnap.data())
-      );
+      const fetched = querySnapshot.docs.filter((docSnap) => {
+        const data = docSnap.data();
+        return data.status !== 'draft' && data.published !== false;
+      }).map((docSnap) => toArticleSummary(docSnap.id, docSnap.data()));
 
       // Avoid duplicate cards if the collection changed between requests.
       setArticles((previous) => {

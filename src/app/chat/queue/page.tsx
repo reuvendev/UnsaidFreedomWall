@@ -1,8 +1,7 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
-import Link from 'next/link';
 import {
   collection,
   doc,
@@ -190,12 +189,12 @@ function addRecentMatch(peerId: string) {
 
 export default function ChatQueuePage() {
   const router = useRouter();
+  const leaveQueueRef = useRef<() => Promise<void>>(async () => {});
 
   const [statusText, setStatusText] = useState(
     'Initializing secure matchmaking...'
   );
 
-  const [currentRoomId, setCurrentRoomId] = useState<string | null>(null);
   const [isDarkMode, setIsDarkMode] = useState<boolean>(false);
   const [retryKey, setRetryKey] = useState<number>(0);
   const [showShareModal, setShowShareModal] = useState(false);
@@ -242,6 +241,7 @@ export default function ChatQueuePage() {
     let scanning = false;
     let scanAgain = false;
     let queuePaused = false;
+    let leavePromise: Promise<void> | null = null;
     let latestWaitingRooms: Array<{
       id: string;
       hostId: string;
@@ -272,6 +272,44 @@ export default function ChatQueuePage() {
         return true;
       });
     };
+
+    const deleteStaleWaitingRoom = async (roomRef: ReturnType<typeof doc>) => {
+      return runTransaction(db, async (transaction) => {
+        const snap = await transaction.get(roomRef);
+        if (!snap.exists()) return false;
+        const data = snap.data();
+        const lastSeen = data.hostLastSeenAt?.toMillis?.() ?? 0;
+        if (
+          data.status !== 'waiting' ||
+          data.guestId ||
+          !lastSeen ||
+          Date.now() - lastSeen <= QUEUE_OFFLINE_TIMEOUT
+        ) return false;
+        transaction.delete(roomRef);
+        return true;
+      });
+    };
+
+    const leaveQueue = () => {
+      if (leavePromise) return leavePromise;
+      leavePromise = (async () => {
+        queuePaused = true;
+        clearQueueTimers();
+        unsubscribeQueue?.();
+        unsubscribeRoom?.();
+        unsubscribeQueue = null;
+        unsubscribeRoom = null;
+
+        const abandonedRoom = ownRoomRef;
+        ownRoomRef = null;
+        if (abandonedRoom && !hasHandledMatch) {
+          await deleteWaitingRoom(abandonedRoom);
+        }
+      })();
+      return leavePromise;
+    };
+
+    leaveQueueRef.current = leaveQueue;
 
     const retryLater = (message: string, delayMs = 5000) => {
       if (!isMounted || hasHandledMatch || retryTimeout) return;
@@ -362,7 +400,6 @@ export default function ChatQueuePage() {
             console.warn('Could not clean up previous waiting room:', error);
           });
         }
-        setCurrentRoomId(null);
         setShowShareModal(false);
         setStatusText('Match found! Entering secure chat...');
         sessionStorage.removeItem('unsaid_chat_team_opt_in');
@@ -470,18 +507,26 @@ export default function ChatQueuePage() {
           ...(teamClaimHash ? { hostTeamClaimHash: teamClaimHash } : {}),
         });
 
+        // Store the reference before any more awaited work so cancel can
+        // always find a room that already exists in Firestore.
+        ownRoomRef = roomRef;
+
+        if (!isMounted || hasHandledMatch || queuePaused) {
+          ownRoomRef = null;
+          void deleteWaitingRoom(roomRef).catch(console.error);
+          return;
+        }
+
         if (teamClaimNonce) {
           const attached = await claimVerifiedChatIdentity({ roomId: roomRef.id, anonymousUserId: userId, nonce: teamClaimNonce });
           if (!attached.success) console.warn('Team identity was not attached:', attached.error);
         }
 
-        if (!isMounted || hasHandledMatch) {
+        if (!isMounted || hasHandledMatch || queuePaused) {
+          ownRoomRef = null;
           void deleteWaitingRoom(roomRef).catch(console.error);
           return;
         }
-
-        ownRoomRef = roomRef;
-        setCurrentRoomId(roomRef.id);
 
         unsubscribeRoom = onSnapshot(roomRef, (snap) => {
           if (!isMounted || hasHandledMatch) return;
@@ -521,7 +566,6 @@ export default function ChatQueuePage() {
               return;
             }
             ownRoomRef = null;
-            setCurrentRoomId(null);
             if (heartbeatInterval) clearInterval(heartbeatInterval);
             heartbeatInterval = null;
             if (unsubscribeRoom) unsubscribeRoom();
@@ -617,10 +661,20 @@ export default function ChatQueuePage() {
           if (!isMounted || hasHandledMatch) return;
           latestWaitingRooms = snapshot.docs.map((entry) => {
             const room = entry.data();
+            const lastSeenAt = room.hostLastSeenAt?.toMillis?.() ?? 0;
+            if (
+              entry.id !== ownRoomRef?.id &&
+              lastSeenAt &&
+              Date.now() - lastSeenAt > QUEUE_OFFLINE_TIMEOUT
+            ) {
+              void deleteStaleWaitingRoom(entry.ref).catch((error) => {
+                console.warn('Could not remove stale queue room:', error);
+              });
+            }
             return {
               id: entry.id,
               hostId: String(room.hostId || ''),
-              lastSeenAt: room.hostLastSeenAt?.toMillis?.() ?? 0,
+              lastSeenAt,
             };
           });
           void processQueue();
@@ -641,7 +695,9 @@ export default function ChatQueuePage() {
       clearQueueTimers();
       // Remove only waiting rooms on cancellation/navigation; active chats stay.
       if (ownRoomRef && !hasHandledMatch) {
-        void deleteWaitingRoom(ownRoomRef).catch((error) => {
+        const abandonedRoom = ownRoomRef;
+        ownRoomRef = null;
+        void deleteWaitingRoom(abandonedRoom).catch((error) => {
           console.warn('Could not remove abandoned queue room:', error);
         });
       }
@@ -669,41 +725,10 @@ export default function ChatQueuePage() {
 
   const handleCancel = async () => {
     sessionStorage.removeItem('unsaid_chat_team_opt_in');
-    if (currentRoomId) {
-      const roomRef = doc(
-        db,
-        'chatRooms',
-        currentRoomId
-      );
-
-      try {
-        await runTransaction(
-          db,
-          async (transaction) => {
-            const roomSnap =
-              await transaction.get(roomRef);
-
-            if (!roomSnap.exists()) {
-              return;
-            }
-
-            const data = roomSnap.data();
-
-            // Only delete an unmatched waiting room.
-            if (
-              data.status === 'waiting' &&
-              !data.guestId
-            ) {
-              transaction.delete(roomRef);
-            }
-          }
-        );
-      } catch (error) {
-        console.error(
-          'Error cleaning up room on cancel:',
-          error
-        );
-      }
+    try {
+      await leaveQueueRef.current();
+    } catch (error) {
+      console.error('Error cleaning up room on cancel:', error);
     }
 
     router.push('/');
@@ -725,15 +750,16 @@ export default function ChatQueuePage() {
         }`}
       >
         <div className="max-w-2xl mx-auto px-6 h-16 flex items-center justify-between">
-          <Link
-            href="/"
+          <button
+            type="button"
+            onClick={handleCancel}
             className="font-mono text-xl font-black tracking-tighter hover:opacity-70"
           >
             TAMBAYAN
             <span className="text-emerald-600">
               .
             </span>
-          </Link>
+          </button>
 
           <div className="flex items-center gap-3">
             <button

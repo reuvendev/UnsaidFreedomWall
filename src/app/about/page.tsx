@@ -103,7 +103,7 @@ export default function AboutPage() {
             <p>
               Tambayan started as a personal web project focused on creating a simple
               online community space for Louisians. Today, the platform is independently
-              developed and maintained by Nevz as its features and community continue
+              developed and maintained by Valiance, a student-led development team, as its features and community continue
               to grow.
             </p>
 
@@ -117,11 +117,11 @@ export default function AboutPage() {
               </p>
 
               <p className={`font-mono text-sm font-bold ${heading}`}>
-                Nevz
+                Valiance
               </p>
 
               <p className="font-mono text-[11px] text-neutral-500 mt-1">
-                BSIT · Solo Developer
+                Student-led development team
               </p>
             </div>
           </div>

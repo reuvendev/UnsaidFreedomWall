@@ -3,12 +3,9 @@
 import React, { useState, useEffect } from 'react';
 import Link from "next/link";
 import { usePathname } from 'next/navigation';
-import { collection, getDocs } from 'firebase/firestore';
-import { db } from '@/lib/firebase';
 
 export function Footer() {
   const pathname = usePathname();
-  const [totalPosts, setTotalPosts] = useState<number | null>(null);
   const [isDarkMode, setIsDarkMode] = useState<boolean>(false);
 
   useEffect(() => {
@@ -35,19 +32,6 @@ export function Footer() {
     };
   }, []);
 
-  useEffect(() => {
-    if (pathname?.startsWith('/team')) return;
-    async function fetchCount() {
-      try {
-        const querySnapshot = await getDocs(collection(db, "posts"));
-        setTotalPosts(querySnapshot.size);
-      } catch (error) {
-        // Fallback silently if offline
-      }
-    }
-    fetchCount();
-  }, [pathname]);
-
   // ✅ SAFE: All hooks are called above this line. 
   // Now it can conditionally return null without breaking React rules.
   if (pathname?.includes('/chat/') || pathname?.startsWith('/team')) {
@@ -67,7 +51,7 @@ export function Footer() {
               <span className={`font-normal ${isDarkMode ? 'text-neutral-400' : 'text-neutral-500'}`}>Freedom Wall</span>
             </div>
             <p className={`font-mono text-[11px] ${isDarkMode ? 'text-neutral-500' : 'text-neutral-400'}`}>
-              {totalPosts !== null ? `${totalPosts} total anonymous stories published.` : 'An uninhibited space for expression.'}
+              A moderated space for anonymous student voices.
             </p>
           </div>
 
@@ -96,7 +80,7 @@ export function Footer() {
         {/* Non-Affiliation Disclaimer */}
         <div className={`border-t pt-6 ${isDarkMode ? 'border-neutral-900' : 'border-neutral-200/60'}`}>
           <p className={`font-mono text-[10px] leading-relaxed text-center md:text-left max-w-2xl ${isDarkMode ? 'text-neutral-500' : 'text-neutral-400'}`}>
-            <strong className={`font-semibold ${isDarkMode ? 'text-neutral-300' : 'text-neutral-600'}`}>Disclaimer:</strong> We are an independent student platform and are not officially affiliated, associated, authorized, endorsed by, or in any way connected with <span className={`font-medium ${isDarkMode ? 'text-neutral-200' : 'text-neutral-700'}`}>Saint Louis University (SLU)</span> or any of its offices.
+            <strong className={`font-semibold ${isDarkMode ? 'text-neutral-300' : 'text-neutral-600'}`}>Disclaimer:</strong> Maintained by Valiance, a student-led development team. We are independent and are not officially affiliated, associated, authorized, endorsed by, or in any way connected with <span className={`font-medium ${isDarkMode ? 'text-neutral-200' : 'text-neutral-700'}`}>Saint Louis University (SLU)</span> or any of its offices.
           </p>
         </div>
 

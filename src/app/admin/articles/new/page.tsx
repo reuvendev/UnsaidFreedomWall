@@ -210,11 +210,11 @@ function renderPreview(content: string) {
   return lines.map((line, index) => {
     const trimmed = line.trim();
 
-    if (trimmed.startsWith('### ')) {
+    if (trimmed.startsWith('### ') || trimmed.startsWith('## ')) {
       return (
-        <h3 key={index} className="mb-4 mt-8 text-2xl font-bold tracking-tight text-white">
-          {formatInlineStyles(trimmed.replace('### ', ''))}
-        </h3>
+        <h2 key={index} className="mb-4 mt-8 text-2xl font-bold tracking-tight text-white">
+          {formatInlineStyles(trimmed.replace(/^#{2,3} /, ''))}
+        </h2>
       );
     }
 
@@ -418,7 +418,7 @@ export default function AdminNewArticlePage() {
 
       case 'heading': {
         const value = selected || 'Section heading';
-        replacement = `${start > 0 && content[start - 1] !== '\n' ? '\n' : ''}### ${value}\n`;
+        replacement = `${start > 0 && content[start - 1] !== '\n' ? '\n' : ''}## ${value}\n`;
         const prefix = replacement.indexOf(value);
         selectionStart = start + prefix;
         selectionEnd = selectionStart + value.length;
