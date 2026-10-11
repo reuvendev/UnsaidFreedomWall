@@ -80,6 +80,7 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
       siteName: 'TambayanSLU',
       title: article.title,
       description,
+      ...(article.coverImage ? { images: [{ url: article.coverImage, alt: `Cover photo for ${article.title}` }] } : {}),
       ...(article.createdAt !== null
         ? { publishedTime: new Date(article.createdAt).toISOString() }
         : {}),
@@ -92,6 +93,7 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
       card: 'summary',
       title: article.title,
       description,
+      ...(article.coverImage ? { images: [article.coverImage] } : {}),
     },
   };
 }

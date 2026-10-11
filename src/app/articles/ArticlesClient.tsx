@@ -20,7 +20,7 @@ function ArticleCard({ article, dark }: { article: ArticleSummary; dark: boolean
         : 'border-neutral-200 bg-white hover:border-emerald-300'}`}>
         {article.coverImage && (
           <div className="relative aspect-[16/9] w-full overflow-hidden bg-neutral-100 dark:bg-neutral-900">
-            <Image src={article.coverImage} alt="" fill sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 33vw" className="object-cover" />
+            <Image src={article.coverImage} alt={`Cover photo for ${article.title}`} fill sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 33vw" className="object-cover" />
           </div>
         )}
         <div className="flex flex-1 flex-col p-5">
@@ -89,7 +89,7 @@ export default function ArticlesClient({ initialArticles }: { initialArticles: A
                   {featured.readTime}
                 </p>
               </div>
-              {featured.coverImage && <div className="relative min-h-48 bg-neutral-100 dark:bg-neutral-900"><Image src={featured.coverImage} alt="" fill sizes="(max-width: 768px) 100vw, 40vw" className="object-cover" priority /></div>}
+              {featured.coverImage && <div className="relative min-h-48 bg-neutral-100 dark:bg-neutral-900"><Image src={featured.coverImage} alt={`Cover photo for ${featured.title}`} fill sizes="(max-width: 768px) 100vw, 40vw" className="object-cover" priority /></div>}
             </Link>
           </section>
         )}

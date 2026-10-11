@@ -5,8 +5,9 @@ import { revalidatePath } from 'next/cache';
 import { adminDb } from '@/lib/team/firebase-admin';
 import { requireAdminAuth } from '@/app/admin/actions';
 import { isArticleCategory, resolveArticleCategory, type ArticleCategory } from '@/app/articles/categories';
+import { verifyArticleCover } from '@/lib/r2';
 
-type ArticleMetadata = { id: string; title: string; slug: string; category: ArticleCategory; featured: boolean; tags: string[] };
+type ArticleMetadata = { id: string; title: string; slug: string; category: ArticleCategory; featured: boolean; tags: string[]; coverImage: string | null };
 
 function cleanTags(input: unknown): string[] {
   return Array.isArray(input) ? Array.from(new Set(input.filter((tag): tag is string => typeof tag === 'string')
@@ -31,6 +32,8 @@ export async function listArticleMetadata(): Promise<ArticleMetadata[]> {
       category: resolveArticleCategory(data.category, String(data.slug || '')),
       featured: data.featured === true,
       tags: cleanTags(data.tags),
+      coverImage: typeof data.coverImage === 'string' && data.coverImage.startsWith('https://cdn.tambayanslu.com/')
+        ? data.coverImage : null,
     };
   });
 }
@@ -49,8 +52,8 @@ export async function publishArticle(input: {
     return { success: false, error: 'Check the title, URL, description, body, and category.' };
   }
   const coverImage = input.coverImage?.trim() || '';
-  if (coverImage && !coverImage.startsWith('https://cdn.tambayanslu.com/')) {
-    return { success: false, error: 'Cover images must use the Tambayan CDN.' };
+  if (coverImage && !(await verifyArticleCover(coverImage))) {
+    return { success: false, error: 'Upload a valid article cover before publishing.' };
   }
   const db = adminDb();
   if (!(await db.collection('articles').where('slug', '==', slug).limit(1).get()).empty) {
@@ -71,10 +74,10 @@ export async function publishArticle(input: {
 }
 
 export async function updateArticleMetadata(input: {
-  id: string; category: string; featured: boolean; tags: string[];
+  id: string; category: string; featured: boolean; tags: string[]; coverImage?: string | null;
 }): Promise<{ success: boolean; error?: string }> {
   await requireAdminAuth();
-  if (!input.id || input.id.length > 200 || !isArticleCategory(input.category)) {
+  if (!input.id || input.id.length > 200 || input.id.includes('/') || !isArticleCategory(input.category)) {
     return { success: false, error: 'Choose an article and a valid category.' };
   }
   const ref = adminDb().collection('articles').doc(input.id);
@@ -82,10 +85,15 @@ export async function updateArticleMetadata(input: {
   if (!existing.exists || existing.data()?.status === 'draft' || existing.data()?.published === false) {
     return { success: false, error: 'Published article not found.' };
   }
+  const currentCover = typeof existing.data()?.coverImage === 'string' ? existing.data()!.coverImage : null;
+  if (input.coverImage && input.coverImage !== currentCover && !(await verifyArticleCover(input.coverImage))) {
+    return { success: false, error: 'Upload a valid article cover before saving.' };
+  }
   await ref.update({
     category: input.category,
     featured: input.featured === true,
     tags: cleanTags(input.tags),
+    ...(input.coverImage !== undefined ? { coverImage: input.coverImage || FieldValue.delete() } : {}),
     updatedAt: FieldValue.serverTimestamp(),
   });
   refreshArticlePages(String(existing.data()?.slug || ''));

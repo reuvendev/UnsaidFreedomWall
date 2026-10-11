@@ -8,6 +8,7 @@ import { db } from '@/lib/firebase';
 import { loginAdmin, logoutAdmin, checkAdminAuth } from '../../actions';
 import { ARTICLE_CATEGORIES, resolveArticleCategory, type ArticleCategory } from '@/app/articles/categories';
 import { listArticleMetadata, publishArticle, updateArticleMetadata } from '../actions';
+import ArticleCoverInput, { uploadArticleCover } from './ArticleCoverInput';
 
 const DRAFT_KEY = 'tambayan_article_draft';
 
@@ -264,11 +265,22 @@ export default function AdminNewArticlePage() {
   const [featured, setFeatured] = useState(false);
   const [tags, setTags] = useState('');
   const [coverImage, setCoverImage] = useState('');
+  const [coverFile, setCoverFile] = useState<File | null>(null);
+  const [coverCompressing, setCoverCompressing] = useState(false);
+  const [coverUploading, setCoverUploading] = useState(false);
+  const [coverProgress, setCoverProgress] = useState<number | null>(null);
+  const [coverError, setCoverError] = useState('');
   const [managedArticles, setManagedArticles] = useState<ManagedArticle[]>([]);
   const [editingArticleId, setEditingArticleId] = useState<string | null>(null);
   const [editCategory, setEditCategory] = useState<ArticleCategory>('Campus Life');
   const [editFeatured, setEditFeatured] = useState(false);
   const [editTags, setEditTags] = useState('');
+  const [editCoverImage, setEditCoverImage] = useState<string | null>(null);
+  const [editCoverFile, setEditCoverFile] = useState<File | null>(null);
+  const [editCoverDirty, setEditCoverDirty] = useState(false);
+  const [editCoverCompressing, setEditCoverCompressing] = useState(false);
+  const [editCoverUploading, setEditCoverUploading] = useState(false);
+  const [editCoverProgress, setEditCoverProgress] = useState<number | null>(null);
   const [metadataStatus, setMetadataStatus] = useState('');
   const [savingMetadata, setSavingMetadata] = useState(false);
   const [editorMode, setEditorMode] = useState<EditorMode>('write');
@@ -348,13 +360,23 @@ export default function AdminNewArticlePage() {
   };
 
   const saveArticleMetadata = async () => {
-    if (!editingArticleId) return;
+    if (!editingArticleId || editCoverCompressing) return;
     setSavingMetadata(true);
     setMetadataStatus('');
     try {
+      let nextCover = editCoverImage;
+      if (editCoverFile) {
+        setEditCoverUploading(true);
+        setEditCoverProgress(0);
+        nextCover = await uploadArticleCover(editCoverFile, setEditCoverProgress);
+        setEditCoverImage(nextCover);
+        setEditCoverFile(null);
+        setEditCoverUploading(false);
+      }
       const result = await updateArticleMetadata({
         id: editingArticleId, category: editCategory, featured: editFeatured,
         tags: editTags.split(',').map((tag) => tag.trim()).filter(Boolean),
+        ...(editCoverDirty ? { coverImage: nextCover } : {}),
       });
       if (!result.success) { setMetadataStatus(result.error || 'Could not save settings.'); return; }
       setEditingArticleId(null);
@@ -363,6 +385,7 @@ export default function AdminNewArticlePage() {
     } catch (error) {
       setMetadataStatus(error instanceof Error ? error.message : 'Could not save settings.');
     } finally {
+      setEditCoverUploading(false);
       setSavingMetadata(false);
     }
   };
@@ -573,6 +596,8 @@ export default function AdminNewArticlePage() {
     setFeatured(false);
     setTags('');
     setCoverImage('');
+    setCoverFile(null);
+    setCoverError('');
     setSlugAvailable(null);
 
     localStorage.removeItem(DRAFT_KEY);
@@ -581,6 +606,11 @@ export default function AdminNewArticlePage() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+
+    if (coverCompressing || coverUploading) {
+      setCoverError('Wait for the cover photo to finish processing.');
+      return;
+    }
 
     if (!title.trim() || !slug.trim() || !excerpt.trim() || !content.trim()) {
       alert('Please complete the title, slug, excerpt, and article body.');
@@ -593,6 +623,7 @@ export default function AdminNewArticlePage() {
     }
 
     setIsSubmitting(true);
+    setCoverError('');
 
     try {
       const slugQuery = query(
@@ -609,6 +640,16 @@ export default function AdminNewArticlePage() {
         return;
       }
 
+      let nextCover = coverImage;
+      if (coverFile) {
+        setCoverUploading(true);
+        setCoverProgress(0);
+        nextCover = await uploadArticleCover(coverFile, setCoverProgress);
+        setCoverImage(nextCover);
+        setCoverFile(null);
+        setCoverUploading(false);
+      }
+
       const result = await publishArticle({
         title: title.trim(),
         slug: slug.trim(),
@@ -618,7 +659,7 @@ export default function AdminNewArticlePage() {
         author: author.trim() || 'TambayanSLU',
         featured,
         tags: tags.split(',').map((tag) => tag.trim()).filter(Boolean),
-        coverImage,
+        coverImage: nextCover,
       });
       if (!result.success) {
         alert(result.error || 'Could not publish article.');
@@ -629,8 +670,9 @@ export default function AdminNewArticlePage() {
       router.push(`/articles/${slug.trim()}`);
     } catch (error) {
       console.error('Error publishing article:', error);
-      alert('Failed to publish article. Check the console for details.');
+      setCoverError(error instanceof Error ? error.message : 'Could not publish article.');
     } finally {
+      setCoverUploading(false);
       setIsSubmitting(false);
     }
   };
@@ -893,7 +935,7 @@ Use the toolbar for headings, bold text, quotes, lists, and links.`}
 
                   <button
                     type="submit"
-                    disabled={isSubmitting || slugAvailable === false}
+                    disabled={isSubmitting || coverCompressing || slugAvailable === false}
                     className="rounded-xl bg-emerald-500 px-5 py-3 text-sm font-semibold text-neutral-950 transition-colors hover:bg-emerald-400 disabled:cursor-not-allowed disabled:opacity-50"
                   >
                     {isSubmitting ? 'Publishing...' : 'Publish article'}
@@ -970,11 +1012,11 @@ Use the toolbar for headings, bold text, quotes, lists, and links.`}
                       className="mt-2 w-full rounded-xl border border-neutral-800 bg-neutral-950 px-3 py-2.5 text-sm text-neutral-200 outline-none focus:border-emerald-900" />
                   </label>
 
-                  <label className="block text-xs font-medium text-neutral-400">
-                    Cover image URL (optional, Tambayan CDN)
-                    <input type="url" value={coverImage} onChange={(event) => setCoverImage(event.target.value)} placeholder="https://cdn.tambayanslu.com/..."
-                      className="mt-2 w-full rounded-xl border border-neutral-800 bg-neutral-950 px-3 py-2.5 text-sm text-neutral-200 outline-none focus:border-emerald-900" />
-                  </label>
+                  <ArticleCoverInput currentUrl={coverImage || null} selected={coverFile}
+                    onChange={(file) => { setCoverFile(file); setCoverError(''); }}
+                    onRemove={() => { setCoverFile(null); setCoverImage(''); setCoverError(''); }}
+                    onBusyChange={setCoverCompressing} uploadProgress={coverProgress} uploading={coverUploading} />
+                  {coverError && <p role="alert" className="text-xs text-rose-400">{coverError}</p>}
 
                   <div>
                     <label className="mb-2 block text-xs font-medium text-neutral-400">
@@ -1005,7 +1047,7 @@ Use the toolbar for headings, bold text, quotes, lists, and links.`}
               <div className="hidden rounded-2xl border border-neutral-800 bg-[#111113] p-4 lg:block">
                 <button
                   type="submit"
-                  disabled={isSubmitting || slugAvailable === false}
+                  disabled={isSubmitting || coverCompressing || slugAvailable === false}
                   className="w-full rounded-xl bg-emerald-500 px-4 py-3 text-sm font-semibold text-neutral-950 transition-colors hover:bg-emerald-400 disabled:cursor-not-allowed disabled:opacity-50"
                 >
                   {isSubmitting ? 'Publishing...' : 'Publish article'}
@@ -1056,6 +1098,10 @@ Use the toolbar for headings, bold text, quotes, lists, and links.`}
                     setEditCategory(article.category);
                     setEditFeatured(article.featured);
                     setEditTags(article.tags.join(', '));
+                    setEditCoverImage(article.coverImage);
+                    setEditCoverFile(null);
+                    setEditCoverDirty(false);
+                    setEditCoverProgress(null);
                     setMetadataStatus('');
                   }} className="mt-3 text-xs font-semibold text-emerald-400 hover:text-emerald-300">Edit settings</button>
                   {editingArticleId === article.id && (
@@ -1070,8 +1116,12 @@ Use the toolbar for headings, bold text, quotes, lists, and links.`}
                       <label className="block text-xs text-neutral-400">Tags
                         <input type="text" value={editTags} onChange={(event) => setEditTags(event.target.value)} className="mt-1 w-full rounded-lg border border-neutral-700 bg-neutral-950 p-2 text-sm text-neutral-100" />
                       </label>
+                      <ArticleCoverInput currentUrl={editCoverImage} selected={editCoverFile}
+                        onChange={(file) => { setEditCoverFile(file); setEditCoverDirty(true); setMetadataStatus(''); }}
+                        onRemove={() => { setEditCoverFile(null); setEditCoverImage(null); setEditCoverDirty(true); }}
+                        onBusyChange={setEditCoverCompressing} uploadProgress={editCoverProgress} uploading={editCoverUploading} />
                       <div className="flex gap-3">
-                        <button type="button" disabled={savingMetadata} onClick={saveArticleMetadata} className="rounded-lg bg-emerald-500 px-3 py-2 text-xs font-bold text-neutral-950 disabled:opacity-50">Save settings</button>
+                        <button type="button" disabled={savingMetadata || editCoverCompressing} onClick={saveArticleMetadata} className="rounded-lg bg-emerald-500 px-3 py-2 text-xs font-bold text-neutral-950 disabled:opacity-50">Save settings</button>
                         <button type="button" onClick={() => setEditingArticleId(null)} className="text-xs text-neutral-400">Cancel</button>
                       </div>
                     </div>

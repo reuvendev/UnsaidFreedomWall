@@ -292,7 +292,7 @@ export default function ArticleClient({ article, related }: { article: ArticleDa
         </header>
 
         {article.coverImage && <div className="relative mb-9 aspect-[16/9] overflow-hidden rounded-2xl bg-neutral-100 dark:bg-neutral-900">
-          <Image src={article.coverImage} alt="" fill sizes="(max-width: 768px) 100vw, 768px" className="object-cover" priority />
+          <Image src={article.coverImage} alt={`Cover photo for ${article.title}`} fill sizes="(max-width: 768px) 100vw, 768px" className="object-cover" priority />
         </div>}
 
         <div
@@ -311,6 +311,9 @@ export default function ArticleClient({ article, related }: { article: ArticleDa
             <div className="grid gap-3 sm:grid-cols-2">
               {related.map((item) => (
                 <Link key={item.id} href={`/articles/${item.slug}`} className={`rounded-xl border p-4 transition-colors ${isDarkMode ? 'border-neutral-800 bg-[#111113] hover:border-neutral-600' : 'border-neutral-200 bg-white hover:border-emerald-300'}`}>
+                  {item.coverImage && <div className="relative mb-3 aspect-[16/9] overflow-hidden rounded-lg bg-neutral-100 dark:bg-neutral-900">
+                    <Image src={item.coverImage} alt={`Cover photo for ${item.title}`} fill sizes="(max-width: 640px) 100vw, 50vw" className="object-cover" />
+                  </div>}
                   <p className={`text-[11px] font-semibold uppercase tracking-wider ${isDarkMode ? 'text-emerald-400' : 'text-emerald-700'}`}>{item.category}</p>
                   <h3 className="mt-2 text-sm font-bold leading-snug">{item.title}</h3>
                   {item.excerpt && <p className="mt-2 line-clamp-2 text-xs leading-5 text-neutral-500">{item.excerpt}</p>}
