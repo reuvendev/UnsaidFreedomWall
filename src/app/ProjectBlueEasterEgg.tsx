@@ -221,8 +221,8 @@ export default function ProjectBlueEasterEgg({ isDarkMode }: { isDarkMode: boole
             <button ref={closeButton} type="button" className={styles.close} aria-label="Close the message" onClick={() => setOpen(false)}>×</button>
             <Flower />
             <h2 id="project-blue-title">For someone, somewhere.</h2>
-            <p id="project-blue-message">Some people become part of a story without ever knowing they inspired it.</p>
-            <p className={styles.closingLine}>10.12 — Some beginnings are worth remembering.</p>
+            <p id="project-blue-message">You probably don't know it, but you're one of the reasons this whole thing started.</p>
+            <p className={styles.closingLine}>10.12</p>
           </section>
         </div>, document.body
       )}
