@@ -2,7 +2,9 @@
 
 import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
+import Image from 'next/image';
 import type { ArticleData } from './types';
+import type { ArticleSummary } from '../types';
 
 const Icons = {
   Back: () => (
@@ -180,7 +182,7 @@ function renderMarkdownContent(content: string, isDarkMode: boolean) {
   });
 }
 
-export default function ArticleClient({ article }: { article: ArticleData }) {
+export default function ArticleClient({ article, related }: { article: ArticleData; related: ArticleSummary[] }) {
   const [isDarkMode, setIsDarkMode] = useState(false);
 
   // Client-only preference. HTML is rendered with the article content immediately.
@@ -289,6 +291,10 @@ export default function ArticleClient({ article }: { article: ArticleData }) {
           )}
         </header>
 
+        {article.coverImage && <div className="relative mb-9 aspect-[16/9] overflow-hidden rounded-2xl bg-neutral-100 dark:bg-neutral-900">
+          <Image src={article.coverImage} alt="" fill sizes="(max-width: 768px) 100vw, 768px" className="object-cover" priority />
+        </div>}
+
         <div
           className={`mb-10 border-t ${
             isDarkMode ? 'border-neutral-800' : 'border-neutral-200'
@@ -298,6 +304,22 @@ export default function ArticleClient({ article }: { article: ArticleData }) {
         <article className="max-w-none text-base sm:text-[17px]">
           {renderMarkdownContent(article.content, isDarkMode)}
         </article>
+
+        {related.length > 0 && (
+          <aside aria-labelledby="related-reading" className={`mt-12 border-t pt-8 ${isDarkMode ? 'border-neutral-800' : 'border-neutral-200'}`}>
+            <h2 id="related-reading" className="mb-5 text-xl font-bold">Keep reading</h2>
+            <div className="grid gap-3 sm:grid-cols-2">
+              {related.map((item) => (
+                <Link key={item.id} href={`/articles/${item.slug}`} className={`rounded-xl border p-4 transition-colors ${isDarkMode ? 'border-neutral-800 bg-[#111113] hover:border-neutral-600' : 'border-neutral-200 bg-white hover:border-emerald-300'}`}>
+                  <p className={`text-[11px] font-semibold uppercase tracking-wider ${isDarkMode ? 'text-emerald-400' : 'text-emerald-700'}`}>{item.category}</p>
+                  <h3 className="mt-2 text-sm font-bold leading-snug">{item.title}</h3>
+                  {item.excerpt && <p className="mt-2 line-clamp-2 text-xs leading-5 text-neutral-500">{item.excerpt}</p>}
+                  <p className="mt-3 text-xs text-neutral-500">{item.readTime}</p>
+                </Link>
+              ))}
+            </div>
+          </aside>
+        )}
 
         <footer
           className={`mt-14 flex flex-col gap-5 border-t pt-7 sm:flex-row sm:items-center sm:justify-between ${

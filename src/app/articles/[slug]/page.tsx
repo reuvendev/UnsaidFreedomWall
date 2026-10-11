@@ -7,6 +7,8 @@ import { collection, getDocs, limit, query, where } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import ArticleClient from './ArticleClient';
 import type { ArticleData } from './types';
+import { articleTags, resolveArticleCategory, selectRelatedArticles } from '../categories';
+import { getArticleCatalog } from '../article-data';
 
 // Refresh cached article HTML periodically to balance indexing and Firestore reads.
 export const revalidate = 300;
@@ -35,13 +37,16 @@ const getArticleBySlug = cache(async (slug: string): Promise<ArticleData | null>
   return {
     title: data.title || 'Untitled',
     slug: data.slug || slug,
-    category: data.category || 'Tambayan Guide',
+    category: resolveArticleCategory(data.category, data.slug || slug),
     readTime: data.readTime || '3 min read',
     excerpt: data.excerpt || '',
     content: data.content || '',
     createdAt,
     updatedAt: typeof data.updatedAt?.toMillis === 'function' ? data.updatedAt.toMillis() : null,
     author: data.author || 'TambayanSLU',
+    tags: articleTags(data.tags),
+    coverImage: typeof data.coverImage === 'string' && data.coverImage.startsWith('https://cdn.tambayanslu.com/')
+      ? data.coverImage : null,
   };
 });
 
@@ -97,21 +102,35 @@ export default async function ArticlePage({ params }: PageProps) {
 
   if (!article) notFound();
 
+  // A single small, cached catalog page supplies related links without a
+  // category-specific listener or Firestore composite index.
+  let candidates: Awaited<ReturnType<typeof getArticleCatalog>> = [];
+  try {
+    candidates = (await getArticleCatalog(18)).filter((candidate) => candidate.slug !== article.slug);
+  } catch (error) {
+    // Suggestions must never prevent an otherwise available article from loading.
+    console.error('Could not load related reading:', error);
+  }
+  const related = selectRelatedArticles(candidates, article.slug, article.category, 3);
+
   // Client Component is still pre-rendered on the server on initial requests;
   // its browser-only dark mode adjustment happens after hydration.
   const jsonLd = {
     '@context': 'https://schema.org',
     '@type': 'Article',
     headline: article.title,
+    articleSection: article.category,
+    ...(article.tags.length ? { keywords: article.tags.join(', ') } : {}),
     description: article.excerpt || undefined,
     mainEntityOfPage: `https://www.tambayanslu.com/articles/${encodeURIComponent(article.slug)}`,
     author: { '@type': article.author === 'TambayanSLU' ? 'Organization' : 'Person', name: article.author },
     publisher: { '@type': 'Organization', name: 'Valiance' },
     ...(article.createdAt !== null ? { datePublished: new Date(article.createdAt).toISOString() } : {}),
     ...(article.updatedAt !== null ? { dateModified: new Date(article.updatedAt).toISOString() } : {}),
+    ...(article.coverImage ? { image: article.coverImage } : {}),
   };
   return <>
     <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd).replace(/</g, '\\u003c') }} />
-    <ArticleClient article={article} />
+    <ArticleClient article={article} related={related} />
   </>;
 }

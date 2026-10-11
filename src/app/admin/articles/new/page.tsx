@@ -3,17 +3,11 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import {
-  addDoc,
-  collection,
-  getDocs,
-  limit,
-  query,
-  serverTimestamp,
-  where,
-} from 'firebase/firestore';
+import { collection, getDocs, limit, query, where } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import { loginAdmin, logoutAdmin, checkAdminAuth } from '../../actions';
+import { ARTICLE_CATEGORIES, resolveArticleCategory, type ArticleCategory } from '@/app/articles/categories';
+import { listArticleMetadata, publishArticle, updateArticleMetadata } from '../actions';
 
 const DRAFT_KEY = 'tambayan_article_draft';
 
@@ -26,7 +20,12 @@ interface DraftData {
   excerpt: string;
   content: string;
   author: string;
+  featured?: boolean;
+  tags?: string;
+  coverImage?: string;
 }
+
+type ManagedArticle = Awaited<ReturnType<typeof listArticleMetadata>>[number];
 
 const Icons = {
   Back: () => (
@@ -258,10 +257,20 @@ export default function AdminNewArticlePage() {
   const [title, setTitle] = useState('');
   const [slug, setSlug] = useState('');
   const [slugTouched, setSlugTouched] = useState(false);
-  const [category, setCategory] = useState('Guide');
+  const [category, setCategory] = useState<ArticleCategory>('Student Guides');
   const [excerpt, setExcerpt] = useState('');
   const [content, setContent] = useState('');
   const [author, setAuthor] = useState('TambayanSLU');
+  const [featured, setFeatured] = useState(false);
+  const [tags, setTags] = useState('');
+  const [coverImage, setCoverImage] = useState('');
+  const [managedArticles, setManagedArticles] = useState<ManagedArticle[]>([]);
+  const [editingArticleId, setEditingArticleId] = useState<string | null>(null);
+  const [editCategory, setEditCategory] = useState<ArticleCategory>('Campus Life');
+  const [editFeatured, setEditFeatured] = useState(false);
+  const [editTags, setEditTags] = useState('');
+  const [metadataStatus, setMetadataStatus] = useState('');
+  const [savingMetadata, setSavingMetadata] = useState(false);
   const [editorMode, setEditorMode] = useState<EditorMode>('write');
 
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -277,6 +286,7 @@ export default function AdminNewArticlePage() {
     async function verify() {
       const authed = await checkAdminAuth();
       setIsAuthenticated(authed);
+      if (authed) void loadManagedArticles();
     }
 
     verify();
@@ -292,10 +302,13 @@ export default function AdminNewArticlePage() {
       const draft = JSON.parse(saved) as Partial<DraftData>;
       setTitle(draft.title || '');
       setSlug(draft.slug || '');
-      setCategory(draft.category || 'Guide');
+      setCategory(resolveArticleCategory(draft.category, draft.slug || ''));
       setExcerpt(draft.excerpt || '');
       setContent(draft.content || '');
       setAuthor(draft.author || 'TambayanSLU');
+      setFeatured(draft.featured === true);
+      setTags(draft.tags || '');
+      setCoverImage(draft.coverImage || '');
       if (draft.slug) setSlugTouched(true);
       setDraftStatus('Local draft restored');
     } catch {
@@ -314,6 +327,9 @@ export default function AdminNewArticlePage() {
         excerpt,
         content,
         author,
+        featured,
+        tags,
+        coverImage,
       };
 
       localStorage.setItem(DRAFT_KEY, JSON.stringify(draft));
@@ -321,7 +337,35 @@ export default function AdminNewArticlePage() {
     }, 500);
 
     return () => window.clearTimeout(timer);
-  }, [title, slug, category, excerpt, content, author]);
+  }, [title, slug, category, excerpt, content, author, featured, tags, coverImage]);
+
+  const loadManagedArticles = async () => {
+    try {
+      setManagedArticles(await listArticleMetadata());
+    } catch (error) {
+      setMetadataStatus(error instanceof Error ? error.message : 'Could not load article settings.');
+    }
+  };
+
+  const saveArticleMetadata = async () => {
+    if (!editingArticleId) return;
+    setSavingMetadata(true);
+    setMetadataStatus('');
+    try {
+      const result = await updateArticleMetadata({
+        id: editingArticleId, category: editCategory, featured: editFeatured,
+        tags: editTags.split(',').map((tag) => tag.trim()).filter(Boolean),
+      });
+      if (!result.success) { setMetadataStatus(result.error || 'Could not save settings.'); return; }
+      setEditingArticleId(null);
+      setMetadataStatus('Article settings saved.');
+      await loadManagedArticles();
+    } catch (error) {
+      setMetadataStatus(error instanceof Error ? error.message : 'Could not save settings.');
+    } finally {
+      setSavingMetadata(false);
+    }
+  };
 
   useEffect(() => {
     if (!slug.trim()) {
@@ -361,6 +405,7 @@ export default function AdminNewArticlePage() {
 
     if (result.success) {
       setIsAuthenticated(true);
+      void loadManagedArticles();
     } else {
       setAuthError(result.error || 'Authentication failed');
     }
@@ -502,6 +547,9 @@ export default function AdminNewArticlePage() {
       excerpt,
       content,
       author,
+      featured,
+      tags,
+      coverImage,
     };
 
     localStorage.setItem(DRAFT_KEY, JSON.stringify(draft));
@@ -518,10 +566,13 @@ export default function AdminNewArticlePage() {
     setTitle('');
     setSlug('');
     setSlugTouched(false);
-    setCategory('Guide');
+    setCategory('Student Guides');
     setExcerpt('');
     setContent('');
     setAuthor('TambayanSLU');
+    setFeatured(false);
+    setTags('');
+    setCoverImage('');
     setSlugAvailable(null);
 
     localStorage.removeItem(DRAFT_KEY);
@@ -558,16 +609,21 @@ export default function AdminNewArticlePage() {
         return;
       }
 
-      await addDoc(collection(db, 'articles'), {
+      const result = await publishArticle({
         title: title.trim(),
         slug: slug.trim(),
         category: category.trim(),
-        readTime,
         excerpt: excerpt.trim(),
         content: content.trim(),
-        createdAt: serverTimestamp(),
         author: author.trim() || 'TambayanSLU',
+        featured,
+        tags: tags.split(',').map((tag) => tag.trim()).filter(Boolean),
+        coverImage,
       });
+      if (!result.success) {
+        alert(result.error || 'Could not publish article.');
+        return;
+      }
 
       localStorage.removeItem(DRAFT_KEY);
       router.push(`/articles/${slug.trim()}`);
@@ -895,19 +951,30 @@ Use the toolbar for headings, bold text, quotes, lists, and links.`}
 
                     <select
                       value={category}
-                      onChange={(e) => setCategory(e.target.value)}
+                      onChange={(e) => setCategory(e.target.value as ArticleCategory)}
                       className="w-full rounded-xl border border-neutral-800 bg-neutral-950 px-3 py-2.5 text-sm text-neutral-200 outline-none focus:border-emerald-900"
                     >
-                      <option value="Guide">Guide</option>
-                      <option value="Student Life">Student Life</option>
-                      <option value="Baguio">Baguio</option>
-                      <option value="Online Safety">Online Safety</option>
-                      <option value="Tambayan">Tambayan</option>
-                      <option value="Update">Update</option>
-                      <option value="Announcement">Announcement</option>
-                      <option value="Editorial">Editorial</option>
+                      {ARTICLE_CATEGORIES.map((option) => <option key={option} value={option}>{option}</option>)}
                     </select>
+                    <p className="mt-2 text-[11px] text-neutral-500">Preview: {category} · {readTime}</p>
                   </div>
+
+                  <label className="flex items-center gap-3 text-xs text-neutral-300">
+                    <input type="checkbox" checked={featured} onChange={(event) => setFeatured(event.target.checked)} className="accent-emerald-500" />
+                    Feature this story on Tambayan Reads
+                  </label>
+
+                  <label className="block text-xs font-medium text-neutral-400">
+                    Tags (optional, separated by commas)
+                    <input type="text" value={tags} onChange={(event) => setTags(event.target.value)} placeholder="campus, study tips"
+                      className="mt-2 w-full rounded-xl border border-neutral-800 bg-neutral-950 px-3 py-2.5 text-sm text-neutral-200 outline-none focus:border-emerald-900" />
+                  </label>
+
+                  <label className="block text-xs font-medium text-neutral-400">
+                    Cover image URL (optional, Tambayan CDN)
+                    <input type="url" value={coverImage} onChange={(event) => setCoverImage(event.target.value)} placeholder="https://cdn.tambayanslu.com/..."
+                      className="mt-2 w-full rounded-xl border border-neutral-800 bg-neutral-950 px-3 py-2.5 text-sm text-neutral-200 outline-none focus:border-emerald-900" />
+                  </label>
 
                   <div>
                     <label className="mb-2 block text-xs font-medium text-neutral-400">
@@ -975,6 +1042,44 @@ Use the toolbar for headings, bold text, quotes, lists, and links.`}
               )}
             </aside>
           </div>
+          <section aria-labelledby="manage-articles" className="mt-12 border-t border-neutral-800 pt-8">
+            <h2 id="manage-articles" className="text-xl font-bold">Published article settings</h2>
+            <p className="mt-2 text-sm text-neutral-400">Update the category, featured status, or tags without changing an article&apos;s URL or body.</p>
+            {metadataStatus && <p role="status" className="mt-4 text-sm text-emerald-400">{metadataStatus}</p>}
+            <div className="mt-5 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+              {managedArticles.map((article) => (
+                <div key={article.id} className="rounded-xl border border-neutral-800 bg-[#111113] p-4">
+                  <p className="text-xs font-semibold text-emerald-400">{article.category}{article.featured ? ' · Featured' : ''}</p>
+                  <p className="mt-2 text-sm font-bold text-neutral-100">{article.title}</p>
+                  <button type="button" onClick={() => {
+                    setEditingArticleId(article.id);
+                    setEditCategory(article.category);
+                    setEditFeatured(article.featured);
+                    setEditTags(article.tags.join(', '));
+                    setMetadataStatus('');
+                  }} className="mt-3 text-xs font-semibold text-emerald-400 hover:text-emerald-300">Edit settings</button>
+                  {editingArticleId === article.id && (
+                    <div className="mt-4 space-y-3 border-t border-neutral-800 pt-4">
+                      <label className="block text-xs text-neutral-400">Category
+                        <select value={editCategory} onChange={(event) => setEditCategory(event.target.value as ArticleCategory)}
+                          className="mt-1 w-full rounded-lg border border-neutral-700 bg-neutral-950 p-2 text-sm text-neutral-100">
+                          {ARTICLE_CATEGORIES.map((option) => <option key={option} value={option}>{option}</option>)}
+                        </select>
+                      </label>
+                      <label className="flex items-center gap-2 text-xs text-neutral-300"><input type="checkbox" checked={editFeatured} onChange={(event) => setEditFeatured(event.target.checked)} className="accent-emerald-500" /> Featured</label>
+                      <label className="block text-xs text-neutral-400">Tags
+                        <input type="text" value={editTags} onChange={(event) => setEditTags(event.target.value)} className="mt-1 w-full rounded-lg border border-neutral-700 bg-neutral-950 p-2 text-sm text-neutral-100" />
+                      </label>
+                      <div className="flex gap-3">
+                        <button type="button" disabled={savingMetadata} onClick={saveArticleMetadata} className="rounded-lg bg-emerald-500 px-3 py-2 text-xs font-bold text-neutral-950 disabled:opacity-50">Save settings</button>
+                        <button type="button" onClick={() => setEditingArticleId(null)} className="text-xs text-neutral-400">Cancel</button>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              ))}
+            </div>
+          </section>
         </main>
       </form>
     </div>

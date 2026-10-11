@@ -1,475 +1,135 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
-import {
-  collection,
-  query,
-  orderBy,
-  getDocs,
-  getDoc,
-  doc,
-  limit,
-  startAfter,
-  Timestamp
-} from 'firebase/firestore';
-import type { QueryDocumentSnapshot, DocumentData } from 'firebase/firestore';
-import { db } from '@/lib/firebase';
+import Image from 'next/image';
+import { ARTICLE_CATEGORIES, filterArticles, type ArticleCategory } from './categories';
 import type { ArticleSummary } from './types';
 
-interface ArticlesClientProps {
-  initialArticles: ArticleSummary[];
-  initialLastDocId: string | null;
-  initialHasMore: boolean;
+function articleDate(value: number | null) {
+  return value === null ? '' : new Intl.DateTimeFormat('en-PH', {
+    month: 'short', day: 'numeric', year: 'numeric', timeZone: 'Asia/Manila',
+  }).format(value);
 }
 
-const PAGE_SIZE = 10;
-
-const Icons = {
-  Back: () => (
-    <svg
-      xmlns="http://www.w3.org/2000/svg"
-      width="18"
-      height="18"
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="2"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-    >
-      <line x1="19" y1="12" x2="5" y2="12" />
-      <polyline points="12 19 5 12 12 5" />
-    </svg>
-  ),
-
-  ArrowRight: () => (
-    <svg
-      xmlns="http://www.w3.org/2000/svg"
-      width="16"
-      height="16"
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="2"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-    >
-      <line x1="5" y1="12" x2="19" y2="12" />
-      <polyline points="12 5 19 12 12 19" />
-    </svg>
-  ),
-
-  Book: () => (
-    <svg
-      xmlns="http://www.w3.org/2000/svg"
-      width="20"
-      height="20"
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="2"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-    >
-      <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20" />
-      <path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z" />
-    </svg>
-  ),
-
-  Sparkle: () => (
-    <svg
-      xmlns="http://www.w3.org/2000/svg"
-      width="16"
-      height="16"
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="2"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-    >
-      <path d="m12 3-1.9 5.1a3 3 0 0 1-1.8 1.8L3 12l5.3 2.1a3 3 0 0 1 1.8 1.8L12 21l1.9-5.1a3 3 0 0 1 1.8-1.8L21 12l-5.3-2.1a3 3 0 0 1-1.8-1.8L12 3Z" />
-    </svg>
-  )
-};
-
-function formatArticleDate(milliseconds: number | null): string {
-  if (milliseconds === null) return 'Recently';
-
-  return new Date(milliseconds).toLocaleDateString('en-PH', {
-    month: 'short',
-    day: 'numeric',
-    year: 'numeric',
-    timeZone: 'Asia/Manila'
-  });
+function ArticleCard({ article, dark }: { article: ArticleSummary; dark: boolean }) {
+  return (
+    <Link href={`/articles/${article.slug}`} className="group block h-full rounded-2xl focus-visible:outline-2 focus-visible:outline-emerald-600">
+      <article className={`flex h-full flex-col overflow-hidden rounded-2xl border transition-colors ${dark
+        ? 'border-neutral-800 bg-[#111113] hover:border-neutral-600'
+        : 'border-neutral-200 bg-white hover:border-emerald-300'}`}>
+        {article.coverImage && (
+          <div className="relative aspect-[16/9] w-full overflow-hidden bg-neutral-100 dark:bg-neutral-900">
+            <Image src={article.coverImage} alt="" fill sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 33vw" className="object-cover" />
+          </div>
+        )}
+        <div className="flex flex-1 flex-col p-5">
+          <p className={`text-[11px] font-semibold uppercase tracking-wider ${dark ? 'text-emerald-400' : 'text-emerald-700'}`}>
+            {article.category}
+          </p>
+          <h3 className={`mt-2 text-lg font-bold leading-snug group-hover:text-emerald-600 ${dark ? 'text-neutral-100' : 'text-neutral-900'}`}>{article.title}</h3>
+          {article.excerpt && <p className={`mt-2 line-clamp-3 text-sm leading-6 ${dark ? 'text-neutral-400' : 'text-neutral-600'}`}>{article.excerpt}</p>}
+          <p className={`mt-auto pt-5 text-xs ${dark ? 'text-neutral-500' : 'text-neutral-500'}`}>
+            {article.createdAt !== null && <><time dateTime={new Date(article.createdAt).toISOString()}>{articleDate(article.createdAt)}</time><span aria-hidden="true"> · </span></>}
+            {article.readTime}
+          </p>
+        </div>
+      </article>
+    </Link>
+  );
 }
 
-function toArticleSummary(id: string, data: DocumentData): ArticleSummary {
-  return {
-    id,
-    title: data.title || 'Untitled',
-    slug: data.slug || '#',
-    category: data.category || 'Tambayan Guide',
-    readTime: data.readTime || '3 min read',
-    excerpt: data.excerpt || '',
-    createdAt: data.createdAt instanceof Timestamp ? data.createdAt.toMillis() : null,
-    author: data.author || 'TambayanSLU'
-  };
-}
+export default function ArticlesClient({ initialArticles }: { initialArticles: ArticleSummary[] }) {
+  const [dark, setDark] = useState(false);
+  const [category, setCategory] = useState<ArticleCategory | 'All Articles'>('All Articles');
+  const [search, setSearch] = useState('');
+  const [visibleCount, setVisibleCount] = useState(12);
 
-export default function ArticlesClient({
-  initialArticles,
-  initialLastDocId,
-  initialHasMore
-}: ArticlesClientProps) {
-  // The first batch is already in the server-rendered HTML.
-  const [articles, setArticles] = useState<ArticleSummary[]>(initialArticles);
-  const [loadingMore, setLoadingMore] = useState(false);
-  const [lastDoc, setLastDoc] =
-    useState<QueryDocumentSnapshot<DocumentData> | null>(null);
-  const [lastDocId, setLastDocId] = useState<string | null>(initialLastDocId);
-  const [hasMore, setHasMore] = useState(initialHasMore);
-  const [isDarkMode, setIsDarkMode] = useState(false);
-
-  // Match TambayanSLU's saved dark-mode preference.
   useEffect(() => {
-    const syncDarkMode = () => {
-      setIsDarkMode(localStorage.getItem('unsaid_dark_mode') === 'true');
-    };
-
-    syncDarkMode();
-
-    // Keep this page in sync if the preference changes in another tab/window.
-    window.addEventListener('storage', syncDarkMode);
-
-    return () => {
-      window.removeEventListener('storage', syncDarkMode);
-    };
+    const syncTheme = () => setDark(localStorage.getItem('unsaid_dark_mode') === 'true');
+    syncTheme();
+    window.addEventListener('storage', syncTheme);
+    return () => window.removeEventListener('storage', syncTheme);
   }, []);
 
-  const handleLoadMore = async () => {
-    if (!lastDocId || loadingMore) return;
-
-    setLoadingMore(true);
-
-    try {
-      // The server passes only a document ID, not a Firestore snapshot.
-      // Restore the cursor on the first click and reuse it on later clicks.
-      let cursor = lastDoc;
-      if (!cursor) {
-        const cursorDoc = await getDoc(doc(db, 'articles', lastDocId));
-        if (!cursorDoc.exists()) {
-          console.error('The last article in the initial batch no longer exists.');
-          setHasMore(false);
-          return;
-        }
-        cursor = cursorDoc;
-      }
-
-      const q = query(
-        collection(db, 'articles'),
-        orderBy('createdAt', 'desc'),
-        startAfter(cursor),
-        limit(PAGE_SIZE)
-      );
-
-      const querySnapshot = await getDocs(q);
-      const fetched = querySnapshot.docs.filter((docSnap) => {
-        const data = docSnap.data();
-        return data.status !== 'draft' && data.published !== false;
-      }).map((docSnap) => toArticleSummary(docSnap.id, docSnap.data()));
-
-      // Avoid duplicate cards if the collection changed between requests.
-      setArticles((previous) => {
-        const ids = new Set(previous.map((article) => article.id));
-        return [...previous, ...fetched.filter((article) => !ids.has(article.id))];
-      });
-
-      const lastVisible = querySnapshot.docs[querySnapshot.docs.length - 1];
-      if (lastVisible) {
-        setLastDoc(lastVisible);
-        setLastDocId(lastVisible.id);
-      }
-      if (querySnapshot.size < PAGE_SIZE) setHasMore(false);
-    } catch (error) {
-      console.error('Error loading more articles:', error);
-    } finally {
-      setLoadingMore(false);
-    }
-  };
+  const featured = initialArticles.find((article) => article.featured && article.slug !== 'test')
+    || initialArticles.find((article) => article.slug !== 'test') || initialArticles[0];
+  const showFeatured = Boolean(featured && category === 'All Articles' && !search.trim());
+  const filtered = useMemo(() => filterArticles(initialArticles, category, search,
+    showFeatured ? featured?.id : undefined), [initialArticles, category, search, showFeatured, featured?.id]);
+  const visible = filtered.slice(0, visibleCount);
 
   return (
-    <div
-      data-article-theme={isDarkMode ? 'dark' : 'light'}
-      className={`min-h-screen selection:bg-emerald-200 ${
-        isDarkMode
-          ? 'bg-[#09090b] text-neutral-100 selection:bg-emerald-800'
-          : 'bg-[#fafafa] text-neutral-900'
-      }`}
-    >
-
-      {/* Header */}
-      <header
-        className={`sticky top-0 z-50 border-b backdrop-blur-xl ${
-          isDarkMode
-            ? 'border-neutral-800 bg-[#09090b]/90'
-            : 'border-neutral-200/80 bg-white/90'
-        }`}
-      >
-        <div className="mx-auto flex h-16 max-w-4xl items-center justify-between px-5 sm:px-6">
-
-          <Link
-            href="/"
-            className={`inline-flex items-center gap-2 text-sm font-medium transition-colors ${
-              isDarkMode
-                ? 'text-neutral-400 hover:text-white'
-                : 'text-neutral-500 hover:text-neutral-900'
-            }`}
-          >
-            <Icons.Back />
-            <span className="hidden sm:inline">Back to Tambayan</span>
-            <span className="sm:hidden">Back</span>
-          </Link>
-
-          <Link
-            href="/"
-            className={`text-lg font-black tracking-tight ${
-              isDarkMode ? 'text-white' : 'text-neutral-900'
-            }`}
-          >
-            Tambayan<span className="text-emerald-600">.</span>
-          </Link>
-
-        </div>
+    <div className={`min-h-screen ${dark ? 'bg-[#09090b] text-neutral-100' : 'bg-[#fafafa] text-neutral-900'}`}>
+      <header className={`sticky top-0 z-50 border-b backdrop-blur-xl ${dark ? 'border-neutral-800 bg-[#09090b]/90' : 'border-neutral-200 bg-white/90'}`}>
+        <nav aria-label="Article navigation" className="mx-auto flex h-16 max-w-6xl items-center justify-between px-5 sm:px-6">
+          <Link href="/" className={`text-sm font-medium ${dark ? 'text-neutral-300' : 'text-neutral-600'}`}>← Tambayan</Link>
+          <Link href="/" className="text-lg font-black tracking-tight">Tambayan<span className="text-emerald-600">.</span></Link>
+        </nav>
       </header>
 
-      <main className="mx-auto max-w-4xl px-5 pb-24 pt-10 sm:px-6 sm:pt-14">
+      <main className="mx-auto max-w-6xl px-5 pb-24 pt-10 sm:px-6 sm:pt-14">
+        <div className="mb-9 max-w-2xl">
+          <p className={`text-xs font-semibold uppercase tracking-[0.2em] ${dark ? 'text-emerald-400' : 'text-emerald-700'}`}>A Louisian publication</p>
+          <h1 className="mt-3 text-3xl font-black tracking-tight sm:text-4xl">Tambayan Reads</h1>
+          <p className={`mt-3 text-sm leading-7 sm:text-base ${dark ? 'text-neutral-400' : 'text-neutral-600'}`}>
+            Stories, guides, and everything in between. A little something for every Louisian.
+          </p>
+        </div>
 
-        {/* Hero */}
-        <section
-          className={`relative mb-12 overflow-hidden rounded-3xl border bg-gradient-to-br px-6 py-9 sm:px-10 sm:py-12 ${
-            isDarkMode
-              ? 'border-emerald-900/40 from-emerald-950/30 via-[#111113] to-[#0c1712]'
-              : 'border-emerald-100 from-emerald-50 via-white to-green-50'
-          }`}
-        >
+        {showFeatured && featured && (
+          <section aria-label="Featured reading" className="mb-10">
+            <Link href={`/articles/${featured.slug}`} className={`group grid overflow-hidden rounded-2xl border focus-visible:outline-2 focus-visible:outline-emerald-600 ${dark ? 'border-neutral-800 bg-[#111113] hover:border-neutral-600' : 'border-neutral-200 bg-white hover:border-emerald-300'} ${featured.coverImage ? 'md:grid-cols-[minmax(0,1.2fr)_minmax(0,0.8fr)]' : ''}`}>
+              <div className="flex flex-col justify-center p-6 sm:p-8">
+                <p className={`text-[11px] font-semibold uppercase tracking-wider ${dark ? 'text-emerald-400' : 'text-emerald-700'}`}>Featured · {featured.category}</p>
+                <h2 className="mt-3 text-2xl font-bold leading-tight tracking-tight sm:text-3xl group-hover:text-emerald-600">{featured.title}</h2>
+                {featured.excerpt && <p className={`mt-3 line-clamp-3 text-sm leading-6 ${dark ? 'text-neutral-400' : 'text-neutral-600'}`}>{featured.excerpt}</p>}
+                <p className="mt-5 text-xs text-neutral-500">
+                  {featured.createdAt !== null && <><time dateTime={new Date(featured.createdAt).toISOString()}>{articleDate(featured.createdAt)}</time><span aria-hidden="true"> · </span></>}
+                  {featured.readTime}
+                </p>
+              </div>
+              {featured.coverImage && <div className="relative min-h-48 bg-neutral-100 dark:bg-neutral-900"><Image src={featured.coverImage} alt="" fill sizes="(max-width: 768px) 100vw, 40vw" className="object-cover" priority /></div>}
+            </Link>
+          </section>
+        )}
 
-          <div className="relative">
-            <p className={`mb-3 text-sm font-semibold ${
-              isDarkMode ? 'text-emerald-400' : 'text-emerald-700'
-            }`}>
-              Tambayan Reads
-            </p>
-
-            <h1 className={`max-w-2xl text-3xl font-bold tracking-tight sm:text-4xl ${
-              isDarkMode ? 'text-white' : 'text-neutral-900'
-            }`}>
-              The Tambayan Journal
-            </h1>
-
-            <p className={`mt-3 max-w-xl text-sm leading-6 sm:text-base ${
-              isDarkMode ? 'text-neutral-400' : 'text-neutral-600'
-            }`}>
-              Stories, tips, and updates from around the Tambayan.
-            </p>
+        <section aria-label="Find articles">
+          <div className="mb-5 flex flex-wrap items-end justify-between gap-4">
+            <h2 className="text-xl font-bold tracking-tight">Browse articles</h2>
+            <label className="w-full sm:w-72">
+              <span className="sr-only">Search articles</span>
+              <input type="search" value={search} onChange={(event) => { setSearch(event.target.value); setVisibleCount(12); }}
+                placeholder="Search stories and guides" className={`w-full rounded-xl border px-4 py-2.5 text-sm outline-none focus:border-emerald-600 ${dark ? 'border-neutral-700 bg-[#111113] text-white placeholder:text-neutral-500' : 'border-neutral-200 bg-white text-neutral-900 placeholder:text-neutral-500'}`} />
+            </label>
           </div>
-        </section>
-
-        {/* Section title */}
-        <section className="mb-6 flex items-end justify-between">
-          <div>
-            <p className={`mb-1 text-xs font-semibold uppercase tracking-widest ${
-              isDarkMode ? 'text-emerald-400' : 'text-emerald-600'
-            }`}>
-              Latest
-            </p>
-
-            <h2
-              className={`text-2xl font-bold tracking-tight ${
-                isDarkMode ? 'text-white' : 'text-neutral-900'
-              }`}
-            >
-              From the Tambayan
-            </h2>
+          <div role="group" aria-label="Article categories" className="-mx-5 mb-7 flex gap-2 overflow-x-auto px-5 pb-2 sm:mx-0 sm:px-0">
+            {(['All Articles', ...ARTICLE_CATEGORIES] as const).map((option) => (
+              <button key={option} type="button" aria-pressed={category === option}
+                onClick={() => { setCategory(option); setVisibleCount(12); }}
+                className={`shrink-0 rounded-full border px-4 py-2 text-xs font-semibold transition-colors focus-visible:outline-2 focus-visible:outline-emerald-600 ${category === option
+                  ? 'border-emerald-700 bg-emerald-700 text-white'
+                  : dark ? 'border-neutral-700 bg-[#111113] text-neutral-300 hover:border-neutral-500' : 'border-neutral-200 bg-white text-neutral-600 hover:border-neutral-400'}`}>
+                {option}
+              </button>
+            ))}
           </div>
 
-          {articles.length > 0 && (
-            <span className={`hidden text-xs sm:block ${
-              isDarkMode ? 'text-neutral-500' : 'text-neutral-400'
-            }`}>
-              {articles.length} article{articles.length !== 1 ? 's' : ''}
-            </span>
+          {visible.length > 0 ? (
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">{visible.map((article) => <ArticleCard key={article.id} article={article} dark={dark} />)}</div>
+          ) : filtered.length === 0 && !showFeatured ? (
+            <div className={`rounded-2xl border px-6 py-12 text-center text-sm ${dark ? 'border-neutral-800 text-neutral-400' : 'border-neutral-200 text-neutral-600'}`}>
+              {initialArticles.length === 0 ? 'No articles yet. Check back soon.' : 'No stories match this search. Try another category or keyword.'}
+            </div>
+          ) : null}
+          {visibleCount < filtered.length && (
+            <div className="mt-8 text-center"><button type="button" onClick={() => setVisibleCount((count) => count + 12)} className={`rounded-xl border px-6 py-3 text-sm font-semibold ${dark ? 'border-neutral-700 hover:bg-neutral-900' : 'border-neutral-200 hover:bg-neutral-100'}`}>Show more articles</button></div>
           )}
         </section>
 
-        {/* Empty */}
-        {articles.length === 0 && (
-          <div className={`rounded-3xl border border-dashed px-6 py-16 text-center ${
-            isDarkMode
-              ? 'border-neutral-700 bg-[#111113]'
-              : 'border-neutral-300 bg-white'
-          }`}>
-            <div className={`mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-2xl ${
-              isDarkMode
-                ? 'bg-emerald-950/50 text-emerald-400'
-                : 'bg-emerald-50 text-emerald-600'
-            }`}>
-              <Icons.Book />
-            </div>
-
-            <h3 className={`font-semibold ${isDarkMode ? " text-neutral-200" : " text-neutral-800"}`}>
-              Wala pang articles.
-            </h3>
-
-            <p className="mt-1 text-sm text-neutral-500">
-              May ilalagay din dito. Balik ka soon.
-            </p>
-          </div>
-        )}
-
-        {/* Articles */}
-        {articles.length > 0 && (
-          <div className="space-y-4">
-
-            {articles.map((article) => (
-              <Link
-                href={`/articles/${article.slug}`}
-                key={article.id}
-                className="group block"
-              >
-                <article className={`rounded-2xl border p-5 transition-all duration-200 hover:-translate-y-0.5 hover:shadow-lg sm:p-6 ${
-                  isDarkMode
-                    ? 'border-neutral-800 bg-[#111113] hover:border-emerald-800/70 hover:bg-[#141416] hover:shadow-black/20'
-                    : 'border-neutral-200 bg-white hover:border-emerald-200 hover:shadow-neutral-200/50'
-                }`}>
-
-                  {/* Metadata */}
-                  <div className="mb-3 flex flex-wrap items-center gap-2 text-xs">
-
-                    <span className={`rounded-full px-2.5 py-1 font-semibold ${
-                      isDarkMode
-                        ? 'bg-emerald-950/50 text-emerald-400'
-                        : 'bg-emerald-50 text-emerald-700'
-                    }`}>
-                      {article.category}
-                    </span>
-
-                    <span className={isDarkMode ? "text-neutral-700" : "text-neutral-300"}>•</span>
-
-                    <span className={isDarkMode ? "text-neutral-500" : "text-neutral-400"}>
-                      {formatArticleDate(article.createdAt)}
-                    </span>
-
-                    <span className={isDarkMode ? "text-neutral-700" : "text-neutral-300"}>•</span>
-
-                    <span className={isDarkMode ? "text-neutral-500" : "text-neutral-400"}>
-                      {article.readTime}
-                    </span>
-
-                  </div>
-
-                  {/* Title */}
-                  <h3 className={`text-xl font-bold leading-snug tracking-tight transition-colors sm:text-2xl ${
-                    isDarkMode
-                      ? 'text-neutral-100 group-hover:text-emerald-400'
-                      : 'text-neutral-900 group-hover:text-emerald-700'
-                  }`}>
-                    {article.title}
-                  </h3>
-
-                  {/* Excerpt */}
-                  {article.excerpt && (
-                    <p className={`mt-2 line-clamp-3 text-sm leading-6 sm:text-[15px] ${
-                      isDarkMode ? 'text-neutral-400' : 'text-neutral-600'
-                    }`}>
-                      {article.excerpt}
-                    </p>
-                  )}
-
-                  {/* Footer */}
-                  <div className={`mt-5 flex items-center justify-between border-t pt-4 ${
-                    isDarkMode ? 'border-neutral-800' : 'border-neutral-100'
-                  }`}>
-
-                    <span className={`text-xs ${
-                      isDarkMode ? 'text-neutral-500' : 'text-neutral-400'
-                    }`}>
-                      By{' '}
-                      <span className={`font-medium ${
-                          isDarkMode ? 'text-neutral-300' : 'text-neutral-600'
-                        }`}>
-                        {article.author}
-                      </span>
-                    </span>
-
-                    <div className={`inline-flex items-center gap-1.5 text-xs font-semibold ${
-                      isDarkMode ? 'text-emerald-400' : 'text-emerald-700'
-                    }`}>
-                      Read article
-
-                      <span className="transition-transform group-hover:translate-x-1">
-                        <Icons.ArrowRight />
-                      </span>
-                    </div>
-
-                  </div>
-
-                </article>
-              </Link>
-            ))}
-
-            {/* Load More */}
-            {hasMore && (
-              <div className="pt-7 text-center">
-                <button
-                  onClick={handleLoadMore}
-                  disabled={loadingMore}
-                  className={`rounded-xl border px-6 py-3 text-sm font-semibold shadow-sm transition-all active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-50 ${
-                    isDarkMode
-                      ? 'border-neutral-800 bg-[#111113] text-neutral-300 hover:border-emerald-800 hover:bg-emerald-950/30 hover:text-emerald-400'
-                      : 'border-neutral-200 bg-white text-neutral-700 hover:border-emerald-200 hover:bg-emerald-50 hover:text-emerald-700'
-                  }`}
-                >
-                  {loadingMore ? 'Loading...' : 'Load more articles'}
-                </button>
-              </div>
-            )}
-
-          </div>
-        )}
-
-        {/* About section */}
-        <section className={`mt-16 rounded-2xl border p-6 sm:p-8 ${
-          isDarkMode
-            ? 'border-neutral-800 bg-[#111113]'
-            : 'border-neutral-200 bg-white'
-        }`}>
-          <p className={`text-xs font-semibold uppercase tracking-widest ${
-            isDarkMode ? 'text-emerald-400' : 'text-emerald-600'
-          }`}>
-            About Tambayan Reads
-          </p>
-
-          <h2 className={`mt-2 text-xl font-bold tracking-tight ${isDarkMode ? " text-neutral-100" : " text-neutral-900"}`}>
-            More than just a freedom wall.
-          </h2>
-
-          <p className={`mt-3 max-w-2xl text-sm leading-6 ${isDarkMode ? " text-neutral-400" : " text-neutral-600"}`}>
-            Tambayan Reads is where we share useful guides, stories,
-            platform updates, and resources made with students in mind.
-            It&apos;s part of TambayanSLU&apos;s goal of creating a useful
-            online space for the student community.
-          </p>
-
-          <p className={`mt-4 text-xs leading-5 ${
-            isDarkMode ? 'text-neutral-500' : 'text-neutral-400'
-          }`}>
-            TambayanSLU is an independently operated student project and is
-            not officially affiliated with Saint Louis University.
-          </p>
-        </section>
-
+        <aside className={`mt-14 border-t pt-6 text-sm leading-6 ${dark ? 'border-neutral-800 text-neutral-500' : 'border-neutral-200 text-neutral-600'}`}>
+          Tambayan Reads is made for students. TambayanSLU is independent of Saint Louis University.
+        </aside>
       </main>
     </div>
   );
