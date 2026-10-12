@@ -1,38 +1,14 @@
 'use client';
 
 // TEMPORARY: PROJECT BLUE 10.12
-// Updated: more visible blue fireflies; no public tribute/message on homepage.
 // Removal: delete this component, ProjectBlueEasterEgg.date.ts,
-// ProjectBlueEasterEgg.module.css, ProjectBlueFireflies.module.css,
-// PROJECT_BLUE_10_12.md (if present), and the single HomeClient.tsx import/placement.
+// ProjectBlueEasterEgg.module.css, PROJECT_BLUE_10_12.md (if present),
+// and the single HomeClient.tsx import/placement.
 
-import { useEffect, useRef, useState, type CSSProperties } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { isProjectBlueDay, PROJECT_BLUE_START, PROJECT_BLUE_END } from './ProjectBlueEasterEgg.date';
 import styles from './ProjectBlueEasterEgg.module.css';
-import blue from './ProjectBlueFireflies.module.css';
-
-const petals = [styles.petalOne, styles.petalTwo, styles.petalThree, styles.petalFour, styles.petalFive];
-
-// TEMPORARY: PROJECT BLUE 10.12
-// Precomputed deterministic positions avoid SSR/hydration inconsistencies.
-// The fireflies have independent movement, sizes, delays and brightness.
-const fireflies = Array.from({ length: 32 }, (_, index) => {
-  const hash = (n: number) => {
-    const value = Math.sin((index + 1) * n * 127.1) * 43758.5453;
-    return value - Math.floor(value);
-  };
-  return {
-    x: 4 + hash(1.1) * 92,
-    y: 6 + hash(2.7) * 87,
-    size: 3.2 + hash(3.9) * 5.5,
-    moveX: (hash(4.3) - 0.5) * 145,
-    moveY: -35 - hash(5.7) * 105,
-    duration: 8 + hash(6.1) * 11,
-    delay: -(hash(7.9) * 22),
-    opacity: 0.65 + hash(8.3) * 0.35,
-  };
-});
 
 function Flower() {
   return (
@@ -58,7 +34,7 @@ function BlueBouquet() {
     { x: 68, y: 53, r: 15, scale: .82 },
   ];
   return (
-    <svg className={blue.bouquetArt} viewBox="0 0 110 132" fill="none" aria-hidden="true">
+    <svg className={styles.bouquetArt} viewBox="0 0 110 132" fill="none" aria-hidden="true">
       <g stroke="#5d997e" strokeWidth="2.6" strokeLinecap="round">
         {blooms.map((b, i) => <path key={i} d={`M55 109 Q${b.x + 4} 77 ${b.x} ${b.y}`} />)}
       </g>
@@ -151,52 +127,12 @@ export default function ProjectBlueEasterEgg({ isDarkMode }: { isDarkMode: boole
 
   return (
     <>
-      {/* Existing background atmosphere remains unchanged. */}
-      <div className={`${styles.atmosphere} ${isDarkMode ? styles.atmosphereDark : styles.atmosphereLight}`} aria-hidden="true" />
-
-      {/* TEMPORARY: PROJECT BLUE 10.12 — brighter, full-viewport fireflies. */}
-      <div className={`${blue.fireflyField} ${isDarkMode ? blue.dark : blue.light}`} aria-hidden="true">
-        <div className={blue.blueHaze} />
-        {fireflies.map((fly, index) => {
-          const customStyles = {
-            '--fly-x': `${fly.x}%`,
-            '--fly-y': `${fly.y}%`,
-            '--fly-size': `${fly.size}px`,
-            '--fly-move-x': `${fly.moveX}px`,
-            '--fly-move-y': `${fly.moveY}px`,
-            '--fly-wander-x': `${fly.moveX * .42}px`,
-            '--fly-wander-y': `${fly.moveY * .18}px`,
-            '--fly-veer-x': `${fly.moveX * -.25}px`,
-            '--fly-veer-y': `${fly.moveY * .76}px`,
-            '--fly-duration': `${fly.duration}s`,
-            '--fly-delay': `${fly.delay}s`,
-            '--fly-opacity': fly.opacity,
-          } as CSSProperties;
-          return (
-            <span key={index} className={blue.firefly} style={customStyles}>
-              <span className={blue.fireflyLight} />
-            </span>
-          );
-        })}
-      </div>
-
-      <div className={`${styles.garden} ${blue.bouquetGarden} ${isDarkMode ? styles.dark : styles.light}`}>
-        <div className={styles.flowers} aria-hidden="true">
-          <span className={`${styles.flower} ${styles.flowerOne} ${blue.bloom}`}><Flower /></span>
-          <span className={`${styles.flower} ${styles.flowerTwo} ${blue.bloom}`}><Flower /></span>
-          <span className={`${styles.flower} ${styles.flowerThree} ${blue.bloom}`}><Flower /></span>
-          <span className={`${styles.flower} ${styles.flowerFour} ${blue.bloom}`}><Flower /></span>
-          <span className={`${styles.flower} ${styles.flowerFive} ${blue.bloom}`}><Flower /></span>
-          <span className={`${styles.flower} ${styles.flowerSix} ${blue.bloom}`}><Flower /></span>
-        </div>
-        <div className={styles.petals} aria-hidden="true">
-          {petals.map((className, index) => <span key={index} className={`${styles.petal} ${className}`} />)}
-        </div>
+      <div className={styles.bouquetGarden}>
         {/* No visible tribute card or message; hidden message stays in click-to-open modal only. */}
         <button
           ref={flowerButton}
           type="button"
-          className={`${styles.specialFlower} ${blue.specialFlowerGlow} ${blue.bouquetButton}`}
+          className={styles.bouquetButton}
           aria-label="Open the blue bouquet's hidden message"
           aria-haspopup="dialog"
           onClick={() => setOpen(true)}
