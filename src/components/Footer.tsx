@@ -60,6 +60,7 @@ export function Footer() {
             <Link href="/about" className={`transition-colors ${isDarkMode ? 'hover:text-white' : 'hover:text-neutral-900'}`}>About</Link>
             <Link href="/guidelines" className={`transition-colors ${isDarkMode ? 'hover:text-white' : 'hover:text-neutral-900'}`}>Guidelines</Link>
             <Link href="/privacy" className={`transition-colors ${isDarkMode ? 'hover:text-white' : 'hover:text-neutral-900'}`}>Privacy</Link>
+            <Link href="/terms" className={`transition-colors ${isDarkMode ? 'hover:text-white' : 'hover:text-neutral-900'}`}>Terms</Link>
             <Link href="/contact" className={`transition-colors ${isDarkMode ? 'hover:text-white' : 'hover:text-neutral-900'}`}>Contact</Link>
             <Link href="/credits" className={`transition-colors ${isDarkMode ? 'hover:text-white' : 'hover:text-neutral-900'}`}>Credits</Link>
             <Link

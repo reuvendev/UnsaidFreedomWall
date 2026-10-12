@@ -6,7 +6,7 @@ export const revalidate = 3600;
 const baseUrl = 'https://www.tambayanslu.com';
 const publicPaths = [
   '/', '/wall', '/articles', '/about', '/how-it-works', '/guidelines',
-  '/faq', '/privacy', '/contact', '/credits', '/support',
+  '/faq', '/privacy', '/terms', '/contact', '/credits', '/support',
 ];
 
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
