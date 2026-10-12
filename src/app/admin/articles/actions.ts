@@ -1,10 +1,21 @@
 'use server';
 
 import { FieldValue } from 'firebase-admin/firestore';
-import { revalidatePath } from 'next/cache';
+import { revalidatePath, revalidateTag, unstable_noStore } from 'next/cache';
 import { adminDb } from '@/lib/team/firebase-admin';
 import { requireAdminAuth } from '@/app/admin/actions';
 import { isArticleCategory, resolveArticleCategory, type ArticleCategory } from '@/app/articles/categories';
+import {
+  ARTICLE_CACHE_TAG,
+  ARTICLES_PAGE_SIZE,
+  buildPublishedArticleCatalog,
+  isIndexableArticleSlug,
+  isPublishedArticleData,
+  isPublicArticleData,
+  paginateArticles,
+  readAllArticleDocuments,
+  toArticleSummary,
+} from '@/app/articles/article-data';
 import { verifyArticleCover } from '@/lib/r2';
 
 type ArticleMetadata = { id: string; title: string; slug: string; category: ArticleCategory; featured: boolean; tags: string[]; coverImage: string | null };
@@ -15,27 +26,38 @@ function cleanTags(input: unknown): string[] {
 }
 
 function refreshArticlePages(slug: string) {
+  revalidateTag(ARTICLE_CACHE_TAG);
   revalidatePath('/articles');
-  revalidatePath(`/articles/${slug}`);
+  revalidatePath('/articles/[slug]', 'page');
+  if (slug) revalidatePath(`/articles/${slug}`);
   revalidatePath('/sitemap.xml');
 }
 
 export async function listArticleMetadata(): Promise<ArticleMetadata[]> {
   await requireAdminAuth();
-  const snapshot = await adminDb().collection('articles').orderBy('createdAt', 'desc').limit(100).get();
-  return snapshot.docs.filter((doc) => doc.data().status !== 'draft' && doc.data().published !== false).map((doc) => {
-    const data = doc.data();
+  unstable_noStore();
+  const documents = await readAllArticleDocuments();
+  return documents.filter((document) => isPublishedArticleData(document.data())).map((document) => {
+    const article = toArticleSummary(document.id, document.data());
     return {
-      id: doc.id,
-      title: String(data.title || 'Untitled'),
-      slug: String(data.slug || ''),
-      category: resolveArticleCategory(data.category, String(data.slug || '')),
-      featured: data.featured === true,
-      tags: cleanTags(data.tags),
-      coverImage: typeof data.coverImage === 'string' && data.coverImage.startsWith('https://cdn.tambayanslu.com/')
-        ? data.coverImage : null,
+      id: article.id,
+      title: article.title,
+      slug: article.slug,
+      category: resolveArticleCategory(document.data().category, article.slug),
+      featured: article.featured,
+      tags: article.tags,
+      coverImage: article.coverImage,
     };
-  });
+  }).sort((left, right) => left.title.localeCompare(right.title));
+}
+
+export async function checkArticleSlugAvailability(slugInput: string): Promise<boolean> {
+  await requireAdminAuth();
+  unstable_noStore();
+  const slug = slugInput.trim();
+  if (!/^[a-z0-9-]{1,120}$/.test(slug)) return false;
+  const snapshot = await adminDb().collection('articles').where('slug', '==', slug).limit(1).get();
+  return snapshot.empty;
 }
 
 export async function publishArticle(input: {
@@ -59,16 +81,27 @@ export async function publishArticle(input: {
   if (!(await db.collection('articles').where('slug', '==', slug).limit(1).get()).empty) {
     return { success: false, error: 'This article URL is already in use.' };
   }
-  await db.collection('articles').add({
-    title, slug, excerpt, content,
-    category: input.category,
-    featured: input.featured === true,
-    tags: cleanTags(input.tags),
-    ...(coverImage ? { coverImage } : {}),
-    readTime: `${Math.max(1, Math.ceil(content.split(/\s+/).length / 220))} min read`,
-    author: input.author?.trim().slice(0, 100) || 'TambayanSLU',
-    createdAt: FieldValue.serverTimestamp(),
-  });
+  try {
+    await db.collection('articles').doc(slug).create({
+      title, slug, excerpt, content,
+      category: input.category,
+      featured: input.featured === true,
+      tags: cleanTags(input.tags),
+      ...(coverImage ? { coverImage } : {}),
+      readTime: `${Math.max(1, Math.ceil(content.split(/\s+/).length / 220))} min read`,
+      author: input.author?.trim().slice(0, 100) || 'TambayanSLU',
+      status: 'published',
+      published: true,
+      publishedAt: FieldValue.serverTimestamp(),
+      createdAt: FieldValue.serverTimestamp(),
+      updatedAt: FieldValue.serverTimestamp(),
+    });
+  } catch (error) {
+    if ((error as { code?: number | string }).code === 6 || (error as { code?: number | string }).code === 'already-exists') {
+      return { success: false, error: 'This article URL is already in use.' };
+    }
+    throw error;
+  }
   refreshArticlePages(slug);
   return { success: true };
 }
@@ -82,7 +115,7 @@ export async function updateArticleMetadata(input: {
   }
   const ref = adminDb().collection('articles').doc(input.id);
   const existing = await ref.get();
-  if (!existing.exists || existing.data()?.status === 'draft' || existing.data()?.published === false) {
+  if (!existing.exists || !isPublicArticleData(existing.data()!)) {
     return { success: false, error: 'Published article not found.' };
   }
   const currentCover = typeof existing.data()?.coverImage === 'string' ? existing.data()!.coverImage : null;
@@ -98,4 +131,82 @@ export async function updateArticleMetadata(input: {
   });
   refreshArticlePages(String(existing.data()?.slug || ''));
   return { success: true };
+}
+
+export async function unpublishArticle(id: string): Promise<{ success: boolean; error?: string }> {
+  await requireAdminAuth();
+  if (!id || id.length > 200 || id.includes('/')) return { success: false, error: 'Invalid article.' };
+  const ref = adminDb().collection('articles').doc(id);
+  const existing = await ref.get();
+  if (!existing.exists || !isPublishedArticleData(existing.data()!)) {
+    return { success: false, error: 'Published article not found.' };
+  }
+  const slugValue = existing.data()?.slug;
+  const slug = typeof slugValue === 'string' ? slugValue : '';
+  const matchingRefs = new Map([[ref.path, ref]]);
+  if (slug) {
+    const duplicates = await adminDb().collection('articles').where('slug', '==', slug).get();
+    for (const document of duplicates.docs.filter((item) => isPublishedArticleData(item.data()))) {
+      matchingRefs.set(document.ref.path, document.ref);
+    }
+  }
+  const refs = Array.from(matchingRefs.values());
+  for (let offset = 0; offset < refs.length; offset += 500) {
+    const batch = adminDb().batch();
+    for (const articleRef of refs.slice(offset, offset + 500)) {
+      batch.update(articleRef, { status: 'unpublished', published: false, updatedAt: FieldValue.serverTimestamp() });
+    }
+    await batch.commit();
+  }
+  refreshArticlePages(slug);
+  return { success: true };
+}
+
+export type ArticleConsistencyResult = {
+  firestorePublishedArticles: number;
+  accessibleListingArticles: number;
+  sitemapArticleUrls: number;
+  missingFromListings: string[];
+  missingFromSitemap: string[];
+  unexpectedListings: string[];
+  unexpectedSitemap: string[];
+  duplicateSlugs: string[];
+};
+
+export async function runArticleConsistencyCheck(): Promise<ArticleConsistencyResult> {
+  await requireAdminAuth();
+  unstable_noStore();
+  const documents = await readAllArticleDocuments();
+  const published = documents.filter((document) => isPublishedArticleData(document.data()));
+  const catalog = buildPublishedArticleCatalog(documents);
+
+  const listingIds = new Set<string>();
+  const totalPages = Math.max(1, Math.ceil(catalog.length / ARTICLES_PAGE_SIZE));
+  for (let page = 1; page <= totalPages; page += 1) {
+    for (const article of paginateArticles(catalog, page).articles) listingIds.add(article.id);
+  }
+
+  const sitemapArticles = catalog.filter((article) => isIndexableArticleSlug(article.slug));
+  const sitemapIds = new Set(sitemapArticles.map((article) => article.id));
+  const sitemapUrls = new Set(sitemapArticles.map((article) =>
+    `https://www.tambayanslu.com/articles/${encodeURIComponent(article.slug)}`));
+  const publishedIds = new Set(published.map((document) => document.id));
+  const slugOwners = new Map<string, string[]>();
+  for (const document of published) {
+    const slug = typeof document.data().slug === 'string' ? document.data().slug : '';
+    if (!slug) continue;
+    slugOwners.set(slug, [...(slugOwners.get(slug) || []), document.id]);
+  }
+  const difference = (left: Set<string>, right: Set<string>) => Array.from(left).filter((id) => !right.has(id)).sort();
+
+  return {
+    firestorePublishedArticles: publishedIds.size,
+    accessibleListingArticles: listingIds.size,
+    sitemapArticleUrls: sitemapUrls.size,
+    missingFromListings: difference(publishedIds, listingIds),
+    missingFromSitemap: difference(publishedIds, sitemapIds),
+    unexpectedListings: difference(listingIds, publishedIds),
+    unexpectedSitemap: difference(sitemapIds, publishedIds),
+    duplicateSlugs: Array.from(slugOwners.entries()).filter(([, ids]) => ids.length > 1).map(([slug]) => slug).sort(),
+  };
 }

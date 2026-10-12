@@ -3,11 +3,17 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { collection, getDocs, limit, query, where } from 'firebase/firestore';
-import { db } from '@/lib/firebase';
 import { loginAdmin, logoutAdmin, checkAdminAuth } from '../../actions';
 import { ARTICLE_CATEGORIES, resolveArticleCategory, type ArticleCategory } from '@/app/articles/categories';
-import { listArticleMetadata, publishArticle, updateArticleMetadata } from '../actions';
+import {
+  checkArticleSlugAvailability,
+  listArticleMetadata,
+  publishArticle,
+  runArticleConsistencyCheck,
+  unpublishArticle,
+  updateArticleMetadata,
+  type ArticleConsistencyResult,
+} from '../actions';
 import ArticleCoverInput, { uploadArticleCover } from './ArticleCoverInput';
 
 const DRAFT_KEY = 'tambayan_article_draft';
@@ -283,6 +289,8 @@ export default function AdminNewArticlePage() {
   const [editCoverProgress, setEditCoverProgress] = useState<number | null>(null);
   const [metadataStatus, setMetadataStatus] = useState('');
   const [savingMetadata, setSavingMetadata] = useState(false);
+  const [consistency, setConsistency] = useState<ArticleConsistencyResult | null>(null);
+  const [checkingConsistency, setCheckingConsistency] = useState(false);
   const [editorMode, setEditorMode] = useState<EditorMode>('write');
 
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -390,6 +398,32 @@ export default function AdminNewArticlePage() {
     }
   };
 
+  const removePublishedArticle = async (article: ManagedArticle) => {
+    if (!window.confirm(`Unpublish "${article.title}"? Its public page and sitemap URL will be removed.`)) return;
+    setMetadataStatus('');
+    try {
+      const result = await unpublishArticle(article.id);
+      if (!result.success) { setMetadataStatus(result.error || 'Could not unpublish article.'); return; }
+      setEditingArticleId(null);
+      setMetadataStatus('Article unpublished and public caches refreshed.');
+      await loadManagedArticles();
+    } catch (error) {
+      setMetadataStatus(error instanceof Error ? error.message : 'Could not unpublish article.');
+    }
+  };
+
+  const checkConsistency = async () => {
+    setCheckingConsistency(true);
+    setMetadataStatus('');
+    try {
+      setConsistency(await runArticleConsistencyCheck());
+    } catch (error) {
+      setMetadataStatus(error instanceof Error ? error.message : 'Could not run article consistency check.');
+    } finally {
+      setCheckingConsistency(false);
+    }
+  };
+
   useEffect(() => {
     if (!slug.trim()) {
       setSlugAvailable(null);
@@ -400,14 +434,7 @@ export default function AdminNewArticlePage() {
       setCheckingSlug(true);
 
       try {
-        const slugQuery = query(
-          collection(db, 'articles'),
-          where('slug', '==', slug.trim()),
-          limit(1)
-        );
-
-        const snapshot = await getDocs(slugQuery);
-        setSlugAvailable(snapshot.empty);
+        setSlugAvailable(await checkArticleSlugAvailability(slug.trim()));
       } catch (error) {
         console.error('Error checking article slug:', error);
         setSlugAvailable(null);
@@ -626,20 +653,6 @@ export default function AdminNewArticlePage() {
     setCoverError('');
 
     try {
-      const slugQuery = query(
-        collection(db, 'articles'),
-        where('slug', '==', slug.trim()),
-        limit(1)
-      );
-
-      const existing = await getDocs(slugQuery);
-
-      if (!existing.empty) {
-        setSlugAvailable(false);
-        alert('That URL slug is already in use. Please choose another one.');
-        return;
-      }
-
       let nextCover = coverImage;
       if (coverFile) {
         setCoverUploading(true);
@@ -1123,11 +1136,38 @@ Use the toolbar for headings, bold text, quotes, lists, and links.`}
                       <div className="flex gap-3">
                         <button type="button" disabled={savingMetadata || editCoverCompressing} onClick={saveArticleMetadata} className="rounded-lg bg-emerald-500 px-3 py-2 text-xs font-bold text-neutral-950 disabled:opacity-50">Save settings</button>
                         <button type="button" onClick={() => setEditingArticleId(null)} className="text-xs text-neutral-400">Cancel</button>
+                        <button type="button" disabled={savingMetadata} onClick={() => void removePublishedArticle(article)} className="ml-auto text-xs font-semibold text-rose-400 hover:text-rose-300 disabled:opacity-50">Unpublish</button>
                       </div>
                     </div>
                   )}
                 </div>
               ))}
+            </div>
+            <div className="mt-8 rounded-xl border border-neutral-800 bg-[#111113] p-5">
+              <div className="flex flex-wrap items-center justify-between gap-3">
+                <div>
+                  <h3 className="text-sm font-bold text-neutral-100">Article consistency check</h3>
+                  <p className="mt-1 text-xs text-neutral-500">Compares published Firestore IDs with all listing pages and sitemap article URLs.</p>
+                </div>
+                <button type="button" disabled={checkingConsistency} onClick={() => void checkConsistency()} className="rounded-lg border border-neutral-700 px-3 py-2 text-xs font-semibold text-neutral-200 hover:bg-neutral-800 disabled:opacity-50">
+                  {checkingConsistency ? 'Checking...' : 'Run check'}
+                </button>
+              </div>
+              {consistency && <div className="mt-4 grid gap-2 text-xs text-neutral-300 sm:grid-cols-3">
+                <p>Firestore published: <strong>{consistency.firestorePublishedArticles}</strong></p>
+                <p>Accessible listings: <strong>{consistency.accessibleListingArticles}</strong></p>
+                <p>Sitemap URLs: <strong>{consistency.sitemapArticleUrls}</strong></p>
+                <p>Missing from listings: <strong>{consistency.missingFromListings.length}</strong></p>
+                <p>Missing from sitemap: <strong>{consistency.missingFromSitemap.length}</strong></p>
+                <p>Duplicate slugs: <strong>{consistency.duplicateSlugs.length}</strong></p>
+              </div>}
+              {consistency && (consistency.missingFromListings.length > 0 || consistency.missingFromSitemap.length > 0 || consistency.duplicateSlugs.length > 0) && (
+                <div className="mt-4 space-y-1 break-all rounded-lg bg-neutral-950 p-3 font-mono text-[11px] text-amber-300">
+                  {consistency.missingFromListings.length > 0 && <p>Missing listing IDs: {consistency.missingFromListings.join(', ')}</p>}
+                  {consistency.missingFromSitemap.length > 0 && <p>Missing sitemap IDs: {consistency.missingFromSitemap.join(', ')}</p>}
+                  {consistency.duplicateSlugs.length > 0 && <p>Duplicate slugs: {consistency.duplicateSlugs.join(', ')}</p>}
+                </div>
+              )}
             </div>
           </section>
         </main>

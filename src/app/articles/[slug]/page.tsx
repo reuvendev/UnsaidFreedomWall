@@ -1,14 +1,10 @@
 // Server Component: article content is included in initial HTML for Google and users.
-// Requires @/lib/firebase to be safe to import in a Next.js server environment.
+// Public reads use the server-only Admin SDK repository.
 import type { Metadata } from 'next';
 import { notFound } from 'next/navigation';
-import { cache } from 'react';
-import { collection, getDocs, limit, query, where } from 'firebase/firestore';
-import { db } from '@/lib/firebase';
 import ArticleClient from './ArticleClient';
-import type { ArticleData } from './types';
-import { articleTags, resolveArticleCategory, selectRelatedArticles } from '../categories';
-import { getArticleCatalog } from '../article-data';
+import { selectRelatedArticles } from '../categories';
+import { getArticleBySlug, getArticleCatalog } from '../article-data';
 
 // Refresh cached article HTML periodically to balance indexing and Firestore reads.
 export const revalidate = 300;
@@ -16,39 +12,6 @@ export const revalidate = 300;
 type PageProps = {
   params: Promise<{ slug: string }>;
 };
-
-// React cache prevents a duplicate Firestore read when both metadata and page
-// request the same article during one server render.
-const getArticleBySlug = cache(async (slug: string): Promise<ArticleData | null> => {
-  if (!slug) return null;
-
-  const snapshot = await getDocs(
-    query(collection(db, 'articles'), where('slug', '==', slug), limit(1))
-  );
-
-  if (snapshot.empty) return null;
-
-  const data = snapshot.docs[0].data();
-  if (data.status === 'draft' || data.published === false) return null;
-  const date = data.createdAt;
-  const createdAt =
-    date && typeof date.toMillis === 'function' ? date.toMillis() : null;
-
-  return {
-    title: data.title || 'Untitled',
-    slug: data.slug || slug,
-    category: resolveArticleCategory(data.category, data.slug || slug),
-    readTime: data.readTime || '3 min read',
-    excerpt: data.excerpt || '',
-    content: data.content || '',
-    createdAt,
-    updatedAt: typeof data.updatedAt?.toMillis === 'function' ? data.updatedAt.toMillis() : null,
-    author: data.author || 'TambayanSLU',
-    tags: articleTags(data.tags),
-    coverImage: typeof data.coverImage === 'string' && data.coverImage.startsWith('https://cdn.tambayanslu.com/')
-      ? data.coverImage : null,
-  };
-});
 
 export async function generateMetadata({ params }: PageProps): Promise<Metadata> {
   const { slug } = await params; // Next.js 15 dynamic params are async.
@@ -108,7 +71,7 @@ export default async function ArticlePage({ params }: PageProps) {
   // category-specific listener or Firestore composite index.
   let candidates: Awaited<ReturnType<typeof getArticleCatalog>> = [];
   try {
-    candidates = (await getArticleCatalog(18)).filter((candidate) => candidate.slug !== article.slug);
+    candidates = (await getArticleCatalog()).filter((candidate) => candidate.slug !== article.slug);
   } catch (error) {
     // Suggestions must never prevent an otherwise available article from loading.
     console.error('Could not load related reading:', error);

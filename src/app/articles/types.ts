@@ -8,6 +8,7 @@ export interface ArticleSummary {
   readTime: string;
   excerpt: string;
   createdAt: number | null; // Epoch milliseconds, never a Firestore Timestamp
+  updatedAt: number | null;
   author: string;
   featured: boolean;
   tags: string[];

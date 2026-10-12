@@ -1,12 +1,11 @@
 import type { MetadataRoute } from 'next';
-import { collection, getDocs, limit, orderBy, query } from 'firebase/firestore';
-import { db } from '@/lib/firebase';
+import { getArticleCatalog } from './articles/article-data';
 
 export const revalidate = 3600;
 
 const baseUrl = 'https://www.tambayanslu.com';
 const publicPaths = [
-  '/', '/wall', '/about', '/how-it-works', '/guidelines',
+  '/', '/wall', '/articles', '/about', '/how-it-works', '/guidelines',
   '/faq', '/privacy', '/contact', '/credits', '/support',
 ];
 
@@ -16,23 +15,13 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   }));
 
   try {
-    // Existing articles have no publication-status field: documents in this
-    // collection are created only when the editor publishes an article.
-    // Bound the read; expand pagination if the editorial catalog exceeds 200.
-    const snapshot = await getDocs(query(collection(db, 'articles'), orderBy('createdAt', 'desc'), limit(200)));
-    for (const doc of snapshot.docs) {
-      const article = doc.data();
-      if (typeof article.slug !== 'string' || !/^[a-z0-9-]+$/i.test(article.slug) || article.slug.toLowerCase() === 'test') continue;
-      if (!article.title || !article.content || article.status === 'draft' || article.published === false) continue;
+    const articles = await getArticleCatalog();
+    for (const article of articles) {
       pages.push({
         url: `${baseUrl}/articles/${encodeURIComponent(article.slug)}`,
-        ...(article.updatedAt?.toDate?.() || article.createdAt?.toDate?.()
-          ? { lastModified: article.updatedAt?.toDate?.() || article.createdAt.toDate() }
-          : {}),
+        ...((article.updatedAt ?? article.createdAt) !== null
+          ? { lastModified: new Date(article.updatedAt ?? article.createdAt!) } : {}),
       });
-    }
-    if (pages.some((page) => page.url.startsWith(`${baseUrl}/articles/`))) {
-      pages.push({ url: `${baseUrl}/articles` });
     }
   } catch (error) {
     console.error('Could not load articles for sitemap:', error);
