@@ -103,8 +103,8 @@ export default function AboutPage() {
             <p>
               Tambayan started as a personal web project focused on creating a simple
               online community space for Louisians. Today, the platform is independently
-              developed and maintained by Valiance, a student-led development team, as its features and community continue
-              to grow.
+              developed and maintained by the TambayanSLU Team as its features and community
+              continue to grow.
             </p>
 
             <div
@@ -117,7 +117,7 @@ export default function AboutPage() {
               </p>
 
               <p className={`font-mono text-sm font-bold ${heading}`}>
-                Valiance
+                TambayanSLU Team
               </p>
 
               <p className="font-mono text-[11px] text-neutral-500 mt-1">
@@ -208,7 +208,7 @@ export default function AboutPage() {
             <p className="font-mono text-[10px] font-bold uppercase tracking-widest text-emerald-600 mb-3">Independent Community</p>
             <h2 className={`text-2xl font-extrabold tracking-tight mb-4 ${heading}`}>Tambayan is independently operated.</h2>
             <p className={`text-sm sm:text-base leading-relaxed ${body}`}>
-              Tambayan SLU is an independent student-led platform developed and operated by Valiance. It is not affiliated with, associated with, authorized by, endorsed by, or officially connected with Saint Louis University (SLU) or any of its offices.
+              TambayanSLU is an independent, student-led project developed and maintained by the TambayanSLU Team. It is not affiliated with, associated with, authorized by, endorsed by, or officially connected with Saint Louis University (SLU) or any of its offices.
             </p>
           </section>
         </div>

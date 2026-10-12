@@ -13,17 +13,17 @@ type Props = { children: ReactNode; member: { displayName: string; role: TeamRol
 export function TeamShell({ children, member }: Props) {
   const pathname = usePathname();
   const links = [
-    { href: '/team', label: 'Dashboard', show: true },
-    { href: '/team/moderation', label: 'Moderation', show: canModerate(member.role) },
-    { href: '/team/members', label: 'Members', show: canManageMembers(member.role) },
-    { href: '/team/settings', label: 'Settings', show: true },
+    { href: '/team/portal', label: 'Dashboard', show: true },
+    { href: '/team/portal/moderation', label: 'Moderation', show: canModerate(member.role) },
+    { href: '/team/portal/members', label: 'Members', show: canManageMembers(member.role) },
+    { href: '/team/portal/settings', label: 'Settings', show: true },
   ].filter((link) => link.show);
 
   return (
     <div className="min-h-screen bg-stone-50 text-neutral-900 dark:bg-neutral-950 dark:text-neutral-100">
       <header className="sticky top-0 z-40 border-b border-neutral-200 bg-stone-50/90 backdrop-blur dark:border-neutral-800 dark:bg-neutral-950/90 lg:hidden">
         <div className="flex h-16 items-center justify-between px-4">
-          <Link href="/team" className="font-black tracking-tight">TambayanSLU <span className="text-emerald-600">Team</span></Link>
+          <Link href="/team/portal" className="font-black tracking-tight">TambayanSLU <span className="text-emerald-600">Team</span></Link>
           <div className="flex items-center gap-2"><VerifiedIcon className="h-4 w-4 text-blue-500" /><TeamRoleBadge role={member.role} /></div>
         </div>
         <nav className="flex overflow-x-auto border-t border-neutral-200 px-2 dark:border-neutral-800">
@@ -32,7 +32,7 @@ export function TeamShell({ children, member }: Props) {
       </header>
       <div className="mx-auto flex min-h-screen max-w-[1500px]">
         <aside className="sticky top-0 hidden h-screen w-64 shrink-0 flex-col border-r border-neutral-200 bg-white p-6 dark:border-neutral-800 dark:bg-neutral-900 lg:flex">
-          <Link href="/team" className="text-xl font-black tracking-tight">TambayanSLU <span className="text-emerald-600 dark:text-emerald-400">Team</span></Link>
+          <Link href="/team/portal" className="text-xl font-black tracking-tight">TambayanSLU <span className="text-emerald-600 dark:text-emerald-400">Team</span></Link>
           <div className="mt-8 rounded-xl border border-neutral-200 p-4 dark:border-neutral-800">
             <div className="flex items-center gap-2 font-semibold"><span className="truncate">{member.displayName}</span><VerifiedIcon className="h-4 w-4 shrink-0 text-blue-500" /></div>
             <div className="mt-2"><TeamRoleBadge role={member.role} /></div>

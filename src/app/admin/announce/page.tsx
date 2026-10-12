@@ -20,6 +20,7 @@ import {
 } from 'firebase/firestore';
 
 import { db } from '@/lib/firebase';
+import { REPLY_MAX_LENGTH } from '@/lib/content-limits';
 import type { PostProps } from '@/app/wall/post-types';
 import { loginAdmin, logoutAdmin, checkAdminAuth } from '../actions';
 
@@ -597,6 +598,11 @@ export default function AdminPostPortal() {
       return;
     }
 
+    if (replyText.length > REPLY_MAX_LENGTH) {
+      alert(`Replies can be up to ${REPLY_MAX_LENGTH.toLocaleString()} characters.`);
+      return;
+    }
+
     setSubmittingReplyId(postId);
 
     try {
@@ -1144,6 +1150,7 @@ export default function AdminPostPortal() {
                       <div className="flex gap-2">
                         <input
                           type="text"
+                          maxLength={REPLY_MAX_LENGTH}
                           value={
                             replyInputs[
                               post.id
@@ -1180,6 +1187,10 @@ export default function AdminPostPortal() {
                             ? '...'
                             : 'Reply'}
                         </button>
+                      </div>
+
+                      <div className="text-right font-mono text-[10px] text-neutral-600">
+                        {(replyInputs[post.id] || '').length}/{REPLY_MAX_LENGTH}
                       </div>
                     </form>
                   </div>

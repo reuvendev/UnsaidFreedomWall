@@ -38,7 +38,8 @@ service cloud.firestore {
           get(/databases/$(database)/documents/posts/$(postId)).data.status == 'approved'
           && request.resource.data.content is string
           && request.resource.data.content.size() > 0
-          && request.resource.data.content.size() <= 300
+          // Keep synchronized with REPLY_MAX_LENGTH in src/lib/content-limits.ts.
+          && request.resource.data.content.size() <= 2000
           && request.resource.data.authorAlias is string
           && request.resource.data.userId is string
           && !request.resource.data.keys().hasAny([

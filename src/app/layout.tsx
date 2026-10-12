@@ -34,10 +34,10 @@ export const metadata: Metadata = {
     "Louisians",
   ],
 
-  authors: [{ name: "Valiance" }],
+  authors: [{ name: "TambayanSLU Team" }],
 
-  creator: "Valiance",
-  publisher: "Valiance",
+  creator: "TambayanSLU Team",
+  publisher: "TambayanSLU Team",
 
   robots: {
     index: true,

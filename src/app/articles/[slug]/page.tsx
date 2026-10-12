@@ -89,7 +89,7 @@ export default async function ArticlePage({ params }: PageProps) {
     description: article.excerpt || undefined,
     mainEntityOfPage: `https://www.tambayanslu.com/articles/${encodeURIComponent(article.slug)}`,
     author: { '@type': article.author === 'TambayanSLU' ? 'Organization' : 'Person', name: article.author },
-    publisher: { '@type': 'Organization', name: 'Valiance' },
+    publisher: { '@type': 'Organization', name: 'TambayanSLU Team' },
     ...(article.createdAt !== null ? { datePublished: new Date(article.createdAt).toISOString() } : {}),
     ...(article.updatedAt !== null ? { dateModified: new Date(article.updatedAt).toISOString() } : {}),
     ...(article.coverImage ? { image: article.coverImage } : {}),

@@ -36,12 +36,12 @@ export default async function TeamDashboardPage() {
           <h2 className="mt-3 text-lg font-bold">Freedom Wall</h2>
           <p className="mt-2 text-sm text-neutral-500">Read the community and choose when to respond with your official profile.</p>
         </Link>
-        {canModerate(session.role) && <Link href="/team/moderation" className="rounded-2xl border border-neutral-200 bg-white p-6 transition hover:-translate-y-0.5 hover:border-emerald-400 dark:border-neutral-800 dark:bg-neutral-900">
+        {canModerate(session.role) && <Link href="/team/portal/moderation" className="rounded-2xl border border-neutral-200 bg-white p-6 transition hover:-translate-y-0.5 hover:border-emerald-400 dark:border-neutral-800 dark:bg-neutral-900">
           <p className="font-mono text-[10px] font-bold uppercase tracking-wider text-rose-600">Authorized</p>
           <h2 className="mt-3 text-lg font-bold">Moderation workspace</h2>
           <p className="mt-2 text-sm text-neutral-500">Review pending posts, reports, decisions, and moderation guidance.</p>
         </Link>}
-        <Link href="/team/settings" className="rounded-2xl border border-neutral-200 bg-white p-6 transition hover:-translate-y-0.5 hover:border-emerald-400 dark:border-neutral-800 dark:bg-neutral-900">
+        <Link href="/team/portal/settings" className="rounded-2xl border border-neutral-200 bg-white p-6 transition hover:-translate-y-0.5 hover:border-emerald-400 dark:border-neutral-800 dark:bg-neutral-900">
           <p className="font-mono text-[10px] font-bold uppercase tracking-wider text-sky-600">Account</p>
           <h2 className="mt-3 text-lg font-bold">Profile settings</h2>
           <p className="mt-2 text-sm text-neutral-500">Update your public display name and review your Team access.</p>

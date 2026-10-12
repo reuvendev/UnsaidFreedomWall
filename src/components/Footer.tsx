@@ -34,7 +34,11 @@ export function Footer() {
 
   // ✅ SAFE: All hooks are called above this line. 
   // Now it can conditionally return null without breaking React rules.
-  if (pathname?.includes('/chat/') || pathname?.startsWith('/team')) {
+  if (
+    pathname?.includes('/chat/') ||
+    pathname === '/team/login' ||
+    pathname?.startsWith('/team/portal')
+  ) {
     return null;
   }
 
@@ -56,13 +60,13 @@ export function Footer() {
           </div>
 
           <div className={`flex flex-wrap items-center gap-6 font-mono text-[11px] font-semibold uppercase tracking-wider ${isDarkMode ? 'text-neutral-400' : 'text-neutral-500'}`}>
-            <Link href="/" className={`transition-colors ${isDarkMode ? 'hover:text-white' : 'hover:text-neutral-900'}`}>Feed</Link>
+            <Link href="/wall" className={`transition-colors ${isDarkMode ? 'hover:text-white' : 'hover:text-neutral-900'}`}>Feed</Link>
             <Link href="/about" className={`transition-colors ${isDarkMode ? 'hover:text-white' : 'hover:text-neutral-900'}`}>About</Link>
             <Link href="/guidelines" className={`transition-colors ${isDarkMode ? 'hover:text-white' : 'hover:text-neutral-900'}`}>Guidelines</Link>
             <Link href="/privacy" className={`transition-colors ${isDarkMode ? 'hover:text-white' : 'hover:text-neutral-900'}`}>Privacy</Link>
             <Link href="/terms" className={`transition-colors ${isDarkMode ? 'hover:text-white' : 'hover:text-neutral-900'}`}>Terms</Link>
             <Link href="/contact" className={`transition-colors ${isDarkMode ? 'hover:text-white' : 'hover:text-neutral-900'}`}>Contact</Link>
-            <Link href="/credits" className={`transition-colors ${isDarkMode ? 'hover:text-white' : 'hover:text-neutral-900'}`}>Credits</Link>
+            <Link href="/team" className={`transition-colors ${isDarkMode ? 'hover:text-white' : 'hover:text-neutral-900'}`}>Meet the Team</Link>
             <Link
               href="/appeal"
               className={`transition-colors ${
@@ -81,7 +85,7 @@ export function Footer() {
         {/* Non-Affiliation Disclaimer */}
         <div className={`border-t pt-6 ${isDarkMode ? 'border-neutral-900' : 'border-neutral-200/60'}`}>
           <p className={`font-mono text-[10px] leading-relaxed text-center md:text-left max-w-2xl ${isDarkMode ? 'text-neutral-500' : 'text-neutral-400'}`}>
-            <strong className={`font-semibold ${isDarkMode ? 'text-neutral-300' : 'text-neutral-600'}`}>Disclaimer:</strong> Maintained by Valiance, a student-led development team. We are independent and are not officially affiliated, associated, authorized, endorsed by, or in any way connected with <span className={`font-medium ${isDarkMode ? 'text-neutral-200' : 'text-neutral-700'}`}>Saint Louis University (SLU)</span> or any of its offices.
+            <strong className={`font-semibold ${isDarkMode ? 'text-neutral-300' : 'text-neutral-600'}`}>Disclaimer:</strong> Developed and maintained by the TambayanSLU Team. TambayanSLU is an independent, student-led project and is not officially affiliated, associated, authorized, endorsed by, or in any way connected with <span className={`font-medium ${isDarkMode ? 'text-neutral-200' : 'text-neutral-700'}`}>Saint Louis University (SLU)</span> or any of its offices.
           </p>
         </div>
 

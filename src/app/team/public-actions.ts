@@ -3,6 +3,7 @@
 import { FieldValue } from 'firebase-admin/firestore';
 import { checkForDoxxing } from '@/lib/antiDoxx';
 import { censorText } from '@/lib/moderation';
+import { REPLY_MAX_LENGTH, REPLY_QUOTE_MAX_LENGTH } from '@/lib/content-limits';
 import { adminDb } from '@/lib/team/firebase-admin';
 import { getServerTeamSession } from '@/lib/team/team-server';
 
@@ -73,7 +74,7 @@ export async function createOfficialTeamReply(input: {
   const session = await getServerTeamSession();
   if (!session) return { success: false, error: 'Sign in to your Team account again.' };
   try {
-    const content = requiredContent(input.content, 300);
+    const content = requiredContent(input.content, REPLY_MAX_LENGTH);
     const postRef = adminDb().collection('posts').doc(input.postId);
     const replyRef = postRef.collection('replies').doc();
     const auditRef = adminDb().collection('teamAuditLogs').doc();
@@ -88,7 +89,7 @@ export async function createOfficialTeamReply(input: {
       if (postStatus !== 'approved' && postStatus !== 'active') throw new Error('This post is not publicly available.');
       if (parentRef && !parentSnapshot?.exists) throw new Error('The reply you are responding to no longer exists.');
       const parent = parentSnapshot?.data();
-      const quotedContent = String(parent?.content || '').slice(0, 300);
+      const quotedContent = String(parent?.content || '').slice(0, REPLY_QUOTE_MAX_LENGTH);
       transaction.create(replyRef, {
         content,
         authorAlias: session.displayName,

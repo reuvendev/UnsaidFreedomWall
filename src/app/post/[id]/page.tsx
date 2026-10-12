@@ -27,6 +27,7 @@ import { getPresignedUploadUrl } from '@/app/actions/r2-upload';
 import { Image } from 'lucide-react';
 import { TeamPublicIdentity } from '@/components/TeamPublicIdentity';
 import { createOfficialTeamReply, getCurrentTeamIdentity } from '@/app/team/public-actions';
+import { REPLY_MAX_LENGTH } from '@/lib/content-limits';
 import type { TeamRole } from '@/lib/team/types';
 
 interface PostData {
@@ -1054,6 +1055,11 @@ export default function PostDetailPage() {
 
       setReplyError('');
 
+      if (replyContent.length > REPLY_MAX_LENGTH) {
+        setReplyError(`Replies can be up to ${REPLY_MAX_LENGTH.toLocaleString()} characters.`);
+        return;
+      }
+
       // -----------------------------------------------------
       // DOXXING CHECK
       // -----------------------------------------------------
@@ -1843,7 +1849,7 @@ export default function PostDetailPage() {
 
                 {reply.content && (
                   <p
-                    className={`text-sm md:text-base leading-relaxed ${
+                    className={`whitespace-pre-wrap break-words text-sm md:text-base leading-relaxed ${
                       isDarkMode
                         ? 'text-neutral-300'
                         : 'text-neutral-700'
@@ -2056,7 +2062,7 @@ export default function PostDetailPage() {
             <textarea
               ref={replyTextareaRef}
               rows={1}
-              maxLength={300}
+              maxLength={REPLY_MAX_LENGTH}
               value={replyContent}
               onChange={(e) => {
                 setReplyContent(e.target.value);
@@ -2141,7 +2147,7 @@ export default function PostDetailPage() {
             </span>
 
             <span className="ml-auto">
-              {replyContent.length}/300
+              {replyContent.length}/{REPLY_MAX_LENGTH}
             </span>
           </div>
         </form>

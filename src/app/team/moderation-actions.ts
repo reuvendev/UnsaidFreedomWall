@@ -34,7 +34,7 @@ export async function approvePendingPost(formData: FormData) {
       transaction.set(logRef, logData(session, 'post_approved', { postId, summary: editedContent.slice(0, 160) }));
       transaction.update(memberRef, { 'activity.reviewedPosts': FieldValue.increment(1), 'activity.approvedPosts': FieldValue.increment(1) });
     });
-    revalidatePath('/team/moderation'); return { success: true };
+    revalidatePath('/team/portal/moderation'); return { success: true };
   } catch (error) { return { success: false, error: error instanceof Error ? error.message : 'Could not approve the post.' }; }
 }
 
@@ -51,7 +51,7 @@ export async function rejectPendingPost(formData: FormData) {
       transaction.set(logRef, logData(session, 'post_rejected', { postId, reason, summary: String(post.content || '').slice(0, 160) }));
       transaction.update(memberRef, { 'activity.reviewedPosts': FieldValue.increment(1), 'activity.rejectedPosts': FieldValue.increment(1) });
     });
-    revalidatePath('/team/moderation'); return { success: true };
+    revalidatePath('/team/portal/moderation'); return { success: true };
   } catch (error) { return { success: false, error: error instanceof Error ? error.message : 'Could not reject the post.' }; }
 }
 
@@ -65,7 +65,7 @@ export async function escalateReport(formData: FormData) {
   batch.update(ref, { escalated: true, escalationNote: note, escalatedAt: FieldValue.serverTimestamp(), escalatedBy: session.uid });
   batch.create(adminDb().collection('moderation_logs').doc(), logData(session, 'report_escalated', { reportId, note }));
   await batch.commit();
-  revalidatePath('/team/moderation'); return { success: true };
+  revalidatePath('/team/portal/moderation'); return { success: true };
 }
 
 export async function resolveContentReport(formData: FormData) {
@@ -101,6 +101,6 @@ export async function resolveContentReport(formData: FormData) {
       transaction.update(memberRef, { 'activity.reportsResolved': FieldValue.increment(1) });
     });
     if (removedPostRef) await db.recursiveDelete(removedPostRef).catch(() => undefined);
-    revalidatePath('/team/moderation'); return { success: true };
+    revalidatePath('/team/portal/moderation'); return { success: true };
   } catch (error) { return { success: false, error: error instanceof Error ? error.message : 'Could not resolve the report.' }; }
 }

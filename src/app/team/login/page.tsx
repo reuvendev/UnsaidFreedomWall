@@ -19,7 +19,7 @@ export default function TeamLoginPage() {
         setError(result.error || 'Access denied.');
         return;
       }
-      window.location.assign('/team');
+      window.location.assign('/team/portal');
     } catch {
       setError('Unable to sign in. Check your email and password.');
     } finally {

@@ -9,7 +9,7 @@ const date = (value: any) => value?.toDate?.().toLocaleString('en-PH', { timeZon
 export default async function TeamModerationPage() {
   const session = await getServerTeamSession();
   if (!session) redirect('/team/login');
-  if (!canModerate(session.role)) redirect('/team');
+  if (!canModerate(session.role)) redirect('/team/portal');
   const db = adminDb();
   const [pendingSnapshot, reportsSnapshot, historySnapshot, memberSnapshot] = await Promise.all([
     db.collection('posts').where('status', '==', 'pending').orderBy('createdAt', 'desc').limit(50).get(),

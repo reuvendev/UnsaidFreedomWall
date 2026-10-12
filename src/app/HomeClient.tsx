@@ -4,7 +4,6 @@ import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { doc, getDoc } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
-import ProjectBlueEasterEgg from './ProjectBlueEasterEgg'; // TEMPORARY: PROJECT BLUE 10.12
 
 const STREAK_STORAGE_KEY = 'unsaid_chat_user_id';
 
@@ -253,6 +252,18 @@ const Icons = {
       strokeLinejoin="round"
     >
       <path d="M12 3a6 6 0 0 0 9 9 9 9 0 1 1-9-9Z" />
+    </svg>
+  ),
+
+  Facebook: () => (
+    <svg
+      aria-hidden="true"
+      width="16"
+      height="16"
+      viewBox="0 0 24 24"
+      fill="currentColor"
+    >
+      <path d="M22 12.06C22 6.5 17.52 2 12 2S2 6.5 2 12.06c0 5.02 3.66 9.19 8.44 9.94v-7.03H7.9v-2.91h2.54V9.85c0-2.52 1.49-3.91 3.77-3.91 1.09 0 2.23.2 2.23.2v2.47h-1.25c-1.24 0-1.63.77-1.63 1.56v1.89h2.77l-.44 2.91h-2.33V22C18.34 21.25 22 17.08 22 12.06Z" />
     </svg>
   ),
 
@@ -509,8 +520,6 @@ export default function HomePage() {
             <br />
             Eselyu
           </h1>
-
-          <ProjectBlueEasterEgg isDarkMode={isDarkMode} /> {/* TEMPORARY: PROJECT BLUE 10.12 */}
 
 <div className="relative max-w-md lg:max-w-lg mb-8 pt-14">
 
@@ -1670,6 +1679,22 @@ export default function HomePage() {
             </Link>
           </div>
         </section>
+        </div>
+
+        <div className="flex justify-center pb-2 pt-2 sm:justify-end">
+          <a
+            href="https://www.facebook.com/tambayanslu/"
+            target="_blank"
+            rel="noopener noreferrer"
+            className={`inline-flex items-center gap-2 rounded-full border px-4 py-2 font-mono text-[10px] font-semibold uppercase tracking-wider transition-colors ${
+              isDarkMode
+                ? 'border-neutral-800 text-neutral-500 hover:border-neutral-700 hover:text-neutral-300'
+                : 'border-neutral-200 text-neutral-500 hover:border-neutral-300 hover:text-neutral-800'
+            }`}
+          >
+            <Icons.Facebook />
+            <span>Follow TambayanSLU on Facebook</span>
+          </a>
         </div>
       </main>
 

@@ -5,7 +5,7 @@ export default function robots(): MetadataRoute.Robots {
     rules: [{
       userAgent: '*',
       allow: '/',
-      disallow: ['/admin/', '/team/', '/chat/', '/inbox/', '/entries', '/user-id', '/api/', '/post/', '/appeal'],
+      disallow: ['/admin/', '/team/login', '/team/portal', '/chat/', '/inbox/', '/entries', '/user-id', '/api/', '/post/', '/appeal'],
     }],
     sitemap: 'https://www.tambayanslu.com/sitemap.xml',
     host: 'https://www.tambayanslu.com',
