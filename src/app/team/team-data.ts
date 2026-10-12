@@ -21,6 +21,11 @@ export const teamGroups: TeamGroup[] = [
         role: 'Lead Developer',
         description: 'Oversees the development and maintenance of TambayanSLU.',
       },
+      {
+        fullName: 'Bunny',
+        role: 'Developer',
+        description: 'Helps develop and maintain TambayanSLU.',
+      },
     ],
   },
   {
