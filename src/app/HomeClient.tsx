@@ -518,12 +518,12 @@ export default function HomePage() {
           >
             Tambayan
             <br />
-            Eselyu
+            SLU
           </h1>
 
-<div className="relative max-w-md lg:max-w-lg mb-8 pt-14">
+<div className="relative max-w-md lg:max-w-lg mb-8">
 
-  {/* FRIENDLY SEAL */}
+  {/* FRIENDLY SEAL 
   <div
     className="absolute right-2 sm:right-5 top-0 z-0 select-none"
     aria-label="Seal"
@@ -748,14 +748,14 @@ export default function HomePage() {
 
       </div>
     </div>
-  </div>
+  </div>  */}
 
   {/* DESCRIPTION / HIDING EDGE */}
   <div
     className={`
       relative
       z-10
-      pt-5
+      pt-0
       pr-10
       ${
         isDarkMode
@@ -856,12 +856,6 @@ export default function HomePage() {
                 <div className="mt-auto pt-5">
                   <span className="flex w-full items-center justify-center gap-2 rounded-xl bg-emerald-600 px-4 py-3 font-mono text-[10px] font-black uppercase tracking-wider text-white transition group-hover:bg-emerald-700">
                     Post anonymously
-                    <span
-                      aria-hidden="true"
-                      className="transition-transform group-hover:translate-x-1"
-                    >
-                      →
-                    </span>
                   </span>
                 </div>
               </Link>
@@ -935,12 +929,6 @@ export default function HomePage() {
                     }`}
                   >
                     Start a chat
-                    <span
-                      aria-hidden="true"
-                      className="transition-transform group-hover:translate-x-1"
-                    >
-                      →
-                    </span>
                   </span>
                 </div>
               </Link>
@@ -1015,12 +1003,6 @@ export default function HomePage() {
                 <div className="mt-auto pt-5">
                   <span className="flex w-full items-center justify-center gap-2 rounded-xl bg-emerald-600 px-4 py-3 font-mono text-[10px] font-black uppercase tracking-wider text-white transition group-hover:bg-emerald-700">
                     Play Tambay Bluff
-                    <span
-                      aria-hidden="true"
-                      className="transition-transform group-hover:translate-x-1"
-                    >
-                      →
-                    </span>
                   </span>
                 </div>
               </Link>
@@ -1106,12 +1088,6 @@ export default function HomePage() {
                     }`}
                   >
                     Open Tambayan Pet
-                    <span
-                      aria-hidden="true"
-                      className="transition-transform group-hover:translate-x-1"
-                    >
-                      →
-                    </span>
                   </span>
                 </div>
               </Link>
@@ -1185,12 +1161,6 @@ export default function HomePage() {
                     }`}
                   >
                     Browse articles
-                    <span
-                      aria-hidden="true"
-                      className="transition-transform group-hover:translate-x-1"
-                    >
-                      →
-                    </span>
                   </span>
                 </div>
               </Link>

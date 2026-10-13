@@ -34,6 +34,7 @@ import { db } from '@/lib/firebase';
 import type { PostProps } from './post-types';
 import { mapPublicWallPost } from './post-types';
 import { TeamPublicIdentity } from '@/components/TeamPublicIdentity';
+import Seal from "@/components/Seal";
 
 
 const CATEGORIES = [
@@ -1993,10 +1994,18 @@ const copyPostLink =
               <div className="flex flex-col gap-6 sm:flex-row sm:items-end sm:justify-between">
                 <div className="min-w-0">
 
+                  {/* Seal mascot */}
+                  <div className="relative h-[90px] mb-4 md:hidden">
+                    <Seal
+                      isDarkMode={isDarkMode}
+                      className="!right-0 !top-0"
+                    />
+                  </div>
+
                   <h1 className={`text-4xl font-extrabold tracking-tight sm:text-5xl ${
                     isDarkMode ? 'text-white' : 'text-neutral-900'
                   }`}>
-                    What&apos;s on your mind?
+                    What's on your mind?
                   </h1>
 
                 </div>
